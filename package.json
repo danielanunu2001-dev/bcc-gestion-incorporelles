@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "html-pdf": "^3.0.1",
+    "pdfmake": "^0.1.71",
+    "react-force-graph": "^1.48.2",
+    "react-force-graph-2d": "^1.29.1",
+    "react-network-canvas": "^0.9.4",
+    "react-simple-typewriter": "^5.0.1"
+  }
+}

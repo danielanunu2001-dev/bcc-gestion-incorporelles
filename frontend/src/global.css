@@ -1,0 +1,121 @@
+/* frontend/src/global.css */
+
+/* Mode clair (défaut) */
+:root {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-sidebar: #0f172a;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --border-light: #f1f5f9;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #8b5cf6;
+}
+
+/* Mode sombre - s'applique quand body a la classe dark-mode */
+body.dark-mode {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1f2937;
+  --bg-sidebar: #0a0f1a;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #9ca3af;
+  --border-color: #334155;
+  --border-light: #1e293b;
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+}
+
+/* Application automatique des couleurs à TOUS les composants */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Tous les éléments avec fond blanc deviennent fond de carte */
+div[style*="backgroundColor: white"],
+div[style*="backgroundColor: '#ffffff'"],
+div[style*="backgroundColor: '#fff'"] {
+  background-color: var(--bg-card) !important;
+}
+
+/* Tous les textes foncés deviennent texte clair en mode sombre */
+div[style*="color: #111"],
+div[style*="color: '#111'"],
+div[style*="color: #1f2937"],
+span[style*="color: #111"],
+span[style*="color: '#111'"] {
+  color: var(--text-primary) !important;
+}
+
+/* Cartes et conteneurs */
+.card, 
+.stat-card,
+.filters-card,
+.logs-card,
+.chart-card,
+.detail-card,
+.info-card,
+.facture-card {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Inputs et selects */
+input, select, textarea, .filter-select, .search-input {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Tableaux */
+table {
+  background-color: var(--bg-card) !important;
+}
+
+th {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+td {
+  border-bottom-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Boutons */
+button:not(.no-theme) {
+  transition: all 0.2s ease;
+}
+
+/* Scrollbar mode sombre */
+body.dark-mode ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 10px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Animation de transition */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}

@@ -1,0 +1,445 @@
+/* ============ VARIABLES RESPONSIVES UNIVERSELLES ============ */
+:root {
+  /* Tailles fluides pour tous les appareils */
+  --spacing-mobile: clamp(12px, 4vw, 20px);
+  --spacing-tablet: clamp(20px, 5vw, 30px);
+  --font-mobile: clamp(14px, 4vw, 16px);
+  --font-tablet: clamp(16px, 3vw, 18px);
+  --container-padding: clamp(12px, 5vw, 32px);
+  --card-radius: clamp(8px, 3vw, 12px);
+}
+
+/* ============ LAYOUT GLOBAL AMÉLIORÉ ============ */
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary, #f1f5f9);
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* ============ DASHBOARD RESPONSIF ============ */
+
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--container-padding);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-title {
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  color: var(--primary-dark, #1e293b);
+  margin-bottom: clamp(1rem, 4vw, 2rem);
+  word-break: break-word;
+}
+
+/* STATS CARDS - Version ultra-responsive */
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: clamp(1rem, 3vw, 1.5rem);
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: var(--card-radius);
+  padding: clamp(1rem, 4vw, 1.5rem);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 3vw, 1rem);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+/* Pour les très petits écrans (Galaxy Fold, iPhone SE) */
+@media (max-width: 380px) {
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
+
+.stat-icon {
+  width: clamp(40px, 10vw, 48px);
+  height: clamp(40px, 10vw, 48px);
+  border-radius: clamp(8px, 3vw, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
+  flex-shrink: 0;
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0; /* Empêche le débordement */
+}
+
+.stat-label {
+  font-size: clamp(0.75rem, 3vw, 0.875rem);
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-value {
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  font-weight: bold;
+  color: var(--text-primary, #0f172a);
+  word-break: break-word;
+}
+
+/* ============ GRILLES DE GRAPHIQUES OPTIMISÉES ============ */
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr));
+  gap: clamp(1rem, 3vw, 1.5rem);
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
+}
+
+.chart-card {
+  background-color: white;
+  border-radius: var(--card-radius);
+  padding: clamp(1rem, 4vw, 1.5rem);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+  border: 1px solid var(--border-color, #e2e8f0);
+  overflow-x: auto; /* Pour les graphiques qui débordent */
+  -webkit-overflow-scrolling: touch;
+}
+
+.chart-header {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chart-title {
+  font-size: clamp(0.875rem, 4vw, 1rem);
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+/* ============ ALERTES WIDGET ============ */
+
+.alertes-widget {
+  background-color: white;
+  border-radius: var(--card-radius);
+  padding: clamp(1rem, 4vw, 1.5rem);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.alertes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.alerte-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: clamp(0.5rem, 3vw, 0.75rem);
+  background-color: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  font-size: clamp(0.875rem, 3.5vw, 0.95rem);
+  border-left: 4px solid transparent;
+}
+
+.alerte-date {
+  margin-left: auto;
+  font-size: clamp(0.7rem, 3vw, 0.8rem);
+  color: var(--text-muted, #64748b);
+}
+
+/* Sur mobile, les alertes s'empilent verticalement */
+@media (max-width: 480px) {
+  .alerte-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .alerte-date {
+    margin-left: 0;
+  }
+}
+
+/* ============ FORMULAIRES OPTIMISÉS POUR MOBILE ============ */
+
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 clamp(0.5rem, 3vw, 1rem);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-card {
+  background-color: white;
+  border-radius: var(--card-radius);
+  padding: clamp(1rem, 5vw, 2rem);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+}
+
+.form-group {
+  margin-bottom: clamp(1rem, 4vw, 1.5rem);
+}
+
+.form-label {
+  font-size: clamp(0.8rem, 3.5vw, 0.875rem);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: clamp(0.5rem, 3vw, 0.75rem);
+  font-size: 16px; /* Important : évite le zoom sur iOS */
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+/* Pour les petits écrans, les inputs sont plus grands */
+@media (max-width: 480px) {
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 16px; /* Empêche le zoom automatique sur iOS */
+    padding: 12px; /* Plus facile à toucher */
+  }
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+@media (max-width: 640px) {
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions button {
+    width: 100%;
+    padding: 12px; /* Plus facile à toucher */
+  }
+}
+
+/* ============ LISTES OPTIMISÉES ============ */
+
+.list-container {
+  background-color: white;
+  border-radius: var(--card-radius);
+  padding: clamp(1rem, 4vw, 1.5rem);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.1));
+  overflow-x: auto;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.list-title {
+  font-size: clamp(1.1rem, 5vw, 1.25rem);
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.list-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.list-search {
+  flex: 1;
+  min-width: 200px;
+  padding: clamp(0.5rem, 3vw, 0.75rem);
+  font-size: 16px; /* Évite le zoom sur iOS */
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: clamp(0.75rem, 3vw, 1rem);
+  background-color: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .list-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ============ MEDIA QUERIES AMÉLIORÉES ============ */
+
+/* Tablettes (portrait et paysage) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .dashboard-container {
+    padding: 1.5rem;
+  }
+  
+  .dashboard-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .form-container {
+    max-width: 90%;
+  }
+}
+
+/* Grands smartphones (paysage) */
+@media (min-width: 481px) and (max-width: 767px) and (orientation: landscape) {
+  .dashboard-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .dashboard-container {
+    padding: 1rem;
+  }
+  
+  .stat-card {
+    padding: 0.75rem;
+  }
+}
+
+/* Petits smartphones (iPhone SE, Galaxy Fold plié) */
+@media (max-width: 380px) {
+  .dashboard-container {
+    padding: 0.75rem;
+  }
+  
+  .stat-value {
+    font-size: 1rem;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  
+  .chart-card {
+    padding: 0.75rem;
+  }
+}
+
+/* Écrans très larges (tablettes paysage) */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .dashboard-container {
+    max-width: 95%;
+    padding: 1.5rem;
+  }
+}
+
+/* Support des notchs et écrans pliables */
+@supports (padding: max(0px)) {
+  .dashboard-container {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  
+  .form-container {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+}
+
+/* ============ ACCESSIBILITÉ TOUCH ============ */
+
+/* Taille minimale pour tous les éléments cliquables */
+button,
+a,
+[role="button"],
+.stat-card,
+.list-item,
+.alerte-item {
+  min-height: 44px;
+}
+
+@media (max-width: 768px) {
+  button,
+  .stat-card,
+  .list-item {
+    min-height: 48px; /* Plus grand sur mobile */
+  }
+}
+
+/* ============ CORRECTIONS SPÉCIFIQUES ============ */
+
+/* Empêche le débordement horizontal */
+body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Pour les tableaux qui débordent */
+.responsive-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+  width: calc(100% + 2rem);
+}
+
+/* Amélioration du scroll sur mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scroll fluide */
+html {
+  scroll-behavior: smooth;
+}
