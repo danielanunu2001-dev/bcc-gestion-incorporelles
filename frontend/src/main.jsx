@@ -68,14 +68,9 @@ if (!rootElement) {
 
 // Rendu principal
 ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <Provider store={store}>
-      {/* ThemeProvider peut être ajouté si nécessaire, mais index.css gère déjà le dark mode via prefers-color-scheme */}
-      {/* <ThemeProvider> */}
-        <RouterProvider router={router} />
-      {/* </ThemeProvider> */}
-    </Provider>
-  </React.StrictMode>
+  <Provider store={store}>
+    <RouterProvider router={router} />
+  </Provider>
 );
 
 // Optionnel: Gestion des erreurs globales

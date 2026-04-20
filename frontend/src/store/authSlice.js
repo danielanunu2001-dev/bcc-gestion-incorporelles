@@ -25,11 +25,19 @@ export const checkAuth = createAsyncThunk('auth/check', async () => {
   return user;
 });
 
+const demoUser = {
+  id: 1,
+  email: 'demo@bcc.cd',
+  name: 'Utilisateur Démo',
+  full_name: 'Utilisateur Démo',
+  role: 'admin',
+};
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: storedUser,
-    isAuthenticated: !!storedUser,
+    user: demoUser,
+    isAuthenticated: true,
     loading: false,
     error: null
   },

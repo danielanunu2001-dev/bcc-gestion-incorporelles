@@ -597,3 +597,327 @@ tr:hover {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* ==================================================================== */
+/* ============ FUTURISTIC THEME OVERRIDE (GLOBAL) ==================== */
+/* ==================================================================== */
+:root {
+  /* Palette futuriste */
+  --neon-cyan: #00fff7;
+  --neon-purple: #7c3aed;
+  --neon-pink: #ec4899;
+  --neon-blue: #3b82f6;
+
+  /* Overrides des variables globales en thème futuriste sombre */
+  --bg-primary: rgba(15, 23, 42, 0.55);
+  --bg-secondary: rgba(30, 41, 59, 0.45);
+  --bg-tertiary: rgba(51, 65, 85, 0.55);
+  --bg-card: rgba(15, 23, 42, 0.65);
+
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-light: #f8fafc;
+
+  --border-color: rgba(0, 255, 247, 0.18);
+  --border-focus: var(--neon-cyan);
+}
+
+html, body {
+  background: transparent !important;
+  color: var(--text-primary);
+}
+
+body {
+  color: var(--text-primary);
+  background: transparent !important;
+}
+
+#root {
+  background: transparent;
+}
+
+/* Glassmorphism sur toutes les cartes */
+.card,
+.table-container,
+.modal-content {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.75) 0%,
+    rgba(30, 41, 59, 0.55) 100%
+  ) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(0, 255, 247, 0.15);
+  border-radius: 16px !important;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 20px rgba(0, 255, 247, 0.05) !important;
+  color: var(--text-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 255, 247, 0.6),
+    transparent
+  );
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 255, 247, 0.4);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(0, 255, 247, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Boutons néon */
+.btn-primary,
+button.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%) !important;
+  border: 1px solid rgba(0, 255, 247, 0.3);
+  color: #fff;
+  box-shadow:
+    0 4px 14px rgba(124, 58, 237, 0.4),
+    0 0 20px rgba(0, 255, 247, 0.15);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.btn-primary:hover:not(:disabled),
+button.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(124, 58, 237, 0.6),
+    0 0 30px rgba(0, 255, 247, 0.3);
+}
+
+.btn-secondary,
+button.btn-secondary {
+  background: rgba(15, 23, 42, 0.6) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid rgba(0, 255, 247, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 20px rgba(0, 255, 247, 0.3);
+}
+
+/* Inputs & formulaires glass */
+input, select, textarea {
+  background: rgba(15, 23, 42, 0.5) !important;
+  border: 1px solid rgba(0, 255, 247, 0.2) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 10px !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--neon-cyan) !important;
+  box-shadow:
+    0 0 0 3px rgba(0, 255, 247, 0.15),
+    0 0 20px rgba(0, 255, 247, 0.2) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+/* Tables glass */
+.table-container table {
+  background: transparent !important;
+}
+
+thead {
+  background: rgba(15, 23, 42, 0.6) !important;
+}
+
+th {
+  color: var(--neon-cyan) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  border-bottom-color: rgba(0, 255, 247, 0.25) !important;
+}
+
+td {
+  color: var(--text-primary) !important;
+  border-bottom-color: rgba(0, 255, 247, 0.08) !important;
+}
+
+tr:hover {
+  background: rgba(0, 255, 247, 0.05) !important;
+}
+
+/* Badges néon */
+.badge {
+  backdrop-filter: blur(8px);
+  border: 1px solid currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+}
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+}
+.badge-danger {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+}
+.badge-info {
+  background-color: rgba(0, 255, 247, 0.12) !important;
+  color: var(--neon-cyan) !important;
+}
+
+/* Titres avec gradient néon */
+h1, h2 {
+  background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-purple) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(0, 255, 247, 0.3);
+}
+
+h3, h4, h5, h6 {
+  color: var(--text-primary);
+}
+
+/* Scrollbar néon */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-purple));
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 255, 247, 0.5);
+}
+::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 15px rgba(0, 255, 247, 0.8);
+}
+
+/* Sélection néon */
+::selection {
+  background: rgba(0, 255, 247, 0.4) !important;
+  color: #fff !important;
+  text-shadow: 0 0 10px var(--neon-cyan);
+}
+
+/* Animation de glow réutilisable */
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 255, 247, 0.3), 0 0 40px rgba(0, 255, 247, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 247, 0.5), 0 0 60px rgba(0, 255, 247, 0.2);
+  }
+}
+
+@keyframes neon-border-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.neon-glow {
+  animation: neon-pulse 3s ease-in-out infinite;
+}
+
+/* Classe utilitaire pour carte futuriste explicite */
+.futuristic-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.75), rgba(30, 41, 59, 0.55));
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 255, 247, 0.2);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.futuristic-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    var(--neon-cyan),
+    var(--neon-purple),
+    var(--neon-pink),
+    var(--neon-cyan)
+  );
+  background-size: 300% 300%;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  animation: neon-border-flow 4s ease infinite;
+  transition: opacity 0.35s;
+  pointer-events: none;
+}
+
+.futuristic-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  border-color: transparent;
+}
+
+.futuristic-card:hover::before {
+  opacity: 1;
+}
+
+/* Override dark-mode media query (qu'on force quoi qu'il arrive) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-primary: rgba(15, 23, 42, 0.55);
+    --bg-secondary: rgba(30, 41, 59, 0.45);
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+  }
+}
+
+/* Liens néon */
+a {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 255, 247, 0.4);
+}
+
+a:hover {
+  color: #fff;
+  text-shadow: 0 0 15px var(--neon-cyan);
+  text-decoration: none;
+}
+
+/* Modal overlay plus sombre */
+.modal-overlay {
+  background: rgba(2, 6, 23, 0.75) !important;
+  backdrop-filter: blur(8px);
+}

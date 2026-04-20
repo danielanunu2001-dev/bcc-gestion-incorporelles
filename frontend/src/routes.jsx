@@ -24,9 +24,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
+      <MainLayout />
     ),
     children: [
       // Redirection

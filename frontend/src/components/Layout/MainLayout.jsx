@@ -1,6 +1,7 @@
 // frontend/src/components/Layout/MainLayout.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import FuturisticBackground from '../FuturisticBackground';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
@@ -346,9 +347,7 @@ const MainLayout = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-    toast.success('Déconnexion réussie');
+    toast.info('Authentification désactivée - accès direct à l\'application');
   };
 
   const isActive = (path) => {
@@ -378,8 +377,10 @@ const MainLayout = () => {
   );
 
   return (
-    <RoutePersister>
-      <div style={{ ...styles.container, backgroundColor: darkMode ? 'var(--text-primary)' : 'var(--bg-primary)' }}>
+    <>
+      <FuturisticBackground />
+      <RoutePersister>
+      <div style={{ ...styles.container, backgroundColor: 'transparent' }}>
         {/* Statut en ligne */}
         <div style={{
           ...styles.onlineStatus,
@@ -871,7 +872,8 @@ const MainLayout = () => {
           )}
         </AnimatePresence>
       </div>
-    </RoutePersister>
+      </RoutePersister>
+    </>
   );
 };
 
@@ -901,7 +903,11 @@ const styles = {
     zIndex: 1000,
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '2px 0 10px rgba(0,0,0,0.1)'
+    background: 'linear-gradient(180deg, rgba(2,6,23,0.85) 0%, rgba(15,23,42,0.75) 50%, rgba(30,27,75,0.85) 100%)',
+    backdropFilter: 'blur(20px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+    borderRight: '1px solid rgba(0,255,247,0.18)',
+    boxShadow: '4px 0 40px rgba(0,0,0,0.5), inset -1px 0 0 rgba(0,255,247,0.1)'
   },
   logoContainer: {
     padding: '1.5rem 1rem',
@@ -923,8 +929,13 @@ const styles = {
     fontSize: '1.2rem',
     fontWeight: 'bold',
     margin: 0,
-    color: 'var(--bg-card)',
-    letterSpacing: '1px'
+    background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 100%)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    letterSpacing: '2px',
+    textShadow: '0 0 20px rgba(0,255,247,0.5)',
+    filter: 'drop-shadow(0 0 10px rgba(0,255,247,0.4))'
   },
   logoMini: {
     fontSize: '1.5rem',
@@ -954,15 +965,16 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
-    border: 'none',
+    border: '1px solid transparent',
     background: 'none',
     cursor: 'pointer',
     fontSize: '0.9rem',
-    transition: 'all 0.2s',
-    borderRadius: '10px',
+    transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
+    borderRadius: '12px',
     margin: '0.25rem 0',
     padding: '0.75rem 1rem',
-    position: 'relative'
+    position: 'relative',
+    backdropFilter: 'blur(8px)'
   },
   navIcon: {
     fontSize: '1.2rem',
@@ -1002,16 +1014,18 @@ const styles = {
     margin: '0.5rem'
   },
   userAvatar: {
-    width: '40px',
-    height: '40px',
+    width: '44px',
+    height: '44px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 50%, #ec4899 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '1.2rem',
     fontWeight: 'bold',
-    color: 'var(--bg-card)'
+    color: '#fff',
+    border: '2px solid rgba(0,255,247,0.4)',
+    boxShadow: '0 0 20px rgba(0,255,247,0.4), inset 0 0 10px rgba(255,255,255,0.2)'
   },
   userDetails: {
     flex: 1
@@ -1035,11 +1049,15 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    background: 'linear-gradient(135deg, rgba(15,23,42,0.75) 0%, rgba(30,41,59,0.55) 100%)',
+    backdropFilter: 'blur(20px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+    borderBottom: '1px solid rgba(0,255,247,0.2)',
+    boxShadow: '0 4px 30px rgba(0,0,0,0.3), 0 0 20px rgba(0,255,247,0.05)',
     position: 'sticky',
     top: 0,
     zIndex: 999,
-    transition: 'background-color 0.3s ease'
+    transition: 'all 0.3s ease'
   },
   headerLeft: {
     display: 'flex',
@@ -1060,19 +1078,26 @@ const styles = {
     position: 'relative'
   },
   pageTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '600',
+    fontSize: '1.6rem',
+    fontWeight: '700',
     margin: 0,
+    background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 50%, #ec4899 100%)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    letterSpacing: '0.5px',
+    filter: 'drop-shadow(0 0 10px rgba(0,255,247,0.4))',
     transition: 'color 0.3s ease'
   },
   pageTitleAccent: {
     position: 'absolute',
     bottom: '-4px',
     left: 0,
-    width: '40px',
+    width: '60px',
     height: '3px',
-    backgroundColor: '#3b82f6',
-    borderRadius: '2px'
+    background: 'linear-gradient(90deg, #00fff7, #7c3aed, transparent)',
+    borderRadius: '2px',
+    boxShadow: '0 0 10px rgba(0,255,247,0.6)'
   },
   headerRight: {
     display: 'flex',
@@ -1084,9 +1109,13 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
+    background: 'rgba(15,23,42,0.5)',
+    border: '1px solid rgba(0,255,247,0.2)',
+    backdropFilter: 'blur(10px)',
     borderRadius: '10px',
-    fontSize: '0.875rem'
+    fontSize: '0.875rem',
+    color: '#00fff7',
+    boxShadow: '0 0 15px rgba(0,255,247,0.1)'
   },
   timeIcon: {
     fontSize: '1rem'
@@ -1096,18 +1125,20 @@ const styles = {
     color: 'var(--text-primary)'
   },
   iconButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '1.25rem',
+    background: 'rgba(15,23,42,0.4)',
+    border: '1px solid rgba(0,255,247,0.15)',
+    fontSize: '1.1rem',
     cursor: 'pointer',
-    color: 'var(--text-secondary)',
+    color: '#00fff7',
     padding: '0.5rem',
-    borderRadius: '8px',
-    transition: 'all 0.2s',
+    borderRadius: '10px',
+    backdropFilter: 'blur(8px)',
+    transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative'
+    position: 'relative',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
   },
   notificationWrapper: {
     position: 'relative'
@@ -1230,10 +1261,13 @@ const styles = {
     alignItems: 'center',
     gap: '0.25rem',
     fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
+    color: '#e2e8f0',
     padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
-    borderRadius: '10px'
+    background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(0,255,247,0.1))',
+    border: '1px solid rgba(0,255,247,0.25)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '10px',
+    boxShadow: '0 0 15px rgba(124,58,237,0.15)'
   },
   greetingEmoji: {
     fontSize: '1rem'
@@ -1263,13 +1297,15 @@ const styles = {
     width: '36px',
     height: '36px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'var(--bg-card)',
+    background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 100%)',
+    color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '0.9rem',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    border: '2px solid rgba(0,255,247,0.4)',
+    boxShadow: '0 0 15px rgba(0,255,247,0.4)'
   },
   userMenuDropdown: {
     position: 'absolute',

@@ -1,7 +1,5 @@
 import { createBrowserRouter, Navigate, redirect } from 'react-router-dom';
-import ProtectedRoute from '../components/ProtectedRoute';
 import MainLayout from '../components/Layout/MainLayout';
-import Login from '../pages/Login/Login';
 
 // Pages principales
 import Dashboard from '../pages/Dashboard/Dashboard';
@@ -56,15 +54,11 @@ import ContratForm from '../pages/Contrats/ContratForm';
 export const router = createBrowserRouter([
   {
     path: '/login',
-    element: <Login />,
+    element: <Navigate to="/dashboard" replace />,
   },
   {
     path: '/',
-    element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
-    ),
+    element: <MainLayout />,
     children: [
       {
         index: true,
