@@ -4,12 +4,13 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const cookieParser = require('cookie-parser'); // ✅ Correction: cookie-parser
+const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
-// ✅ IMPORT CORRECT - Utiliser la destructuration
+// IMPORT CORRECT
 const { sequelize, testConnection } = require('./config/database');
 
 // Vérifier que sequelize est correctement importé
@@ -30,28 +31,17 @@ const auditRoutes = require('./routes/auditRoutes');
 const depreciationRoutes = require('./routes/depreciationRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const mouvementRoutes = require('./routes/mouvementRoutes');
-
-// ROUTES DOCUMENTS
 const documentRoutes = require('./routes/documentRoutes');
-
-// NOUVELLES ROUTES
 const categorieAmortissementRoutes = require('./routes/categorieAmortissementRoutes');
 const reevaluationRoutes = require('./routes/reevaluationRoutes');
-
-// ROUTES D'UPLOAD
 const uploadRoutes = require('./routes/uploadRoutes');
-
-// ROUTES DES ANOMALIES
 const anomalieRoutes = require('./routes/anomalieRoutes');
-
-// ROUTES DES DEVISES
 const deviseRoutes = require('./routes/deviseRoutes');
-
-// ✅ ROUTES DES EXERCICES COMPTABLES
 const exerciceRoutes = require('./routes/exerciceRoutes');
 
-// SERVICE DE MISE À JOUR AUTOMATIQUE DES TAUX DE CHANGE
+// SERVICES
 const TauxService = require('./services/tauxService');
+const alerteService = require('./services/alerteService');
 
 const app = express();
 
@@ -89,7 +79,65 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ============ CONFIGURATION DES FICHIERS STATIQUES ============
+
+// ✅ Créer les dossiers nécessaires s'ils n'existent pas
+const createDirectories = () => {
+  const directories = [
+    path.join(__dirname, 'uploads'),
+    path.join(__dirname, 'uploads/factures'),
+    path.join(__dirname, 'uploads/factures_contrats'),
+    path.join(__dirname, 'uploads/documents'),
+    path.join(__dirname, 'uploads/profiles'),
+    path.join(process.cwd(), 'uploads'),
+    path.join(process.cwd(), 'uploads/factures'),
+    path.join(process.cwd(), 'uploads/factures_contrats'),
+    path.join(process.cwd(), 'uploads/documents'),
+    path.join(process.cwd(), 'uploads/profiles'),
+  ];
+  
+  for (const dir of directories) {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`📁 Dossier créé: ${dir}`);
+    }
+  }
+};
+
+createDirectories();
+
+// ✅ Servir les fichiers statiques depuis plusieurs emplacements possibles
+const serveStaticDirectories = [
+  { dir: path.join(__dirname, 'uploads'), url: '/uploads' },
+  { dir: path.join(process.cwd(), 'uploads'), url: '/uploads' },
+  { dir: path.join(__dirname, '../uploads'), url: '/uploads' },
+  { dir: path.join(__dirname, 'uploads/profiles'), url: '/uploads/profiles' },
+  { dir: path.join(process.cwd(), 'uploads/profiles'), url: '/uploads/profiles' },
+];
+
+for (const { dir, url } of serveStaticDirectories) {
+  if (fs.existsSync(dir)) {
+    app.use(url, express.static(dir));
+    console.log(`📁 Serveur statique configuré: ${dir} -> ${url}`);
+  }
+}
+
+// ✅ Configuration supplémentaire pour les factures
+const facturesDir = path.join(process.cwd(), 'uploads/factures');
+if (fs.existsSync(facturesDir)) {
+  app.use('/uploads/factures', express.static(facturesDir));
+  console.log(`📁 Factures servies depuis: ${facturesDir}`);
+}
+
+// ✅ Configuration pour les photos de profil
+const profilesDir = path.join(process.cwd(), 'uploads/profiles');
+if (fs.existsSync(profilesDir)) {
+  app.use('/uploads/profiles', express.static(profilesDir));
+  console.log(`📁 Photos de profil servies depuis: ${profilesDir}`);
+} else {
+  console.log(`⚠️ Dossier profiles non trouvé: ${profilesDir}`);
+}
 
 // Middleware pour logger les requêtes
 app.use((req, res, next) => {
@@ -105,11 +153,7 @@ app.use('/api/categories-amortissement', categorieAmortissementRoutes);
 app.use('/api/contrats', contratRoutes);
 app.use('/api/anomalies', anomalieRoutes);
 app.use('/api/devises', deviseRoutes);
-
-// ✅ ROUTE INDÉPENDANTE POUR LES DOCUMENTS (ARCHIVE LÉGALE)
 app.use('/api/documents', documentRoutes);
-
-// ✅ ROUTE POUR LES EXERCICES COMPTABLES
 app.use('/api/exercices', exerciceRoutes);
 
 // Routes avec paramètre actifId
@@ -149,24 +193,11 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     status: 'OK',
     timestamp: new Date().toISOString(),
-    endpoints: {
-      auth: '/api/auth',
-      users: '/api/users',
-      actifs: '/api/actifs',
-      categories: '/api/categories-amortissement',
-      contrats: '/api/contrats',
-      contrats_actif: '/api/actifs/:id/contrats',
-      depreciations: '/api/actifs/:id/depreciations',
-      mouvements: '/api/actifs/:id/mouvements',
-      documents: '/api/documents',
-      documents_actif: '/api/actifs/:id/documents',
-      reevaluations: '/api/actifs/:id/reevaluations',
-      anomalies: '/api/anomalies',
-      devises: '/api/devises',
-      audit: '/api/audit-logs',
-      reports: '/api/reports',
-      uploads: '/api/uploads',
-      exercices: '/api/exercices'
+    uploads: {
+      factures: '/uploads/factures',
+      factures_contrats: '/uploads/factures_contrats',
+      documents: '/uploads/documents',
+      profiles: '/uploads/profiles'
     }
   });
 });
@@ -224,7 +255,6 @@ async function generateMissingFacturesOnStartup() {
     
     const { Contrat } = require('./models');
     const { Op } = require('sequelize');
-    const fs = require('fs');
     const PDFDocument = require('pdfkit');
     const moment = require('moment');
 
@@ -245,7 +275,7 @@ async function generateMissingFacturesOnStartup() {
 
     console.log(`📦 ${contrats.length} contrat(s) sans facture trouvé(s) - Génération en cours...\n`);
 
-    const uploadDir = path.join(__dirname, '../uploads/factures_contrats');
+    const uploadDir = path.join(process.cwd(), 'uploads/factures_contrats');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
       console.log(`📁 Dossier créé: ${uploadDir}\n`);
@@ -258,7 +288,8 @@ async function generateMissingFacturesOnStartup() {
       try {
         console.log(`   📄 Génération facture pour ${contrat.numero_contrat}...`);
         
-        const fileName = `facture_contrat_${contrat.numero_contrat.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
+        const safeName = contrat.numero_contrat.replace(/[^a-z0-9]/gi, '_');
+        const fileName = `facture_contrat_${safeName}_${Date.now()}.pdf`;
         const filePath = path.join(uploadDir, fileName);
         const relativePath = `/uploads/factures_contrats/${fileName}`;
 
@@ -342,10 +373,84 @@ async function generateMissingFacturesOnStartup() {
     console.log(`\n📊 RÉSUMÉ GÉNÉRATION FACTURES:`);
     console.log(`   ✅ Succès: ${successCount} facture(s)`);
     console.log(`   ❌ Échecs: ${errorCount} facture(s)`);
-    console.log(`   📁 Dossier: ${path.join(__dirname, '../uploads/factures_contrats')}\n`);
+    console.log(`   📁 Dossier: ${uploadDir}\n`);
     
   } catch (error) {
     console.error('❌ Erreur lors de la vérification des factures:', error);
+  }
+}
+
+/**
+ * Vérifie et corrige les chemins des factures d'actifs
+ */
+async function verifyAndFixActifFactures() {
+  try {
+    console.log('\n📄 Vérification des factures d\'actifs...');
+    
+    const { Actif, Facture } = require('./models');
+    
+    const actifsAvecFacture = await Actif.findAll({
+      include: [{
+        model: Facture,
+        as: 'facture',
+        required: true
+      }]
+    });
+    
+    if (actifsAvecFacture.length === 0) {
+      console.log('✅ Aucun actif avec facture trouvé\n');
+      return;
+    }
+    
+    console.log(`📦 ${actifsAvecFacture.length} actif(s) avec facture trouvé(s)\n`);
+    
+    let fixedCount = 0;
+    
+    for (const actif of actifsAvecFacture) {
+      const facture = actif.facture;
+      const fileName = facture.nom_fichier;
+      
+      if (!fileName) {
+        console.log(`⚠️ Actif ${actif.code}: Pas de nom de fichier`);
+        continue;
+      }
+      
+      // Vérifier si le fichier existe dans les dossiers possibles
+      const possiblePaths = [
+        path.join(process.cwd(), 'uploads/factures', fileName),
+        path.join(__dirname, 'uploads/factures', fileName),
+        path.join(__dirname, '../uploads/factures', fileName),
+      ];
+      
+      let fileExists = false;
+      let existingPath = null;
+      
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          fileExists = true;
+          existingPath = p;
+          break;
+        }
+      }
+      
+      if (!fileExists) {
+        console.log(`❌ Actif ${actif.code}: Fichier manquant - ${fileName}`);
+        
+        // Option: Marquer la facture comme non disponible
+        await facture.update({ est_disponible: false });
+      } else {
+        console.log(`✅ Actif ${actif.code}: Fichier trouvé - ${fileName}`);
+        await facture.update({ est_disponible: true });
+        fixedCount++;
+      }
+    }
+    
+    console.log(`\n📊 RÉSUMÉ VÉRIFICATION FACTURES D\'ACTIFS:`);
+    console.log(`   ✅ Disponibles: ${fixedCount} facture(s)`);
+    console.log(`   ❌ Manquantes: ${actifsAvecFacture.length - fixedCount} facture(s)\n`);
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la vérification:', error);
   }
 }
 
@@ -353,7 +458,7 @@ async function startServer() {
   try {
     console.log('\n🔄 Connexion à PostgreSQL...');
     
-    // ✅ Utiliser testConnection pour vérifier la connexion
+    // Utiliser testConnection pour vérifier la connexion
     const isConnected = await testConnection();
     if (!isConnected) {
       throw new Error('Impossible de se connecter à la base de données');
@@ -370,6 +475,9 @@ async function startServer() {
 
     // ✅ GÉNÉRER LES FACTURES MANQUANTES AU DÉMARRAGE
     await generateMissingFacturesOnStartup();
+    
+    // ✅ VÉRIFIER LES FACTURES D'ACTIFS
+    await verifyAndFixActifFactures();
 
     // Démarrer le service de taux de change
     console.log('\n💰 Initialisation du service de taux de change...');
@@ -381,31 +489,32 @@ async function startServer() {
       console.error('⚠️ Erreur service de taux:', error.message);
     }
 
+    // DÉMARRER LE SERVICE D'ALERTES
+    console.log('\n🔔 Initialisation du service d\'alertes...');
+    try {
+      alerteService.startAlerteService();
+      console.log('✅ Service d\'alertes démarré (vérification quotidienne à 8h)');
+    } catch (error) {
+      console.error('⚠️ Erreur service d\'alertes:', error.message);
+    }
+
     const server = app.listen(PORT, () => {
       console.log(`\n🚀 Serveur sur http://localhost:${PORT}`);
       console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
       console.log(`🌐 CORS autorisé pour: ${allowedOrigins.join(', ')}`);
       console.log(`🍪 Cookies: activés`);
-      console.log(`📦 Routes chargées:`);
-      console.log(`   - Auth: /api/auth`);
-      console.log(`   - Users: /api/users`);
-      console.log(`   - Actifs: /api/actifs`);
-      console.log(`   - Catégories: /api/categories-amortissement`);
-      console.log(`   - Contrats: /api/contrats`);
-      console.log(`   - Anomalies: /api/anomalies`);
-      console.log(`   - 💰 Devises: /api/devises`);
-      console.log(`   - Audit: /api/audit-logs`);
-      console.log(`   - Reports: /api/reports`);
-      console.log(`   - Uploads: /api/uploads`);
-      console.log(`   - 📄 Documents: /api/documents`);
-      console.log(`   - 📊 Exercices comptables: /api/exercices`);
-      console.log(`   - 📑 Factures contrats: génération automatique au démarrage`);
+      console.log(`📁 Dossiers uploads:`);
+      console.log(`   - Factures actifs: ${path.join(process.cwd(), 'uploads/factures')}`);
+      console.log(`   - Factures contrats: ${path.join(process.cwd(), 'uploads/factures_contrats')}`);
+      console.log(`   - Documents: ${path.join(process.cwd(), 'uploads/documents')}`);
+      console.log(`   - Photos de profil: ${path.join(process.cwd(), 'uploads/profiles')}`);
     });
 
     // Arrêt propre
     process.on('SIGTERM', () => {
       console.log('🛑 Arrêt du serveur...');
       TauxService.stopAutoUpdate();
+      alerteService.stopAlerteService();
       server.close(() => {
         sequelize.close();
         console.log('✅ Serveur arrêté');
@@ -415,6 +524,7 @@ async function startServer() {
     process.on('SIGINT', () => {
       console.log('\n🛑 Arrêt par Ctrl+C...');
       TauxService.stopAutoUpdate();
+      alerteService.stopAlerteService();
       server.close(() => {
         sequelize.close();
         console.log('✅ Serveur arrêté');
@@ -428,4 +538,4 @@ async function startServer() {
   }
 }
 
-startServer();
+startServer(); 

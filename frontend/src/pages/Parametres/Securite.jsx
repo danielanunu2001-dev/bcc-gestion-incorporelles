@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FiArrowLeft, FiSave, FiShield, FiLock, FiClock, 
   FiEye, FiBell, FiMapPin, FiCheckCircle, FiXCircle,
-  FiRefreshCw, FiAlertTriangle, FiSmartphone, FiMail
+  FiRefreshCw, FiAlertTriangle, FiSmartphone, FiMail,
+  FiZap, FiServer, FiDatabase, FiInfo
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Container, Row, Col, Card, Button, Badge, Alert, Spinner, Form, InputGroup, Nav, Tab } from 'react-bootstrap';
 
 const Securite = () => {
   const navigate = useNavigate();
@@ -12,6 +15,7 @@ const Securite = () => {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('authentification');
   const [settings, setSettings] = useState({
     deux_facteurs: false,
     deux_facteurs_method: 'email',
@@ -85,641 +89,261 @@ const Securite = () => {
     });
   };
 
+  const tabs = [
+    { id: 'authentification', label: 'Authentification', icon: <FiLock size={14} /> },
+    { id: 'session', label: 'Session', icon: <FiClock size={14} /> },
+    { id: 'mdp', label: 'Mots de passe', icon: <FiShield size={14} /> },
+    { id: 'surveillance', label: 'Surveillance', icon: <FiEye size={14} /> },
+    { id: 'ip', label: 'Restriction IP', icon: <FiMapPin size={14} /> }
+  ];
+
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p style={styles.loadingText}>Chargement de vos paramètres de sécurité...</p>
-      </div>
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" className="mb-3" style={{ width: '3rem', height: '3rem' }} />
+        <p className="text-muted">Chargement de vos paramètres de sécurité...</p>
+      </Container>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <button onClick={() => navigate('/parametres')} style={styles.backButton}>
-            <FiArrowLeft size={18} /> Retour
-          </button>
-          <div style={styles.headerInfo}>
-            <div style={styles.iconWrapper}>
-              <FiShield size={28} color="#2563eb" />
+    <Container className="py-4 px-3 px-md-4" style={{ maxWidth: '1000px' }}>
+      
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+          <Button variant="outline-secondary" onClick={() => navigate('/parametres')} className="mb-3 d-inline-flex align-items-center gap-2">
+            <FiArrowLeft size={16} /> Retour
+          </Button>
+          <div className="d-flex align-items-center gap-3">
+            <div className="rounded-circle bg-primary bg-opacity-10 p-3 d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>
+              <FiShield size={28} className="text-primary" />
             </div>
             <div>
-              <h1 style={styles.title}>Sécurité</h1>
-              <p style={styles.subtitle}>
-                Gérez les paramètres de sécurité de votre compte
-              </p>
+              <h1 className="h3 fw-bold mb-1">Sécurité</h1>
+              <p className="text-muted small mb-0">Gérez les paramètres de sécurité de votre compte</p>
             </div>
           </div>
         </div>
-        <div style={styles.headerActions}>
-          <button onClick={handleReset} style={styles.resetButton}>
-            <FiRefreshCw /> Réinitialiser
-          </button>
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={handleReset} className="d-flex align-items-center gap-2">
+            <FiRefreshCw size={14} /> Réinitialiser
+          </Button>
         </div>
       </div>
 
+      {/* Messages */}
       {success && (
-        <div style={styles.successMessage}>
-          <FiCheckCircle size={20} />
-          <span>{success}</span>
-        </div>
+        <Alert variant="success" dismissible onClose={() => setSuccess('')} className="mb-3">
+          <div className="d-flex align-items-center gap-2"><FiCheckCircle size={18} /><span>{success}</span></div>
+        </Alert>
       )}
       {error && (
-        <div style={styles.errorMessage}>
-          <FiXCircle size={20} />
-          <span>{error}</span>
-        </div>
+        <Alert variant="danger" dismissible onClose={() => setError('')} className="mb-3">
+          <div className="d-flex align-items-center gap-2"><FiXCircle size={18} /><span>{error}</span></div>
+        </Alert>
       )}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
-        {/* Authentification */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionIcon}>
-              <FiLock size={20} color="#2563eb" />
-            </div>
-            <div>
-              <h3 style={styles.sectionTitle}>Authentification</h3>
-              <p style={styles.sectionDescription}>
-                Renforcez la sécurité de votre compte
-              </p>
-            </div>
-          </div>
-          
-          <div style={styles.option}>
-            <input
-              type="checkbox"
-              id="deux_facteurs"
-              name="deux_facteurs"
-              checked={settings.deux_facteurs}
-              onChange={handleChange}
-              style={styles.checkbox}
-            />
-            <label htmlFor="deux_facteurs" style={styles.label}>
-              <FiShield size={16} />
-              <span>
-                <strong>Authentification à deux facteurs (2FA)</strong>
-                <small>Ajoute une couche de sécurité supplémentaire</small>
-              </span>
-            </label>
-          </div>
+      {/* Onglets */}
+      <Card className="border-0 shadow-sm rounded-3 mb-4">
+        <Card.Body className="p-0">
+          <Nav variant="tabs" defaultActiveKey="authentification" className="px-3 pt-2">
+            {tabs.map(tab => (
+              <Nav.Item key={tab.id}>
+                <Nav.Link eventKey={tab.id} onClick={() => setActiveTab(tab.id)} className="d-flex align-items-center gap-2">
+                  {tab.icon} {tab.label}
+                </Nav.Link>
+              </Nav.Item>
+            ))}
+          </Nav>
+        </Card.Body>
+      </Card>
 
-          {settings.deux_facteurs && (
-            <div style={styles.subOption}>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="deux_facteurs_method"
-                  value="email"
-                  checked={settings.deux_facteurs_method === 'email'}
-                  onChange={handleChange}
-                  style={styles.radio}
-                />
-                <FiMail size={14} /> Par email
-              </label>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="deux_facteurs_method"
-                  value="sms"
-                  checked={settings.deux_facteurs_method === 'sms'}
-                  onChange={handleChange}
-                  style={styles.radio}
-                />
-                <FiSmartphone size={14} /> Par SMS
-              </label>
-            </div>
-          )}
-        </div>
+      <form onSubmit={handleSubmit}>
+        
+        {/* Authentification */}
+        {activeTab === 'authentification' && (
+          <Card className="border-0 shadow-sm rounded-3 mb-4">
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <div className="rounded-circle bg-primary bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
+                  <FiLock size={20} className="text-primary" />
+                </div>
+                <div>
+                  <h3 className="h6 fw-semibold mb-0">Authentification</h3>
+                  <p className="small text-muted mb-0">Renforcez la sécurité de votre compte</p>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-start gap-3 p-3 rounded-3 mb-3" style={{ backgroundColor: '#f8fafc' }}>
+                <Form.Check type="checkbox" id="deux_facteurs" name="deux_facteurs" checked={settings.deux_facteurs} onChange={handleChange} className="mt-1" />
+                <label htmlFor="deux_facteurs" className="d-flex gap-2 flex-grow-1">
+                  <FiShield size={16} className="text-primary flex-shrink-0" />
+                  <div><strong className="d-block">Authentification à deux facteurs (2FA)</strong><small className="text-muted">Ajoute une couche de sécurité supplémentaire</small></div>
+                </label>
+              </div>
+
+              {settings.deux_facteurs && (
+                <div className="ms-4 ps-3 border-start ps-3">
+                  <div className="d-flex gap-3">
+                    <Form.Check type="radio" name="deux_facteurs_method" value="email" checked={settings.deux_facteurs_method === 'email'} onChange={handleChange} label={<><FiMail size={14} className="me-1" /> Par email</>} />
+                    <Form.Check type="radio" name="deux_facteurs_method" value="sms" checked={settings.deux_facteurs_method === 'sms'} onChange={handleChange} label={<><FiSmartphone size={14} className="me-1" /> Par SMS</>} />
+                  </div>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        )}
 
         {/* Session */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionIcon}>
-              <FiClock size={20} color="#f59e0b" />
-            </div>
-            <div>
-              <h3 style={styles.sectionTitle}>Gestion des sessions</h3>
-              <p style={styles.sectionDescription}>
-                Contrôlez la durée et la sécurité de vos sessions
-              </p>
-            </div>
-          </div>
-          
-          <div style={styles.optionRow}>
-            <label htmlFor="session_timeout" style={styles.labelInline}>
-              Délai d'expiration de session (minutes)
-            </label>
-            <input
-              type="number"
-              id="session_timeout"
-              name="session_timeout"
-              value={settings.session_timeout}
-              onChange={handleChange}
-              min="5"
-              max="120"
-              step="5"
-              style={styles.inputNumber}
-            />
-            <span style={styles.hint}>minutes d'inactivité avant déconnexion</span>
-          </div>
-        </div>
+        {activeTab === 'session' && (
+          <Card className="border-0 shadow-sm rounded-3 mb-4">
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <div className="rounded-circle bg-warning bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
+                  <FiClock size={20} className="text-warning" />
+                </div>
+                <div>
+                  <h3 className="h6 fw-semibold mb-0">Gestion des sessions</h3>
+                  <p className="small text-muted mb-0">Contrôlez la durée et la sécurité de vos sessions</p>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-center gap-3 flex-wrap">
+                <label className="fw-semibold small text-muted" style={{ minWidth: '220px' }}>Délai d'expiration de session</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input type="number" name="session_timeout" value={settings.session_timeout} onChange={handleChange} min="5" max="120" step="5" className="form-control" style={{ width: '80px' }} />
+                  <span className="text-muted small">minutes d'inactivité avant déconnexion</span>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        )}
 
         {/* Politique des mots de passe */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionIcon}>
-              <FiLock size={20} color="#10b981" />
-            </div>
-            <div>
-              <h3 style={styles.sectionTitle}>Politique des mots de passe</h3>
-              <p style={styles.sectionDescription}>
-                Configurez les règles de sécurité des mots de passe
-              </p>
-            </div>
-          </div>
-          
-          <div style={styles.optionRow}>
-            <label htmlFor="mdp_expiration" style={styles.labelInline}>
-              Expiration du mot de passe (jours)
-            </label>
-            <input
-              type="number"
-              id="mdp_expiration"
-              name="mdp_expiration"
-              value={settings.mdp_expiration}
-              onChange={handleChange}
-              min="30"
-              max="365"
-              step="30"
-              style={styles.inputNumber}
-            />
-            <span style={styles.hint}>jours avant expiration</span>
-          </div>
-          
-          <div style={styles.optionRow}>
-            <label htmlFor="tentative_connexion_max" style={styles.labelInline}>
-              Tentatives de connexion max
-            </label>
-            <input
-              type="number"
-              id="tentative_connexion_max"
-              name="tentative_connexion_max"
-              value={settings.tentative_connexion_max}
-              onChange={handleChange}
-              min="3"
-              max="10"
-              style={styles.inputNumber}
-            />
-            <span style={styles.hint}>avant verrouillage</span>
-          </div>
-          
-          <div style={styles.optionRow}>
-            <label htmlFor="verrouillage_temporaire" style={styles.labelInline}>
-              Durée de verrouillage (minutes)
-            </label>
-            <input
-              type="number"
-              id="verrouillage_temporaire"
-              name="verrouillage_temporaire"
-              value={settings.verrouillage_temporaire}
-              onChange={handleChange}
-              min="5"
-              max="120"
-              step="5"
-              style={styles.inputNumber}
-            />
-            <span style={styles.hint}>après trop de tentatives</span>
-          </div>
-        </div>
+        {activeTab === 'mdp' && (
+          <Card className="border-0 shadow-sm rounded-3 mb-4">
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <div className="rounded-circle bg-success bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
+                  <FiShield size={20} className="text-success" />
+                </div>
+                <div>
+                  <h3 className="h6 fw-semibold mb-0">Politique des mots de passe</h3>
+                  <p className="small text-muted mb-0">Configurez les règles de sécurité des mots de passe</p>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-center gap-3 flex-wrap mb-3">
+                <label className="fw-semibold small text-muted" style={{ minWidth: '220px' }}>Expiration du mot de passe</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input type="number" name="mdp_expiration" value={settings.mdp_expiration} onChange={handleChange} min="30" max="365" step="30" className="form-control" style={{ width: '80px' }} />
+                  <span className="text-muted small">jours avant expiration</span>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-center gap-3 flex-wrap mb-3">
+                <label className="fw-semibold small text-muted" style={{ minWidth: '220px' }}>Tentatives de connexion max</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input type="number" name="tentative_connexion_max" value={settings.tentative_connexion_max} onChange={handleChange} min="3" max="10" className="form-control" style={{ width: '80px' }} />
+                  <span className="text-muted small">avant verrouillage</span>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-center gap-3 flex-wrap">
+                <label className="fw-semibold small text-muted" style={{ minWidth: '220px' }}>Durée de verrouillage</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input type="number" name="verrouillage_temporaire" value={settings.verrouillage_temporaire} onChange={handleChange} min="5" max="120" step="5" className="form-control" style={{ width: '80px' }} />
+                  <span className="text-muted small">minutes après trop de tentatives</span>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        )}
 
         {/* Surveillance */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionIcon}>
-              <FiEye size={20} color="#8b5cf6" />
-            </div>
-            <div>
-              <h3 style={styles.sectionTitle}>Surveillance et alertes</h3>
-              <p style={styles.sectionDescription}>
-                Recevez des alertes sur l'activité de votre compte
-              </p>
-            </div>
-          </div>
-          
-          <div style={styles.option}>
-            <input
-              type="checkbox"
-              id="historique_connexions"
-              name="historique_connexions"
-              checked={settings.historique_connexions}
-              onChange={handleChange}
-              style={styles.checkbox}
-            />
-            <label htmlFor="historique_connexions" style={styles.label}>
-              <FiClock size={16} />
-              <span>
-                <strong>Historique des connexions</strong>
-                <small>Conserver l'historique complet des connexions</small>
-              </span>
-            </label>
-          </div>
-          
-          <div style={styles.option}>
-            <input
-              type="checkbox"
-              id="notifications_connexion"
-              name="notifications_connexion"
-              checked={settings.notifications_connexion}
-              onChange={handleChange}
-              style={styles.checkbox}
-            />
-            <label htmlFor="notifications_connexion" style={styles.label}>
-              <FiBell size={16} />
-              <span>
-                <strong>Alertes de connexion</strong>
-                <small>Notifier en cas de nouvelle connexion</small>
-              </span>
-            </label>
-          </div>
-        </div>
+        {activeTab === 'surveillance' && (
+          <Card className="border-0 shadow-sm rounded-3 mb-4">
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <div className="rounded-circle bg-info bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
+                  <FiEye size={20} className="text-info" />
+                </div>
+                <div>
+                  <h3 className="h6 fw-semibold mb-0">Surveillance et alertes</h3>
+                  <p className="small text-muted mb-0">Recevez des alertes sur l'activité de votre compte</p>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-start gap-3 p-3 rounded-3 mb-3" style={{ backgroundColor: '#f8fafc' }}>
+                <Form.Check type="checkbox" id="historique_connexions" name="historique_connexions" checked={settings.historique_connexions} onChange={handleChange} className="mt-1" />
+                <label htmlFor="historique_connexions" className="d-flex gap-2 flex-grow-1">
+                  <FiClock size={16} className="text-info flex-shrink-0" />
+                  <div><strong className="d-block">Historique des connexions</strong><small className="text-muted">Conserver l'historique complet des connexions</small></div>
+                </label>
+              </div>
+              
+              <div className="d-flex align-items-start gap-3 p-3 rounded-3" style={{ backgroundColor: '#f8fafc' }}>
+                <Form.Check type="checkbox" id="notifications_connexion" name="notifications_connexion" checked={settings.notifications_connexion} onChange={handleChange} className="mt-1" />
+                <label htmlFor="notifications_connexion" className="d-flex gap-2 flex-grow-1">
+                  <FiBell size={16} className="text-warning flex-shrink-0" />
+                  <div><strong className="d-block">Alertes de connexion</strong><small className="text-muted">Notifier en cas de nouvelle connexion</small></div>
+                </label>
+              </div>
+            </Card.Body>
+          </Card>
+        )}
 
         {/* Restriction IP */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionIcon}>
-              <FiMapPin size={20} color="#ef4444" />
-            </div>
-            <div>
-              <h3 style={styles.sectionTitle}>Restriction IP</h3>
-              <p style={styles.sectionDescription}>
-                Limitez l'accès à des adresses IP spécifiques
-              </p>
-            </div>
-          </div>
-          
-          <div style={styles.option}>
-            <input
-              type="checkbox"
-              id="ip_restriction"
-              name="ip_restriction"
-              checked={settings.ip_restriction}
-              onChange={handleChange}
-              style={styles.checkbox}
-            />
-            <label htmlFor="ip_restriction" style={styles.label}>
-              <FiMapPin size={16} />
-              <span>
-                <strong>Restriction par adresse IP</strong>
-                <small>Limiter l'accès à certaines IP seulement</small>
-              </span>
-            </label>
-          </div>
+        {activeTab === 'ip' && (
+          <Card className="border-0 shadow-sm rounded-3 mb-4">
+            <Card.Body className="p-4">
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <div className="rounded-circle bg-danger bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
+                  <FiMapPin size={20} className="text-danger" />
+                </div>
+                <div>
+                  <h3 className="h6 fw-semibold mb-0">Restriction IP</h3>
+                  <p className="small text-muted mb-0">Limitez l'accès à des adresses IP spécifiques</p>
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-start gap-3 p-3 rounded-3 mb-3" style={{ backgroundColor: '#f8fafc' }}>
+                <Form.Check type="checkbox" id="ip_restriction" name="ip_restriction" checked={settings.ip_restriction} onChange={handleChange} className="mt-1" />
+                <label htmlFor="ip_restriction" className="d-flex gap-2 flex-grow-1">
+                  <FiMapPin size={16} className="text-danger flex-shrink-0" />
+                  <div><strong className="d-block">Restriction par adresse IP</strong><small className="text-muted">Limiter l'accès à certaines IP seulement</small></div>
+                </label>
+              </div>
 
-          {settings.ip_restriction && (
-            <div style={styles.textareaGroup}>
-              <label htmlFor="ip_whitelist" style={styles.labelTextarea}>
-                Liste blanche d'IP (une par ligne)
-              </label>
-              <textarea
-                id="ip_whitelist"
-                name="ip_whitelist"
-                value={settings.ip_whitelist}
-                onChange={handleChange}
-                placeholder="192.168.1.1&#10;10.0.0.1&#10;::1"
-                rows="3"
-                style={styles.textarea}
-              />
-              <span style={styles.hint}>
-                <FiAlertTriangle size={12} /> Séparez chaque IP par un saut de ligne
-              </span>
-            </div>
-          )}
-        </div>
+              {settings.ip_restriction && (
+                <div className="ms-4 ps-3 border-start">
+                  <Form.Label className="fw-semibold small text-muted">Liste blanche d'IP (une par ligne)</Form.Label>
+                  <Form.Control as="textarea" name="ip_whitelist" value={settings.ip_whitelist} onChange={handleChange} placeholder="192.168.1.1&#10;10.0.0.1&#10;::1" rows="3" style={{ fontFamily: 'monospace' }} />
+                  <small className="text-muted d-flex align-items-center gap-1 mt-1"><FiAlertTriangle size={12} /> Séparez chaque IP par un saut de ligne</small>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        )}
 
-        <div style={styles.actions}>
-          <button type="button" onClick={() => navigate('/parametres')} style={styles.cancelButton}>
-            Annuler
-          </button>
-          <button type="submit" style={styles.saveButton} disabled={saving}>
-            {saving ? (
-              <>
-                <div style={styles.savingSpinner}></div>
-                Enregistrement...
-              </>
-            ) : (
-              <>
-                <FiSave /> Enregistrer
-              </>
-            )}
-          </button>
+        {/* Actions */}
+        <div className="d-flex gap-3 justify-content-end mt-3">
+          <Button variant="secondary" onClick={() => navigate('/parametres')}>Annuler</Button>
+          <Button variant="primary" type="submit" disabled={saving} className="d-flex align-items-center gap-2">
+            {saving ? <><Spinner as="span" size="sm" animation="border" className="spinner-border-sm" /> Enregistrement...</> : <><FiSave size={14} /> Enregistrer</>}
+          </Button>
         </div>
       </form>
-    </div>
+
+      {/* Note d'information */}
+      <div className="text-center mt-4">
+        <small className="text-muted d-flex align-items-center justify-content-center gap-2">
+          <FiShield size={12} /> Paramètres de sécurité — Recommandations selon les normes BCC
+        </small>
+      </div>
+    </Container>
   );
 };
-
-const styles = {
-  container: {
-    maxWidth: '900px',
-    margin: '0 auto'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  headerLeft: {
-    flex: 1
-  },
-  backButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    marginBottom: '1rem'
-  },
-  headerInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  iconWrapper: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '14px',
-    backgroundColor: '#eff6ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  title: {
-    fontSize: '1.5rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: '0 0 0.25rem 0'
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    margin: 0
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '0.75rem'
-  },
-  resetButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    color: '#475569'
-  },
-  successMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#d1fae5',
-    border: '1px solid #10b981',
-    borderRadius: '10px',
-    marginBottom: '1.5rem',
-    color: '#065f46',
-    fontSize: '0.875rem'
-  },
-  errorMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #ef4444',
-    borderRadius: '10px',
-    marginBottom: '1.5rem',
-    color: '#991b1b',
-    fontSize: '0.875rem'
-  },
-  form: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '2rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  },
-  section: {
-    marginBottom: '2rem',
-    paddingBottom: '2rem',
-    borderBottom: '1px solid #f1f5f9'
-  },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '1.5rem'
-  },
-  sectionIcon: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '10px',
-    backgroundColor: '#f8fafc',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  sectionTitle: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: 0
-  },
-  sectionDescription: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    margin: '0.25rem 0 0 0'
-  },
-  option: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    padding: '0.75rem 0',
-    borderRadius: '10px'
-  },
-  optionRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '0.75rem 0',
-    flexWrap: 'wrap'
-  },
-  checkbox: {
-    marginTop: '0.125rem',
-    width: '18px',
-    height: '18px',
-    cursor: 'pointer',
-    accentColor: '#2563eb'
-  },
-  label: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    cursor: 'pointer',
-    flex: 1,
-    fontSize: '0.875rem',
-    color: '#334155'
-  },
-  labelInline: {
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: 'var(--text-primary)',
-    minWidth: '220px'
-  },
-  labelTextarea: {
-    display: 'block',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: 'var(--text-primary)',
-    marginBottom: '0.5rem'
-  },
-  subOption: {
-    marginLeft: '2rem',
-    padding: '0.5rem 0 0.5rem 1rem',
-    borderLeft: '2px solid #e5e7eb',
-    display: 'flex',
-    gap: '1rem',
-    flexWrap: 'wrap'
-  },
-  radioLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.875rem',
-    color: '#475569',
-    cursor: 'pointer'
-  },
-  radio: {
-    cursor: 'pointer',
-    accentColor: '#2563eb'
-  },
-  inputNumber: {
-    padding: '0.5rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    width: '80px',
-    fontSize: '0.875rem'
-  },
-  textarea: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    fontSize: '0.875rem',
-    fontFamily: 'monospace',
-    resize: 'vertical'
-  },
-  textareaGroup: {
-    marginTop: '0.75rem',
-    marginLeft: '1.75rem'
-  },
-  hint: {
-    fontSize: '0.7rem',
-    color: '#94a3b8',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.25rem'
-  },
-  actions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '1rem',
-    marginTop: '1rem',
-    paddingTop: '1rem'
-  },
-  cancelButton: {
-    padding: '0.625rem 1.5rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: '#475569'
-  },
-  saveButton: {
-    padding: '0.625rem 1.5rem',
-    backgroundColor: '#2563eb',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  savingSpinner: {
-    width: '16px',
-    height: '16px',
-    border: '2px solid white',
-    borderTopColor: 'transparent',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite'
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '4rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid #e5e7eb',
-    borderTopColor: '#2563eb',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    marginBottom: '1rem'
-  },
-  loadingText: {
-    color: 'var(--text-secondary)',
-    fontSize: '0.875rem'
-  }
-};
-
-// Ajout des animations
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement("style");
-  styleSheet.textContent = `
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(styleSheet);
-}
 
 export default Securite;

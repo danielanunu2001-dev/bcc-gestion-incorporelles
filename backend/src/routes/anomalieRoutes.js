@@ -14,22 +14,27 @@ console.log('  - getAnomalieById:', typeof anomalieController.getAnomalieById);
 console.log('  - createAnomalie:', typeof anomalieController.createAnomalie);
 console.log('  - updateAnomalie:', typeof anomalieController.updateAnomalie);
 console.log('  - deleteAnomalie:', typeof anomalieController.deleteAnomalie);
-console.log('  - exportAnomalies:', typeof anomalieController.exportAnomalies);  // ← Ajouté
+console.log('  - exportAnomaliesPDF:', typeof anomalieController.exportAnomaliesPDF);
 
 router.use(authMiddleware);
 
 // ==================== ROUTES SPÉCIFIQUES (SANS PARAMÈTRES) ====================
 // Ces routes doivent être AVANT la route /:id
-router.get('/stats', authorize('admin', 'comptable', 'auditeur'), anomalieController.getStats);
-router.get('/export', authorize('admin', 'comptable', 'auditeur'), anomalieController.exportAnomalies);
+// ✅ AJOUT DE 'juridique' POUR LA LECTURE DES STATS
+router.get('/stats', authorize('admin', 'comptable', 'auditeur', 'gestionnaire', 'inventoriste', 'juridique'), anomalieController.getStats);
+
+// ✅ ROUTE D'EXPORT PDF (juridique peut exporter)
+router.get('/export-pdf', authorize('admin', 'comptable', 'auditeur', 'gestionnaire', 'juridique'), anomalieController.exportAnomaliesPDF);
 
 // ==================== ROUTES AVEC PARAMÈTRES ====================
-router.get('/', authorize('admin', 'comptable', 'auditeur'), anomalieController.getAllAnomalies);
-router.get('/:id', authorize('admin', 'comptable', 'auditeur'), anomalieController.getAnomalieById);
+// ✅ AJOUT DE 'juridique' POUR LA LECTURE DES ANOMALIES
+router.get('/', authorize('admin', 'comptable', 'auditeur', 'gestionnaire', 'inventoriste', 'juridique'), anomalieController.getAllAnomalies);
+router.get('/:id', authorize('admin', 'comptable', 'auditeur', 'gestionnaire', 'inventoriste', 'juridique'), anomalieController.getAnomalieById);
 
 // ==================== ROUTES DE MODIFICATION ====================
-router.post('/', authorize('admin', 'comptable'), anomalieController.createAnomalie);
-router.put('/:id', authorize('admin', 'comptable'), anomalieController.updateAnomalie);
+// ❌ Le juridique ne peut PAS créer/modifier/supprimer des anomalies
+router.post('/', authorize('admin', 'comptable', 'gestionnaire', 'inventoriste'), anomalieController.createAnomalie);
+router.put('/:id', authorize('admin', 'comptable', 'gestionnaire', 'inventoriste'), anomalieController.updateAnomalie);
 router.delete('/:id', authorize('admin'), anomalieController.deleteAnomalie);
 
 module.exports = router;

@@ -1,3 +1,5 @@
+// backend/src/models/Facture.js
+
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -15,9 +17,15 @@ module.exports = (sequelize) => {
     },
     actif_id: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
       references: { model: 'actifs', key: 'id' },
-      comment: 'Référence vers l’actif concerné'
+      comment: 'Référence vers l’actif concerné (peut être null si facture de contrat)'
+    },
+    contrat_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: 'contrats', key: 'id' },
+      comment: 'Référence vers le contrat concerné (peut être null si facture d\'actif)'
     },
     date_emission: {
       type: DataTypes.DATEONLY,
@@ -41,10 +49,15 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(3),
       defaultValue: 'CDF'
     },
+    type_facture: {
+      type: DataTypes.ENUM('acquisition', 'contrat'),
+      defaultValue: 'acquisition',
+      comment: 'Type de facture: acquisition (actif) ou contrat'
+    },
     fichier_pdf: {
       type: DataTypes.STRING(255),
-      allowNull: false,
-      comment: 'Chemin relatif du fichier PDF généré'
+      allowNull: true,
+      comment: 'Chemin relatif du fichier PDF généré (peut être null si généré à la volée)'
     },
     created_by: {
       type: DataTypes.UUID,
@@ -59,6 +72,7 @@ module.exports = (sequelize) => {
 
   Facture.associate = (models) => {
     Facture.belongsTo(models.Actif, { as: 'actif', foreignKey: 'actif_id' });
+    Facture.belongsTo(models.Contrat, { as: 'contrat', foreignKey: 'contrat_id' });
     Facture.belongsTo(models.User, { as: 'createur', foreignKey: 'created_by' });
   };
 

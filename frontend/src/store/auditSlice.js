@@ -4,8 +4,17 @@ import api from '../services/api';
 // Récupérer les logs d'audit
 export const fetchAuditLogs = createAsyncThunk(
   'audit/fetchLogs',
-  async ({ page = 1, limit = 20, ...filters } = {}, { rejectWithValue }) => {
+  async ({ page = 1, limit = 20, ...filters } = {}, { rejectWithValue, getState }) => {
     try {
+      // ✅ Vérifier les permissions avant l'appel API
+      const state = getState();
+      const userRole = state.auth?.user?.role || 'guest';
+      const canViewAudit = ['admin', 'auditeur'].includes(userRole);
+      
+      if (!canViewAudit) {
+        return rejectWithValue('Accès non autorisé - Réservé aux administrateurs et auditeurs');
+      }
+      
       const params = new URLSearchParams({
         page,
         limit,
@@ -22,8 +31,17 @@ export const fetchAuditLogs = createAsyncThunk(
 // Récupérer les logs d'un enregistrement spécifique
 export const fetchRecordLogs = createAsyncThunk(
   'audit/fetchRecordLogs',
-  async ({ tableName, recordId }, { rejectWithValue }) => {
+  async ({ tableName, recordId }, { rejectWithValue, getState }) => {
     try {
+      // ✅ Vérifier les permissions avant l'appel API
+      const state = getState();
+      const userRole = state.auth?.user?.role || 'guest';
+      const canViewAudit = ['admin', 'auditeur'].includes(userRole);
+      
+      if (!canViewAudit) {
+        return rejectWithValue('Accès non autorisé - Réservé aux administrateurs et auditeurs');
+      }
+      
       const response = await api.get(`/audit-logs/${tableName}/${recordId}`);
       return response.data;
     } catch (error) {
@@ -35,8 +53,17 @@ export const fetchRecordLogs = createAsyncThunk(
 // Récupérer les statistiques d'audit
 export const fetchAuditStats = createAsyncThunk(
   'audit/fetchStats',
-  async (period = 'month', { rejectWithValue }) => {
+  async (period = 'month', { rejectWithValue, getState }) => {
     try {
+      // ✅ Vérifier les permissions avant l'appel API
+      const state = getState();
+      const userRole = state.auth?.user?.role || 'guest';
+      const canViewAudit = ['admin', 'auditeur'].includes(userRole);
+      
+      if (!canViewAudit) {
+        return rejectWithValue('Accès non autorisé - Réservé aux administrateurs et auditeurs');
+      }
+      
       const response = await api.get(`/audit-logs/stats?period=${period}`);
       return response.data;
     } catch (error) {
@@ -78,6 +105,11 @@ const auditSlice = createSlice({
       .addCase(fetchAuditLogs.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // ✅ Ne pas mettre de logs vides si erreur de permission
+        if (action.payload === 'Accès non autorisé - Réservé aux administrateurs et auditeurs') {
+          state.logs = [];
+          state.total = 0;
+        }
       })
       
       // Fetch record logs
@@ -92,6 +124,10 @@ const auditSlice = createSlice({
       .addCase(fetchRecordLogs.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // ✅ Ne pas mettre de logs vides si erreur de permission
+        if (action.payload === 'Accès non autorisé - Réservé aux administrateurs et auditeurs') {
+          state.recordLogs = [];
+        }
       })
       
       // Fetch stats
@@ -106,6 +142,10 @@ const auditSlice = createSlice({
       .addCase(fetchAuditStats.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // ✅ Ne pas mettre de stats vides si erreur de permission
+        if (action.payload === 'Accès non autorisé - Réservé aux administrateurs et auditeurs') {
+          state.stats = null;
+        }
       });
   }
 });

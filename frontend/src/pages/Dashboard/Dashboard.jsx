@@ -1,3 +1,4 @@
+// frontend/src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,13 +17,15 @@ import api from '../../services/api';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  ResponsiveContainer, Cell, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ComposedChart
 } from 'recharts';
 import {
   FiPackage, FiDollarSign, FiTrendingUp, FiClock,
   FiEye, FiRefreshCw, FiHome, FiUsers, FiActivity,
   FiFileText, FiAlertCircle, FiTrendingDown, FiGrid, FiList,
-  FiMoon, FiSun, FiDownload, FiSearch, FiCommand, FiFilter, FiX, FiCalendar, FiBarChart2
+  FiMoon, FiSun, FiDownload, FiSearch, FiCommand, FiFilter, FiX, FiCalendar, FiBarChart2,
+  FiShield, FiBell, FiCheckCircle, FiPieChart
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -72,13 +75,13 @@ const Typewriter = ({ words, loop = true, cursor = true, typeSpeed = 70, deleteS
   return (
     <span>
       {currentText}
-      {cursor && <span style={{ opacity: 0.7, animation: 'blink 1s infinite' }}>|</span>}
+      {cursor && <span className="typewriter-cursor">|</span>}
     </span>
   );
 };
 
 // ==================== COMMAND PALETTE ====================
-const CommandPalette = ({ isOpen, onClose, navigate }) => {
+const CommandPalette = ({ isOpen, onClose, navigate, darkMode }) => {
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
 
@@ -115,20 +118,20 @@ const CommandPalette = ({ isOpen, onClose, navigate }) => {
           initial={{ scale: 0.9, y: -20 }}
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.9, y: -20 }}
-          style={styles.commandPalette}
+          style={{...styles.commandPalette, backgroundColor: darkMode ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)'}}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={styles.commandSearch}>
-            <FiSearch size={20} color="#666" />
+          <div style={{...styles.commandSearch, borderBottomColor: darkMode ? 'rgba(0,255,247,0.15)' : '#e2e8f0'}}>
+            <FiSearch size={20} style={{ color: darkMode ? '#64748b' : '#94a3b8' }} />
             <input
               ref={inputRef}
               type="text"
               placeholder="Rechercher une action..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={styles.commandInput}
+              style={{...styles.commandInput, color: darkMode ? '#e2e8f0' : '#1e293b'}}
             />
-            <FiX size={20} color="#666" onClick={onClose} style={{ cursor: 'pointer' }} />
+            <FiX size={20} onClick={onClose} style={{ cursor: 'pointer', color: darkMode ? '#64748b' : '#94a3b8' }} />
           </div>
           <div style={styles.commandList}>
             {filteredCommands.map((cmd, index) => (
@@ -137,23 +140,26 @@ const CommandPalette = ({ isOpen, onClose, navigate }) => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                style={styles.commandItem}
+                style={{...styles.commandItem, borderBottomColor: darkMode ? 'rgba(0,255,247,0.08)' : '#e2e8f0'}}
                 onClick={() => {
                   cmd.action();
                   onClose();
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: darkMode ? '#e2e8f0' : '#1e293b' }}>
                   {cmd.icon}
                   {cmd.label}
                 </span>
               </motion.div>
             ))}
             {filteredCommands.length === 0 && (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
-                Aucun résultat trouvé
-              </div>
+              <div style={styles.noResults}>Aucun résultat trouvé</div>
             )}
+          </div>
+          <div style={{...styles.commandFooter, borderTopColor: darkMode ? 'rgba(0,255,247,0.15)' : '#e2e8f0', backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8f9fa'}}>
+            <span><FiCommand size={12} /> pour commander</span>
+            <span><FiSearch size={12} /> pour rechercher</span>
+            <span><FiX size={12} /> pour fermer</span>
           </div>
         </motion.div>
       </motion.div>
@@ -166,10 +172,9 @@ const Dashboard = () => {
   const dispatch = useDispatch();
   const { can } = usePermissions();
   
-  // ✅ SÉLECTEURS MÉMOÏSÉS - Évite les rendus inutiles
+  // SÉLECTEURS
   const actifs = useSelector(selectActifs);
   const actifsLoading = useSelector(selectActifsLoading);
-  const actifsStatistiques = useSelector(selectActifsStatistiques);
   const totalActifs = useSelector(selectTotalActifs);
   const valeurNetteTotale = useSelector(selectValeurNetteTotale);
   
@@ -181,8 +186,12 @@ const Dashboard = () => {
   
   const { user = {} } = useSelector((state) => state.auth || {});
   
+  // DÉTERMINER SI L'UTILISATEUR PEUT VOIR L'AUDIT
+  const role = user?.role || 'guest';
+  const canViewAudit = ['admin', 'auditeur'].includes(role);
+  const canViewUsers = ['admin', 'auditeur'].includes(role);
+  
   // États locaux
-  const [chartType, setChartType] = useState('line');
   const [alertes, setAlertes] = useState({ 
     finLicence: [], 
     maintenance: [], 
@@ -201,12 +210,10 @@ const Dashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('6months');
-  const [showAdvancedCharts, setShowAdvancedCharts] = useState(false);
 
-  // ✅ Vérifier si l'utilisateur est admin
   const isAdmin = user?.role === 'admin';
 
-  // ✅ FONCTIONS UTILITAIRES (DÉFINIES AVANT LES useMemo)
+  // FONCTIONS UTILITAIRES
   const getTypeLabel = (type) => {
     const labels = {
       'logiciel': 'Logiciel',
@@ -249,9 +256,9 @@ const Dashboard = () => {
     }
   };
 
-  const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const COLORS = ['#00fff7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
-  // ✅ Fonction memoïsée pour charger les alertes
+  // Fonction memoïsée pour charger les alertes
   const fetchAlertes = useCallback(async () => {
     try {
       setLoadingAlertes(true);
@@ -268,10 +275,11 @@ const Dashboard = () => {
   useEffect(() => {
     if (dispatch) {
       dispatch(fetchActifs({}));
-      if (typeof fetchAuditLogs === 'function') {
+      
+      if (canViewAudit && typeof fetchAuditLogs === 'function') {
         dispatch(fetchAuditLogs({ limit: 10 }));
       }
-      // ✅ Appeler fetchUsers UNIQUEMENT si l'utilisateur est admin
+      
       if (typeof fetchUsers === 'function' && isAdmin) {
         dispatch(fetchUsers({}));
       }
@@ -282,7 +290,7 @@ const Dashboard = () => {
     if (hour < 12) setTimeOfDay('Bonjour');
     else if (hour < 18) setTimeOfDay('Bon après-midi');
     else setTimeOfDay('Bonsoir');
-  }, [dispatch, isAdmin, fetchAlertes]);
+  }, [dispatch, isAdmin, fetchAlertes, canViewAudit]);
 
   // Effet pour l'animation du compteur
   useEffect(() => {
@@ -327,32 +335,7 @@ const Dashboard = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Export CSV
-  const exportToCSV = useCallback(() => {
-    try {
-      const csvContent = [
-        ['Code', 'Nom', 'Type', 'Coût acquisition', 'Date acquisition'],
-        ...actifs.map(a => [
-          a.code,
-          a.nom,
-          getTypeLabel(a.type),
-          a.cout_acquisition || 0,
-          formatDate(a.date_acquisition)
-        ])
-      ].map(row => row.join(',')).join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `actifs_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      toast.success('Export CSV réussi !');
-    } catch (err) {
-      toast.error('Erreur lors de l\'export');
-    }
-  }, [actifs]);
-
-  // ============ DONNÉES POUR LES GRAPHIQUES (memoïsées) ============
+  // ============ DONNÉES POUR LES GRAPHIQUES ============
   
   const evolutionData = useMemo(() => {
     if (!actifs || actifs.length === 0) return [];
@@ -377,7 +360,6 @@ const Dashboard = () => {
         name: months[monthIndex],
         actifs: actifsMonth.length,
         valeur: actifsMonth.reduce((sum, a) => sum + (parseFloat(a.cout_acquisition) || 0), 0) / 1000000,
-        valeurNette: actifsMonth.reduce((sum, a) => sum + (parseFloat(a.valeur_nette) || parseFloat(a.cout_acquisition) || 0), 0) / 1000000
       });
     }
     return data;
@@ -401,36 +383,37 @@ const Dashboard = () => {
   const amortissementData = useMemo(() => {
     if (!actifs || actifs.length === 0) return [];
     
-    return actifs.slice(0, 5).map(a => ({
+    return actifs.slice(0, 8).map(a => ({
       name: a.nom?.substring(0, 15) || 'N/A',
       valeurBrute: parseFloat(a.cout_acquisition) || 0,
       valeurNette: parseFloat(a.valeur_nette) || parseFloat(a.cout_acquisition) || 0,
-      amortissement: (parseFloat(a.cout_acquisition) || 0) - (parseFloat(a.valeur_nette) || parseFloat(a.cout_acquisition) || 0)
     }));
   }, [actifs]);
 
-  const performanceData = useMemo(() => {
-    const types = ['Logiciel', 'Matériel', 'Véhicule', 'Licence', 'Brevet'];
-    return types.map(type => {
-      const count = actifs.filter(a => getTypeLabel(a.type) === type).length;
-      const value = actifs
-        .filter(a => getTypeLabel(a.type) === type)
-        .reduce((sum, a) => sum + (parseFloat(a.cout_acquisition) || 0), 0) / 1000000;
-      
-      return {
-        type,
-        count,
-        value: parseFloat(value.toFixed(2)),
-        fullMark: 100
-      };
-    });
+  const natureData = useMemo(() => {
+    return [
+      { name: 'Corporel', value: actifs?.filter(a => a.type_immobilisation === 'corporel').length || 0 },
+      { name: 'Incorporel', value: actifs?.filter(a => a.type_immobilisation === 'incorporel').length || 0 }
+    ];
   }, [actifs]);
 
   const derniersAjouts = useMemo(() => {
     return actifs && actifs.length > 0
       ? [...actifs]
           .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-          .slice(0, 6)
+          .slice(0, 8)
+      : [];
+  }, [actifs]);
+
+  const topActifsParValeur = useMemo(() => {
+    return actifs && actifs.length > 0
+      ? [...actifs]
+          .sort((a, b) => (parseFloat(b.cout_acquisition) || 0) - (parseFloat(a.cout_acquisition) || 0))
+          .slice(0, 5)
+          .map(a => ({
+            name: a.nom?.substring(0, 20) || 'N/A',
+            valeur: (parseFloat(a.cout_acquisition) || 0) / 1000000
+          }))
       : [];
   }, [actifs]);
 
@@ -446,62 +429,61 @@ const Dashboard = () => {
     return actifs?.reduce((sum, a) => sum + (parseFloat(a.valeur_nette) || parseFloat(a.cout_acquisition) || 0), 0) || 0;
   }, [actifs]);
 
-  const natureStats = useMemo(() => {
-    return {
-      corporel: actifs?.filter(a => a.type_immobilisation === 'corporel').length || 0,
-      incorporel: actifs?.filter(a => a.type_immobilisation === 'incorporel').length || 0
-    };
-  }, [actifs]);
+  // Styles dynamiques
+  const bgColor = darkMode ? '#0f172a' : '#f1f5f9';
+  const cardBg = darkMode ? 'rgba(15,23,42,0.75)' : 'rgba(255,255,255,0.9)';
+  const textColor = darkMode ? '#e2e8f0' : '#1e293b';
+  const textMuted = darkMode ? '#94a3b8' : '#64748b';
+  const borderColor = darkMode ? 'rgba(0,255,247,0.15)' : '#e2e8f0';
 
-  // Affichage du chargement
   if (actifsLoading) {
     return (
-      <div style={darkMode ? { ...styles.loading, ...darkStyles.loading } : styles.loading}>
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          style={styles.spinner}
-        />
-        <p>Chargement des données...</p>
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner}></div>
+        <p style={{ color: textMuted }}>Chargement des données...</p>
       </div>
     );
   }
 
-  // Fusion des styles pour dark mode
-  const currentStyles = darkMode ? { ...styles, ...darkStyles } : styles;
-
   return (
-    <div style={currentStyles.container}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      style={{...styles.container, backgroundColor: bgColor}}
+    >
       {/* Command Palette */}
       <CommandPalette 
         isOpen={commandPaletteOpen} 
         onClose={() => setCommandPaletteOpen(false)}
         navigate={navigate}
+        darkMode={darkMode}
       />
 
       {/* Barre d'actions supérieure */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        style={currentStyles.topBar}
+        style={{...styles.actionBar, backgroundColor: cardBg, borderColor: borderColor}}
       >
-        <div style={currentStyles.topBarLeft}>
-          <button
+        <div style={styles.actionBarLeft}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setCommandPaletteOpen(true)}
-            style={currentStyles.commandButton}
-            title="Ouvrir la command palette (Ctrl+K)"
+            style={styles.commandButton}
           >
             <FiCommand size={16} />
             <span>Rechercher</span>
-            <kbd style={currentStyles.kbd}>⌘K</kbd>
-          </button>
+            <kbd style={styles.kbd}>⌘K</kbd>
+          </motion.button>
           
-          <div style={currentStyles.filterGroup}>
-            <FiCalendar size={16} />
+          <div style={styles.filterContainer}>
+            <FiCalendar size={16} style={{ color: textMuted }} />
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              style={currentStyles.filterSelect}
+              style={{...styles.timeSelect, backgroundColor: darkMode ? 'rgba(15,23,42,0.6)' : '#fff', color: textColor, borderColor: borderColor}}
             >
               <option value="7days">7 derniers jours</option>
               <option value="30days">30 derniers jours</option>
@@ -512,52 +494,28 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div style={currentStyles.topBarRight}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={exportToCSV}
-            style={currentStyles.actionButton}
-            title="Exporter en CSV"
-          >
-            <FiDownload size={18} />
-            <span>Exporter</span>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              dispatch(fetchActifs({}));
-              fetchAlertes();
-              toast.success('Données actualisées !');
-            }}
-            style={currentStyles.actionButton}
-            title="Actualiser"
-          >
+        <div style={styles.actionBarRight}>
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => {
+            dispatch(fetchActifs({}));
+            fetchAlertes();
+            toast.success('Données actualisées !');
+          }} style={styles.iconButton}>
             <FiRefreshCw size={18} />
           </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setDarkMode(!darkMode)}
-            style={currentStyles.themeToggle}
-            title={darkMode ? 'Mode clair' : 'Mode sombre'}
-          >
-            {darkMode ? <FiSun size={20} /> : <FiMoon size={20} />}
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setDarkMode(!darkMode)} style={styles.iconButton}>
+            {darkMode ? <FiSun size={18} /> : <FiMoon size={18} />}
           </motion.button>
         </div>
       </motion.div>
 
-      {/* En-tête dynamique avec Typewriter */}
+      {/* En-tête dynamique */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        style={currentStyles.header}
+        style={styles.header}
       >
-        <h1 style={currentStyles.pageTitle}>
+        <h1 style={styles.title}>
           <Typewriter
             words={['Tableau de bord', 'Bienvenue', 'Gestion des actifs', 'Analyse en temps réel']}
             loop={true}
@@ -567,672 +525,582 @@ const Dashboard = () => {
             delaySpeed={2000}
           />
         </h1>
-        <p style={currentStyles.welcomeMessage}>
+        <p style={{...styles.subtitle, color: textMuted}}>
           {timeOfDay}, <strong>{user?.full_name || 'Utilisateur'}</strong> {greeting}
         </p>
       </motion.div>
       
-      {/* Cartes récapitulatives animées */}
-      <div style={currentStyles.statsGrid}>
-        {[
-          { icon: FiPackage, label: 'Total actifs', value: totalActifs, color: '#2563eb', link: '/actifs' },
-          { icon: FiDollarSign, label: 'Valeur brute', value: formatCurrency(currentValue), color: '#10b981' },
-          { icon: FiTrendingUp, label: 'Valeur nette estimée', value: formatCurrency(totalNette), color: '#f59e0b' },
-          { icon: FiUsers, label: 'Utilisateurs', value: users?.length || 0, color: '#8b5cf6', link: '/utilisateurs' }
-        ].map((stat, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ scale: 1.05, boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.3)' : '0 8px 24px rgba(0,0,0,0.15)' }}
-            style={currentStyles.statCard}
-            onClick={() => stat.link && navigate(stat.link)}
-          >
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            >
-              <stat.icon size={24} color={stat.color} />
-            </motion.div>
-            <div>
-              <div style={currentStyles.statLabel}>{stat.label}</div>
-              <div style={currentStyles.statValue}>
-                <span className="counter">{stat.value}</span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+      {/* LIGNE 1: Cartes récapitulatives */}
+      <div style={styles.cardsGrid}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          whileHover={{ scale: 1.02 }}
+          style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor, cursor: 'pointer'}}
+          onClick={() => navigate('/actifs')}
+        >
+          <div style={styles.statIconWrapper}>
+            <FiPackage size={24} style={{ color: '#00fff7' }} />
+          </div>
+          <div>
+            <div style={{...styles.statLabel, color: textMuted}}>Total actifs</div>
+            <div style={{...styles.statValue, color: textColor}}>{totalActifs}</div>
+          </div>
+        </motion.div>
 
-        {/* Widget Alertes */}
-        {totalAlertes > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-            whileHover={{ scale: 1.05 }}
-            style={{ ...currentStyles.statCard, backgroundColor: darkMode ? '#7f1d1d' : '#fef2f2' }}
-            onClick={() => navigate('/rapports/alertes')}
-          >
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
-              <FiAlertCircle size={24} color="#ef4444" />
-            </motion.div>
-            <div>
-              <div style={currentStyles.statLabel}>Alertes</div>
-              <div style={currentStyles.statValue}>{totalAlertes}</div>
-            </div>
-          </motion.div>
-        )}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          whileHover={{ scale: 1.02 }}
+          style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}
+        >
+          <div style={styles.statIconWrapper}>
+            <FiDollarSign size={24} style={{ color: '#10b981' }} />
+          </div>
+          <div>
+            <div style={{...styles.statLabel, color: textMuted}}>Valeur brute</div>
+            <div style={{...styles.statValue, color: textColor}}>{formatCurrency(currentValue)}</div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          whileHover={{ scale: 1.02 }}
+          style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}
+        >
+          <div style={styles.statIconWrapper}>
+            <FiTrendingUp size={24} style={{ color: '#f59e0b' }} />
+          </div>
+          <div>
+            <div style={{...styles.statLabel, color: textMuted}}>Valeur nette</div>
+            <div style={{...styles.statValue, color: textColor}}>{formatCurrency(totalNette)}</div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4 }}
+          whileHover={{ scale: 1.02 }}
+          style={{...styles.statCard, backgroundColor: totalAlertes > 0 ? (darkMode ? 'rgba(239,68,68,0.15)' : '#fef2f2') : cardBg, borderColor: borderColor, cursor: 'pointer'}}
+          onClick={() => navigate('/rapports/alertes')}
+        >
+          <div style={styles.statIconWrapper}>
+            <FiAlertCircle size={24} style={{ color: '#ef4444' }} />
+          </div>
+          <div>
+            <div style={{...styles.statLabel, color: textMuted}}>Alertes</div>
+            <div style={{...styles.statValue, color: totalAlertes > 0 ? '#ef4444' : textColor}}>{totalAlertes}</div>
+          </div>
+        </motion.div>
       </div>
 
-      {/* Statistiques par nature */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        style={currentStyles.natureStats}
-      >
-        <motion.div whileHover={{ scale: 1.02 }} style={currentStyles.natureCard}>
-          <span style={currentStyles.natureIcon}>🏭</span>
-          <div>
-            <div style={currentStyles.natureLabel}>Actifs corporels</div>
-            <div style={currentStyles.natureValue}>{natureStats.corporel}</div>
-          </div>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.02 }} style={currentStyles.natureCard}>
-          <span style={currentStyles.natureIcon}>📄</span>
-          <div>
-            <div style={currentStyles.natureLabel}>Actifs incorporels</div>
-            <div style={currentStyles.natureValue}>{natureStats.incorporel}</div>
-          </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Toggle pour graphiques avancés */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        style={currentStyles.advancedToggle}
-      >
-        <button
-          onClick={() => setShowAdvancedCharts(!showAdvancedCharts)}
-          style={currentStyles.advancedButton}
-        >
-          <FiBarChart2 size={18} />
-          <span>{showAdvancedCharts ? 'Masquer' : 'Afficher'} les graphiques avancés</span>
-        </button>
-      </motion.div>
-
-      {/* Graphiques principaux */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.7 }}
-        style={currentStyles.chartsGrid}
-      >
-        {/* Évolution des actifs */}
+      {/* LIGNE 2: Statistiques par nature */}
+      <div style={styles.natureGrid}>
         <motion.div 
-          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.3)' : '0 8px 24px rgba(0,0,0,0.15)' }}
-          style={currentStyles.chartCard}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          whileHover={{ scale: 1.02 }}
+          style={{...styles.natureCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
-          <div style={currentStyles.chartHeader}>
-            <h3 style={currentStyles.chartTitle}>Évolution des actifs</h3>
-            <select 
-              value={chartType} 
-              onChange={(e) => setChartType(e.target.value)}
-              style={currentStyles.chartSelect}
-            >
-              <option value="line">Courbe</option>
-              <option value="bar">Barres</option>
-              <option value="area">Aire</option>
-            </select>
+          <span style={styles.natureIcon}>🏭</span>
+          <div>
+            <div style={{...styles.natureLabel, color: textMuted}}>Actifs corporels</div>
+            <div style={{...styles.natureValue, color: textColor}}>{natureData[0]?.value || 0}</div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            {chartType === 'line' && (
-              <LineChart data={evolutionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? 'var(--text-primary)' : 'var(--border-color)'} />
-                <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#666'} />
-                <YAxis yAxisId="left" stroke={darkMode ? '#9ca3af' : '#666'} />
-                <YAxis yAxisId="right" orientation="right" stroke={darkMode ? '#9ca3af' : '#666'} />
-                <Tooltip contentStyle={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#fff', border: 'none', borderRadius: '8px' }} />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="actifs" stroke="#2563eb" name="Nombre d'actifs" strokeWidth={3} dot={{ r: 4 }} />
-                <Line yAxisId="right" type="monotone" dataKey="valeur" stroke="#10b981" name="Valeur (M FC)" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
-            )}
-            {chartType === 'bar' && (
-              <BarChart data={evolutionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? 'var(--text-primary)' : 'var(--border-color)'} />
-                <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#666'} />
-                <YAxis stroke={darkMode ? '#9ca3af' : '#666'} />
-                <Tooltip contentStyle={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#fff', border: 'none', borderRadius: '8px' }} />
-                <Legend />
-                <Bar dataKey="actifs" fill="#2563eb" name="Nombre d'actifs" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            )}
-            {chartType === 'area' && (
-              <AreaChart data={evolutionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? 'var(--text-primary)' : 'var(--border-color)'} />
-                <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#666'} />
-                <YAxis stroke={darkMode ? '#9ca3af' : '#666'} />
-                <Tooltip contentStyle={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#fff', border: 'none', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="valeur" stackId="1" stroke="#2563eb" fill="#2563eb" fillOpacity={0.6} name="Valeur (M FC)" />
-              </AreaChart>
-            )}
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          whileHover={{ scale: 1.02 }}
+          style={{...styles.natureCard, backgroundColor: cardBg, borderColor: borderColor}}
+        >
+          <span style={styles.natureIcon}>📄</span>
+          <div>
+            <div style={{...styles.natureLabel, color: textMuted}}>Actifs incorporels</div>
+            <div style={{...styles.natureValue, color: textColor}}>{natureData[1]?.value || 0}</div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* LIGNE 3: Graphiques principaux */}
+      <div style={styles.chartsGrid}>
+        {/* Graphique d'évolution */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
+        >
+          <h5 style={{...styles.chartTitle, color: textColor}}>Évolution des actifs</h5>
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={evolutionData}>
+              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#475569' : '#e2e8f0'} />
+              <XAxis dataKey="name" stroke={darkMode ? '#94a3b8' : '#666'} />
+              <YAxis yAxisId="left" stroke={darkMode ? '#94a3b8' : '#666'} />
+              <YAxis yAxisId="right" orientation="right" stroke={darkMode ? '#94a3b8' : '#666'} />
+              <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
+              <Legend wrapperStyle={{ color: textColor }} />
+              <Bar yAxisId="left" dataKey="actifs" fill="#00fff7" name="Nombre d'actifs" radius={[4, 4, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="valeur" stroke="#10b981" name="Valeur (M FC)" strokeWidth={3} dot={{ r: 4 }} />
+            </ComposedChart>
           </ResponsiveContainer>
         </motion.div>
 
-        {/* Répartition par type */}
+        {/* Graphique de répartition par type */}
         <motion.div 
-          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.3)' : '0 8px 24px rgba(0,0,0,0.15)' }}
-          style={currentStyles.chartCard}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
-          <h3 style={currentStyles.chartTitle}>Répartition par type</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <h5 style={{...styles.chartTitle, color: textColor}}>Répartition par type</h5>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={typeData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
+                labelLine={true}
                 label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                outerRadius={90}
+                outerRadius={100}
+                innerRadius={40}
                 fill="#8884d8"
                 dataKey="value"
+                paddingAngle={2}
               >
                 {typeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke={darkMode ? '#1e293b' : '#fff'} strokeWidth={2} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#fff', border: 'none', borderRadius: '8px' }} />
+              <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
+              <Legend wrapperStyle={{ color: textColor }} />
             </PieChart>
           </ResponsiveContainer>
         </motion.div>
-      </motion.div>
+      </div>
 
-      {/* Graphiques avancés */}
-      <AnimatePresence>
-        {showAdvancedCharts && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            style={currentStyles.chartsGrid}
-          >
-            {/* Graphique d'amortissement */}
-            <motion.div 
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.3)' : '0 8px 24px rgba(0,0,0,0.15)' }}
-              style={currentStyles.chartCard}
-            >
-              <h3 style={currentStyles.chartTitle}>Amortissement (Top 5 actifs)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={amortissementData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? 'var(--text-primary)' : 'var(--border-color)'} />
-                  <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#666'} />
-                  <YAxis stroke={darkMode ? '#9ca3af' : '#666'} />
-                  <Tooltip contentStyle={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#fff', border: 'none', borderRadius: '8px' }} />
-                  <Legend />
-                  <Bar dataKey="valeurBrute" fill="#2563eb" name="Valeur brute" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="valeurNette" fill="#10b981" name="Valeur nette" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="amortissement" fill="#ef4444" name="Amortissement" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </motion.div>
+      {/* LIGNE 4: Top actifs + Répartition nature */}
+      <div style={styles.chartsGrid}>
+        {/* Top actifs par valeur */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.9 }}
+          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
+        >
+          <h5 style={{...styles.chartTitle, color: textColor}}>Top 5 actifs par valeur</h5>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={topActifsParValeur} layout="vertical" margin={{ left: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#475569' : '#e2e8f0'} />
+              <XAxis type="number" tickFormatter={(v) => `${v}M`} stroke={darkMode ? '#94a3b8' : '#666'} />
+              <YAxis type="category" dataKey="name" width={120} stroke={darkMode ? '#94a3b8' : '#666'} />
+              <Tooltip formatter={(value) => `${value} millions FC`} contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
+              <Bar dataKey="valeur" fill="#f59e0b" name="Valeur (millions FC)" radius={[0, 8, 8, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </motion.div>
 
-            {/* Graphique radar de performance */}
-            <motion.div 
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.3)' : '0 8px 24px rgba(0,0,0,0.15)' }}
-              style={currentStyles.chartCard}
-            >
-              <h3 style={currentStyles.chartTitle}>Performance par type</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <RadarChart data={performanceData}>
-                  <PolarGrid stroke={darkMode ? 'var(--text-primary)' : 'var(--border-color)'} />
-                  <PolarAngleAxis dataKey="type" stroke={darkMode ? '#9ca3af' : '#666'} />
-                  <PolarRadiusAxis stroke={darkMode ? '#9ca3af' : '#666'} />
-                  <Radar name="Nombre" dataKey="count" stroke="#2563eb" fill="#2563eb" fillOpacity={0.6} />
-                  <Tooltip contentStyle={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#fff', border: 'none', borderRadius: '8px' }} />
-                  <Legend />
-                </RadarChart>
-              </ResponsiveContainer>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Graphique nature des actifs */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.0 }}
+          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
+        >
+          <h5 style={{...styles.chartTitle, color: textColor}}>Répartition Corporel / Incorporel</h5>
+          <ResponsiveContainer width="100%" height={320}>
+            <PieChart>
+              <Pie
+                data={natureData}
+                cx="50%"
+                cy="50%"
+                labelLine={true}
+                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                outerRadius={100}
+                innerRadius={60}
+                fill="#8884d8"
+                dataKey="value"
+                paddingAngle={5}
+              >
+                <Cell fill="#00fff7" stroke={darkMode ? '#1e293b' : '#fff'} strokeWidth={2} />
+                <Cell fill="#10b981" stroke={darkMode ? '#1e293b' : '#fff'} strokeWidth={2} />
+              </Pie>
+              <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
+              <Legend wrapperStyle={{ color: textColor }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </motion.div>
+      </div>
 
-      {/* Widget Alertes détaillé */}
+      {/* LIGNE 5: Widget Alertes détaillé */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        style={currentStyles.alertesWidget}
+        transition={{ delay: 1.1 }}
+        style={{...styles.alertCard, backgroundColor: cardBg, borderColor: borderColor}}
       >
-        <div style={currentStyles.alertesHeader}>
-          <h3 style={currentStyles.sectionTitle}>
-            <FiAlertCircle style={{ marginRight: '0.5rem' }} />
-            Alertes et échéances
-          </h3>
-          <button onClick={() => navigate('/rapports/alertes')} style={currentStyles.viewAllButton}>
-            Voir toutes les alertes →
-          </button>
-        </div>
+        <h5 style={{...styles.alertTitle, color: textColor}}>
+          <FiAlertCircle /> Alertes et échéances
+        </h5>
         
-        <div style={currentStyles.alertesList}>
+        <div style={styles.alertGrid}>
           {[
             { key: 'finLicence', icon: FiClock, color: '#f59e0b', label: 'fin(s) de licence imminente(s)' },
-            { key: 'echeancesContrats', icon: FiFileText, color: '#2563eb', label: 'contrat(s) arrivant à échéance' },
+            { key: 'echeancesContrats', icon: FiFileText, color: '#00fff7', label: 'contrat(s) arrivant à échéance' },
             { key: 'maintenance', icon: FiPackage, color: '#10b981', label: 'échéance(s) maintenance' },
             { key: 'actifsEnMaintenance', icon: FiActivity, color: '#ef4444', label: 'actif(s) en maintenance/réparation' },
-            { key: 'anomalies', icon: FiAlertCircle, color: '#dc2626', label: 'bien(s) manquant(s)' }
+            { key: 'anomalies', icon: FiAlertCircle, color: '#f97316', label: 'bien(s) manquant(s)' }
           ].map((alert, index) => (
             alertes[alert.key]?.length > 0 && (
               <motion.div
                 key={alert.key}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-                style={currentStyles.alerteItem}
-                className={alert.key === 'finLicence' ? 'alert-pulse' : ''}
+                transition={{ delay: 1.2 + index * 0.05 }}
+                style={{...styles.alertItem, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8fafc'}}
               >
                 <alert.icon color={alert.color} size={18} />
-                <span>
+                <span style={{ color: textColor }}>
                   <strong>{alertes[alert.key].length}</strong> {alert.label}
                 </span>
                 {alertes[alert.key][0]?.date && (
-                  <small style={currentStyles.alerteDate}>
-                    Prochaine: {formatDate(alertes[alert.key][0].date)}
+                  <small style={{ marginLeft: 'auto', color: textMuted }}>
+                    {formatDate(alertes[alert.key][0].date)}
                   </small>
                 )}
               </motion.div>
             )
           ))}
-          
-          {totalAlertes === 0 && (
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              style={currentStyles.noAlertes}
-            >
-              🎉 Aucune alerte pour le moment, tout est en ordre !
-            </motion.p>
-          )}
         </div>
+        
+        {totalAlertes === 0 && (
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{...styles.noAlert, color: textMuted}}
+          >
+            🎉 Aucune alerte pour le moment, tout est en ordre !
+          </motion.p>
+        )}
       </motion.div>
 
-      {/* Derniers ajouts - Vue améliorée */}
+      {/* LIGNE 6: Derniers actifs ajoutés */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9 }}
-        style={currentStyles.recentSection}
+        transition={{ delay: 1.3 }}
+        style={{...styles.recentCard, backgroundColor: cardBg, borderColor: borderColor}}
       >
-        <div style={currentStyles.recentHeader}>
-          <h3 style={currentStyles.sectionTitle}>📦 Derniers actifs ajoutés</h3>
-          <div style={currentStyles.displayToggle}>
-            <motion.button 
+        <div style={styles.recentHeader}>
+          <h5 style={{...styles.recentTitle, color: textColor}}>📦 Derniers actifs ajoutés</h5>
+          <div style={styles.viewToggle}>
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              style={{...styles.toggleBtn, ...(displayType === 'grid' ? styles.toggleActive : styles.toggleInactive)}}
               onClick={() => setDisplayType('grid')}
-              style={displayType === 'grid' ? currentStyles.displayActive : currentStyles.displayButton}
-              title="Vue grille"
             >
-              <FiGrid />
+              <FiGrid size={16} />
             </motion.button>
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              style={{...styles.toggleBtn, ...(displayType === 'list' ? styles.toggleActive : styles.toggleInactive)}}
               onClick={() => setDisplayType('list')}
-              style={displayType === 'list' ? currentStyles.displayActive : currentStyles.displayButton}
-              title="Vue liste"
             >
-              <FiList />
+              <FiList size={16} />
             </motion.button>
           </div>
         </div>
         
         {displayType === 'grid' ? (
-          <div style={currentStyles.recentGrid}>
+          <div style={styles.recentGrid}>
             {derniersAjouts.map((actif, index) => (
               <motion.div 
                 key={actif.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, boxShadow: darkMode ? '0 8px 24px rgba(37,99,235,0.3)' : '0 8px 24px rgba(0,0,0,0.15)' }}
-                style={currentStyles.recentCard}
+                transition={{ delay: 1.4 + index * 0.03 }}
+                whileHover={{ scale: 1.02 }}
+                style={{...styles.recentCardItem, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8fafc', cursor: 'pointer'}}
                 onClick={() => navigate(`/actifs/${actif.id}`)}
               >
-                <div style={currentStyles.recentCardCode}>{actif.code}</div>
-                <div style={currentStyles.recentCardNom}>{actif.nom}</div>
-                <div style={currentStyles.recentCardType}>{getTypeLabel(actif.type)}</div>
-                <div style={currentStyles.recentCardDate}>
+                <div style={styles.recentCardCode}>{actif.code}</div>
+                <div style={{...styles.recentCardName, color: textColor}}>{actif.nom}</div>
+                <div style={{...styles.recentCardType, color: textMuted}}>{getTypeLabel(actif.type)}</div>
+                <div style={{...styles.recentCardDate, color: textMuted}}>
                   <FiClock size={12} /> {formatDate(actif.date_acquisition)}
                 </div>
               </motion.div>
             ))}
           </div>
         ) : (
-          <div style={currentStyles.recentList}>
+          <div style={styles.recentList}>
             {derniersAjouts.map((actif, index) => (
               <motion.div 
                 key={actif.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ backgroundColor: darkMode ? 'var(--text-primary)' : '#f3f4f6' }}
-                style={currentStyles.recentItem}
+                transition={{ delay: 1.4 + index * 0.03 }}
+                style={{...styles.recentListItem, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8fafc', cursor: 'pointer'}}
                 onClick={() => navigate(`/actifs/${actif.id}`)}
               >
-                <div style={currentStyles.recentInfo}>
-                  <span style={currentStyles.recentCode}>{actif.code}</span>
-                  <span style={currentStyles.recentNom}>{actif.nom}</span>
-                </div>
-                <div style={currentStyles.recentDate}>
+                <code style={styles.recentListCode}>{actif.code}</code>
+                <span style={{ color: textColor }}>{actif.nom}</span>
+                <small style={{ marginLeft: 'auto', color: textMuted }}>
                   {formatDate(actif.date_acquisition)}
-                </div>
+                </small>
               </motion.div>
             ))}
           </div>
         )}
       </motion.div>
-    </div>
+
+      <style>{`
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        
+        .typewriter-cursor {
+          opacity: 0.7;
+          animation: blink 1s infinite;
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </motion.div>
   );
 };
 
-// ============ STYLES ============
-
+// ============ STYLES FUTURISTES ============
 const styles = {
   container: {
-    padding: '2rem',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    backgroundColor: 'var(--bg-secondary)',
     minHeight: '100vh',
-    transition: 'all 0.3s ease'
+    padding: '1.5rem',
+    transition: 'background-color 0.3s ease'
   },
-  topBar: {
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '400px'
+  },
+  spinner: {
+    width: '48px',
+    height: '48px',
+    border: '3px solid rgba(0,255,247,0.2)',
+    borderTop: '3px solid #00fff7',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '1rem'
+  },
+  actionBar: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1.5rem',
-    padding: '1rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  },
-  topBarLeft: {
-    display: 'flex',
+    flexWrap: 'wrap',
     gap: '1rem',
-    alignItems: 'center'
+    padding: '0.75rem 1rem',
+    borderRadius: '16px',
+    border: '1px solid',
+    marginBottom: '1.5rem'
   },
-  topBarRight: {
+  actionBarLeft: {
     display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '1rem',
+    flexWrap: 'wrap'
   },
   commandButton: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#f3f4f6',
-    border: 'none',
-    borderRadius: '8px',
+    padding: '0.4rem 0.75rem',
+    background: 'rgba(0,255,247,0.1)',
+    border: '1px solid rgba(0,255,247,0.3)',
+    borderRadius: '10px',
+    color: '#00fff7',
     cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: 'var(--text-primary)',
-    transition: 'all 0.2s'
+    fontSize: '0.8rem'
   },
   kbd: {
     padding: '0.125rem 0.375rem',
-    backgroundColor: 'var(--border-color)',
+    background: 'rgba(0,0,0,0.3)',
     borderRadius: '4px',
-    fontSize: '0.75rem',
+    fontSize: '0.7rem',
     fontFamily: 'monospace'
   },
-  filterGroup: {
+  filterContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem'
   },
-  filterSelect: {
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
+  timeSelect: {
+    padding: '0.4rem 0.75rem',
+    border: '1px solid',
     borderRadius: '8px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-card)',
+    fontSize: '0.8rem',
     cursor: 'pointer'
   },
-  actionButton: {
+  actionBarRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#2563eb',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    transition: 'all 0.2s'
+    gap: '0.5rem'
   },
-  themeToggle: {
+  iconButton: {
+    padding: '0.4rem',
+    background: 'rgba(0,255,247,0.1)',
+    border: '1px solid rgba(0,255,247,0.3)',
+    borderRadius: '10px',
+    color: '#00fff7',
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.5rem',
-    backgroundColor: '#f3f4f6',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    justifyContent: 'center'
   },
   header: {
-    marginBottom: '2rem'
+    marginBottom: '2rem',
+    textAlign: 'center'
   },
-  pageTitle: {
-    fontSize: '2.5rem',
-    color: '#1e3a8a',
+  title: {
+    fontSize: '1.8rem',
+    fontWeight: '700',
     marginBottom: '0.5rem',
-    fontWeight: 'bold'
+    background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 100%)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    WebkitTextFillColor: 'transparent'
   },
-  welcomeMessage: {
-    fontSize: '1rem',
-    color: '#666'
+  subtitle: {
+    fontSize: '0.9rem'
   },
-  loading: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '3rem',
-    fontSize: '1.2rem',
-    color: '#666',
-    minHeight: '400px'
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid #f3f4f6',
-    borderTop: '3px solid #2563eb',
-    borderRadius: '50%',
-    marginBottom: '1rem'
-  },
-  statsGrid: {
+  cardsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1.5rem',
-    marginBottom: '2rem'
+    gap: '1rem',
+    marginBottom: '1.5rem'
   },
   statCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    border: '1px solid transparent'
+    padding: '1rem',
+    borderRadius: '20px',
+    border: '1px solid',
+    transition: 'all 0.3s ease'
+  },
+  statIconWrapper: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '16px',
+    background: 'rgba(0,255,247,0.1)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   statLabel: {
-    fontSize: '0.875rem',
-    color: '#666',
-    marginBottom: '0.25rem'
+    fontSize: '0.7rem',
+    textTransform: 'uppercase'
   },
   statValue: {
-    fontSize: '1.75rem',
-    fontWeight: 'bold',
-    color: '#111'
+    fontSize: '1.5rem',
+    fontWeight: '700'
   },
-  natureStats: {
+  natureGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '1rem',
-    marginBottom: '2rem'
+    marginBottom: '1.5rem'
   },
   natureCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
+    padding: '1rem',
+    borderRadius: '20px',
+    border: '1px solid',
     transition: 'all 0.3s ease'
   },
   natureIcon: {
     fontSize: '2rem'
   },
   natureLabel: {
-    fontSize: '0.75rem',
-    color: '#666'
+    fontSize: '0.7rem',
+    textTransform: 'uppercase'
   },
   natureValue: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    color: '#111'
-  },
-  advancedToggle: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '1.5rem'
-  },
-  advancedButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#2563eb',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    transition: 'all 0.2s'
+    fontSize: '1.2rem',
+    fontWeight: '700'
   },
   chartsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
     gap: '1.5rem',
-    marginBottom: '2rem'
+    marginBottom: '1.5rem'
   },
   chartCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    padding: '1rem',
+    borderRadius: '20px',
+    border: '1px solid',
     transition: 'all 0.3s ease'
   },
-  chartHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem'
-  },
   chartTitle: {
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: 0
+    marginBottom: '1rem',
+    textAlign: 'center'
   },
-  chartSelect: {
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-card)',
-    cursor: 'pointer'
+  alertCard: {
+    padding: '1rem',
+    borderRadius: '20px',
+    border: '1px solid',
+    marginBottom: '1.5rem'
   },
-  alertesWidget: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    marginBottom: '2rem'
-  },
-  alertesHeader: {
+  alertTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    marginBottom: '1rem',
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1rem'
+    gap: '0.5rem'
   },
-  sectionTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: 0,
-    display: 'flex',
-    alignItems: 'center'
-  },
-  viewAllButton: {
-    background: 'none',
-    border: 'none',
-    color: '#2563eb',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    padding: '0.5rem',
-    transition: 'all 0.2s'
-  },
-  alertesList: {
+  alertGrid: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem'
+    gap: '0.5rem'
   },
-  alerteItem: {
+  alertItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    padding: '0.75rem',
-    backgroundColor: 'var(--bg-secondary)',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    transition: 'all 0.2s'
+    padding: '0.5rem 0.75rem',
+    borderRadius: '12px'
   },
-  alerteDate: {
-    marginLeft: 'auto',
-    fontSize: '0.8rem',
-    color: '#666'
-  },
-  noAlertes: {
+  noAlert: {
     textAlign: 'center',
-    padding: '1rem',
-    color: '#666'
+    padding: '1rem'
   },
-  recentSection: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  recentCard: {
+    padding: '1rem',
+    borderRadius: '20px',
+    border: '1px solid'
   },
   recentHeader: {
     display: 'flex',
@@ -1240,72 +1108,64 @@ const styles = {
     alignItems: 'center',
     marginBottom: '1rem'
   },
-  displayToggle: {
+  recentTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    margin: 0
+  },
+  viewToggle: {
     display: 'flex',
-    gap: '0.25rem',
-    backgroundColor: '#f3f4f6',
+    gap: '0.25rem'
+  },
+  toggleBtn: {
+    padding: '0.4rem',
     borderRadius: '8px',
-    padding: '0.25rem'
-  },
-  displayButton: {
-    padding: '0.5rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: '6px',
     cursor: 'pointer',
-    color: '#9ca3af',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s'
-  },
-  displayActive: {
-    padding: '0.5rem',
-    backgroundColor: '#2563eb',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: 'var(--bg-card)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
+  toggleActive: {
+    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+    color: 'white',
+    border: 'none'
+  },
+  toggleInactive: {
+    background: 'rgba(0,255,247,0.1)',
+    border: '1px solid rgba(0,255,247,0.2)',
+    color: '#00fff7'
+  },
   recentGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '1rem'
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '0.75rem'
   },
-  recentCard: {
-    backgroundColor: 'var(--bg-secondary)',
-    borderRadius: '10px',
-    padding: '1rem',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    border: '1px solid transparent'
+  recentCardItem: {
+    padding: '0.75rem',
+    borderRadius: '12px',
+    transition: 'all 0.2s ease'
   },
   recentCardCode: {
+    fontSize: '0.7rem',
     fontFamily: 'monospace',
-    backgroundColor: '#e0f2fe',
-    padding: '0.25rem 0.5rem',
+    padding: '0.125rem 0.375rem',
+    background: 'rgba(0,255,247,0.1)',
     borderRadius: '4px',
-    fontSize: '0.75rem',
     display: 'inline-block',
     marginBottom: '0.5rem',
-    color: '#0369a1'
+    color: '#00fff7'
   },
-  recentCardNom: {
+  recentCardName: {
+    fontSize: '0.85rem',
     fontWeight: '600',
-    marginBottom: '0.25rem',
-    color: '#111'
+    marginBottom: '0.25rem'
   },
   recentCardType: {
-    fontSize: '0.8rem',
-    color: '#666',
-    marginBottom: '0.5rem'
+    fontSize: '0.7rem',
+    marginBottom: '0.25rem'
   },
   recentCardDate: {
-    fontSize: '0.75rem',
-    color: '#9ca3af',
+    fontSize: '0.65rem',
     display: 'flex',
     alignItems: 'center',
     gap: '0.25rem'
@@ -1315,66 +1175,49 @@ const styles = {
     flexDirection: 'column',
     gap: '0.5rem'
   },
-  recentItem: {
+  recentListItem: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '0.75rem',
-    backgroundColor: 'var(--bg-secondary)',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  },
-  recentInfo: {
-    display: 'flex',
     gap: '1rem',
-    alignItems: 'center'
+    padding: '0.75rem',
+    borderRadius: '12px',
+    flexWrap: 'wrap'
   },
-  recentCode: {
+  recentListCode: {
+    fontSize: '0.7rem',
     fontFamily: 'monospace',
-    backgroundColor: '#e0f2fe',
-    padding: '0.25rem 0.5rem',
+    padding: '0.125rem 0.375rem',
+    background: 'rgba(0,255,247,0.1)',
     borderRadius: '4px',
-    fontSize: '0.75rem',
-    color: '#0369a1'
+    color: '#00fff7'
   },
-  recentNom: {
-    fontSize: '0.9rem',
-    color: '#111'
-  },
-  recentDate: {
-    fontSize: '0.875rem',
-    color: '#666'
-  },
-  // Command Palette
   commandOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    backdropFilter: 'blur(8px)',
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'center',
     paddingTop: '10vh',
-    zIndex: 1000,
-    backdropFilter: 'blur(4px)'
+    zIndex: 1100
   },
   commandPalette: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    borderRadius: '20px',
     width: '90%',
     maxWidth: '640px',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
   },
   commandSearch: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
     padding: '1rem 1.25rem',
-    borderBottom: '1px solid #e5e7eb'
+    borderBottom: '1px solid'
   },
   commandInput: {
     flex: 1,
@@ -1388,207 +1231,22 @@ const styles = {
     overflowY: 'auto'
   },
   commandItem: {
-    padding: '0.875rem 1.25rem',
+    padding: '0.75rem 1.25rem',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'background-color 0.2s',
+    borderBottom: '1px solid'
+  },
+  commandFooter: {
+    padding: '0.75rem 1rem',
     display: 'flex',
-    alignItems: 'center',
-    fontSize: '0.95rem',
-    borderBottom: '1px solid #f3f4f6'
+    justifyContent: 'space-between',
+    fontSize: '0.7rem'
+  },
+  noResults: {
+    textAlign: 'center',
+    padding: '2rem',
+    color: '#64748b'
   }
 };
-
-// Dark Mode Styles (sans doublons)
-const darkStyles = {
-  container: {
-    backgroundColor: 'var(--text-primary)',
-    color: '#f3f4f6'
-  },
-  loading: {
-    backgroundColor: 'var(--text-primary)',
-    color: '#f3f4f6'
-  },
-  topBar: {
-    backgroundColor: 'var(--text-primary)',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-  },
-  commandButton: {
-    backgroundColor: 'var(--text-primary)',
-    color: '#f3f4f6'
-  },
-  kbd: {
-    backgroundColor: '#4b5563',
-    color: '#f3f4f6'
-  },
-  filterSelect: {
-    backgroundColor: 'var(--text-primary)',
-    color: '#f3f4f6',
-    borderColor: '#4b5563'
-  },
-  themeToggle: {
-    backgroundColor: 'var(--text-primary)',
-    color: '#f3f4f6'
-  },
-  pageTitle: {
-    color: '#60a5fa'
-  },
-  welcomeMessage: {
-    color: '#9ca3af'
-  },
-  statCard: {
-    backgroundColor: 'var(--text-primary)',
-    borderColor: 'var(--text-primary)'
-  },
-  statLabel: {
-    color: '#9ca3af'
-  },
-  statValue: {
-    color: '#f3f4f6'
-  },
-  natureCard: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  natureLabel: {
-    color: '#9ca3af'
-  },
-  natureValue: {
-    color: '#f3f4f6'
-  },
-  chartCard: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  chartTitle: {
-    color: '#f3f4f6'
-  },
-  chartSelect: {
-    backgroundColor: 'var(--text-primary)',
-    color: '#f3f4f6',
-    borderColor: '#4b5563'
-  },
-  alertesWidget: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  sectionTitle: {
-    color: '#f3f4f6'
-  },
-  alerteItem: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  alerteDate: {
-    color: '#9ca3af'
-  },
-  noAlertes: {
-    color: '#9ca3af'
-  },
-  recentSection: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  displayToggle: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  displayButton: {
-    color: '#9ca3af'
-  },
-  recentCard: {
-    backgroundColor: 'var(--text-primary)',
-    borderColor: '#4b5563'
-  },
-  recentCardNom: {
-    color: '#f3f4f6'
-  },
-  recentCardType: {
-    color: '#9ca3af'
-  },
-  recentItem: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  recentNom: {
-    color: '#f3f4f6'
-  },
-  recentDate: {
-    color: '#9ca3af'
-  },
-  commandPalette: {
-    backgroundColor: 'var(--text-primary)'
-  },
-  commandSearch: {
-    borderBottomColor: 'var(--text-primary)'
-  },
-  commandInput: {
-    color: '#f3f4f6'
-  },
-  commandItem: {
-    borderBottomColor: 'var(--text-primary)'
-  }
-};
-
-// Animations CSS
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  .counter {
-    transition: all 0.3s ease;
-  }
-  
-  .alert-pulse {
-    animation: pulse 2s infinite;
-  }
-  
-  @keyframes pulse {
-    0% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-      background-color: #fef3c7;
-    }
-    100% {
-      opacity: 1;
-    }
-  }
-
-  /* Scrollbar custom styling */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #f1f1f1;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #555;
-  }
-
-  /* Hover effects */
-  button:hover {
-    transform: translateY(-1px);
-  }
-
-  /* Dark mode scrollbar */
-  @media (prefers-color-scheme: dark) {
-    ::-webkit-scrollbar-track {
-      background: #1f2937;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #4b5563;
-    }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default Dashboard;

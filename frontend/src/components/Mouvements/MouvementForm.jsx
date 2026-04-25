@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../../services/api';
-import { FiX, FiCheck } from 'react-icons/fi';
+import { FiX, FiCheck, FiSave, FiArrowRight, FiTool, FiTruck, FiShield, FiDollarSign, FiMapPin, FiUser, FiCalendar, FiFileText, FiClock } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -28,23 +29,28 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
   const [nouveauMouvement, setNouveauMouvement] = useState(null);
 
   const typesMouvement = [
-    { value: 'entree', label: 'Entrée' },
-    { value: 'transfert_interne', label: 'Transfert interne' },
-    { value: 'maintenance', label: 'Maintenance' },
-    { value: 'reparation', label: 'Réparation' },
-    { value: 'mise_hors_service', label: 'Mise hors service' },
-    { value: 'cession', label: 'Cession' },
-    { value: 'don', label: 'Don' },
-    { value: 'reforme', label: 'Réforme' }
+    { value: 'entree', label: 'Entrée', icon: '📥', color: '#10b981', bg: 'success' },
+    { value: 'transfert_interne', label: 'Transfert interne', icon: '🔄', color: '#3b82f6', bg: 'primary' },
+    { value: 'maintenance', label: 'Maintenance', icon: '🔧', color: '#f59e0b', bg: 'warning' },
+    { value: 'reparation', label: 'Réparation', icon: '🛠️', color: '#ef4444', bg: 'danger' },
+    { value: 'mise_hors_service', label: 'Mise hors service', icon: '⛔', color: '#6b7280', bg: 'secondary' },
+    { value: 'cession', label: 'Cession', icon: '💰', color: '#8b5cf6', bg: 'purple' },
+    { value: 'don', label: 'Don', icon: '🎁', color: '#ec4899', bg: 'pink' },
+    { value: 'reforme', label: 'Réforme', icon: '📝', color: '#64748b', bg: 'secondary' }
   ];
 
   const etats = [
-    { value: 'neuf', label: 'Neuf' },
-    { value: 'bon', label: 'Bon état' },
-    { value: 'moyen', label: 'État moyen' },
-    { value: 'mauvais', label: 'Mauvais état' },
-    { value: 'reforme', label: 'Réformé' }
+    { value: 'neuf', label: 'Neuf', color: '#10b981' },
+    { value: 'bon', label: 'Bon état', color: '#3b82f6' },
+    { value: 'moyen', label: 'État moyen', color: '#f59e0b' },
+    { value: 'mauvais', label: 'Mauvais état', color: '#ef4444' },
+    { value: 'reforme', label: 'Réformé', color: '#6b7280' }
   ];
+
+  const getTypeIcon = (type) => {
+    const found = typesMouvement.find(t => t.value === type);
+    return found?.icon || '📋';
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -56,7 +62,7 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
       type_mouvement: formData.type_mouvement,
       date_mouvement: formData.date_mouvement,
       description: formData.description || 'Aucune description',
-      statut: 'brouillon' // ← Par défaut, un mouvement est en brouillon
+      statut: 'brouillon'
     };
 
     if (formData.localisation_source?.trim()) {
@@ -79,13 +85,10 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
       dataToSend.nouvelle_affectation = formData.nouvelle_affectation;
     }
 
-    // Champs spécifiques selon le type
     switch (formData.type_mouvement) {
       case 'entree':
         if (formData.provenance?.trim()) dataToSend.provenance = formData.provenance;
         if (formData.document_reference?.trim()) dataToSend.document_reference = formData.document_reference;
-        break;
-      case 'transfert_interne':
         break;
       case 'maintenance':
       case 'reparation':
@@ -106,12 +109,11 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
     return dataToSend;
   };
 
-  // ✅ FONCTION POUR VALIDER LE MOUVEMENT
   const handleValider = async (mouvementId) => {
     try {
       setLoading(true);
       await api.put(`/actifs/${actifId}/mouvements/${mouvementId}/valider`);
-      onSuccess(); // Recharger la liste
+      onSuccess();
     } catch (err) {
       console.error('Erreur validation:', err);
       setError(err.response?.data?.message || 'Erreur lors de la validation');
@@ -133,14 +135,12 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
 
       let response;
       if (mouvement) {
-        // Modification
         response = await api.put(`/actifs/${actifId}/mouvements/${mouvement.id}`, dataToSend);
         onSuccess();
       } else {
-        // Création
         response = await api.post(`/actifs/${actifId}/mouvements`, dataToSend);
         setNouveauMouvement(response.data);
-        setShowValidationOption(true); // ← Affiche l'option de validation
+        setShowValidationOption(true);
       }
       
     } catch (err) {
@@ -152,151 +152,183 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
   };
 
   const renderChampsSpecifiques = () => {
+    const currentType = typesMouvement.find(t => t.value === formData.type_mouvement);
+    
     switch (formData.type_mouvement) {
       case 'entree':
         return (
-          <>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Provenance</label>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiMapPin size={14} className="text-muted" /> Provenance
+              </label>
               <input
                 type="text"
                 name="provenance"
                 value={formData.provenance}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 placeholder="Achat, donation, transfert..."
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Document de référence</label>
+            <div className="col-md-6">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiFileText size={14} className="text-muted" /> Document de référence
+              </label>
               <input
                 type="text"
                 name="document_reference"
                 value={formData.document_reference}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 placeholder="Numéro facture, BL..."
               />
             </div>
-          </>
+          </div>
         );
 
       case 'transfert_interne':
         return (
-          <>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Service source</label>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiArrowRight size={14} className="text-muted" /> Service source
+              </label>
               <input
                 type="text"
                 name="localisation_source"
                 value={formData.localisation_source}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 placeholder="Service d'origine"
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Service destination</label>
+            <div className="col-md-6">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiMapPin size={14} className="text-muted" /> Service destination
+              </label>
               <input
                 type="text"
                 name="localisation_destination"
                 value={formData.localisation_destination}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 placeholder="Service de destination"
               />
             </div>
-          </>
+          </div>
         );
 
       case 'maintenance':
       case 'reparation':
         return (
-          <>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Coût (CDF)</label>
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiDollarSign size={14} className="text-muted" /> Coût (CDF)
+              </label>
               <input
                 type="number"
                 name="cout_maintenance"
                 value={formData.cout_maintenance}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 min="0"
+                placeholder="0"
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Fournisseur/Prestataire</label>
+            <div className="col-md-4">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiUser size={14} className="text-muted" /> Fournisseur/Prestataire
+              </label>
               <input
                 type="text"
                 name="fournisseur_maintenance"
                 value={formData.fournisseur_maintenance}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
+                placeholder="Nom du prestataire"
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Durée (jours)</label>
+            <div className="col-md-4">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiClock size={14} className="text-muted" /> Durée (jours)
+              </label>
               <input
                 type="number"
                 name="duree_maintenance"
                 value={formData.duree_maintenance}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 min="1"
+                placeholder="Durée"
               />
             </div>
-          </>
+          </div>
         );
 
       case 'cession':
         return (
-          <>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Prix de cession (CDF)</label>
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiDollarSign size={14} className="text-muted" /> Prix de cession (CDF)
+              </label>
               <input
                 type="number"
                 name="prix_cession"
                 value={formData.prix_cession}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
                 min="0"
+                placeholder="0"
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Acquéreur</label>
+            <div className="col-md-4">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiUser size={14} className="text-muted" /> Acquéreur
+              </label>
               <input
                 type="text"
                 name="acquereur"
                 value={formData.acquereur}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
+                placeholder="Nom de l'acquéreur"
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Plus/moins-value (CDF)</label>
+            <div className="col-md-4">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiTrendingUp size={14} className="text-muted" /> Plus/moins-value (CDF)
+              </label>
               <input
                 type="number"
                 name="plus_moins_value"
                 value={formData.plus_moins_value}
                 onChange={handleChange}
-                style={styles.input}
+                className="form-control"
+                placeholder="0"
               />
             </div>
-          </>
+          </div>
         );
 
       case 'don':
         return (
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Bénéficiaire</label>
-            <input
-              type="text"
-              name="acquereur"
-              value={formData.acquereur}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="Organisation bénéficiaire"
-            />
+          <div className="row g-3">
+            <div className="col-md-12">
+              <label className="form-label d-flex align-items-center gap-2">
+                <FiUser size={14} className="text-muted" /> Bénéficiaire
+              </label>
+              <input
+                type="text"
+                name="acquereur"
+                value={formData.acquereur}
+                onChange={handleChange}
+                className="form-control"
+                placeholder="Organisation bénéficiaire"
+              />
+            </div>
           </div>
         );
 
@@ -305,277 +337,279 @@ const MouvementForm = ({ actifId, mouvement, onSuccess, onCancel }) => {
     }
   };
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h3 style={styles.title}>
-          {mouvement ? 'Modifier le mouvement' : 'Nouveau mouvement'}
-        </h3>
-        <button onClick={onCancel} style={styles.closeButton}>
-          <FiX />
-        </button>
-      </div>
-
-      {error && (
-        <div style={styles.errorMessage}>
-          {error}
-        </div>
-      )}
-
-      {/* ✅ MESSAGE APRÈS CRÉATION AVEC OPTION DE VALIDATION */}
-      {showValidationOption && nouveauMouvement && (
-        <div style={styles.validationMessage}>
-          <p style={{ marginBottom: '1rem' }}>
-            ✅ Mouvement créé avec succès ! Souhaitez-vous le valider immédiatement ?
-          </p>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button
-              onClick={() => handleValider(nouveauMouvement.id)}
-              style={styles.validerButton}
-            >
-              <FiCheck /> Oui, valider maintenant
-            </button>
-            <button
-              onClick={onSuccess}
-              style={styles.skipButton}
-            >
-              Non, je validerai plus tard
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!showValidationOption && (
-        <form onSubmit={handleSubmit}>
-          <div style={styles.formGrid}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Type de mouvement *</label>
-              <select
-                name="type_mouvement"
-                value={formData.type_mouvement}
-                onChange={handleChange}
-                style={styles.select}
-                required
-                disabled={!!mouvement}
-              >
-                {typesMouvement.map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Date du mouvement *</label>
-              <input
-                type="date"
-                name="date_mouvement"
-                value={formData.date_mouvement}
-                onChange={handleChange}
-                style={styles.input}
-                required
-              />
-            </div>
-
-            {renderChampsSpecifiques()}
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Nouvel état (optionnel)</label>
-              <select
-                name="nouvel_etat"
-                value={formData.nouvel_etat}
-                onChange={handleChange}
-                style={styles.select}
-              >
-                <option value="">-- Non modifié --</option>
-                {etats.map(e => (
-                  <option key={e.value} value={e.value}>{e.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Nouvelle localisation (optionnel)</label>
-              <input
-                type="text"
-                name="nouvelle_localisation"
-                value={formData.nouvelle_localisation}
-                onChange={handleChange}
-                style={styles.input}
-                placeholder="Si changement de lieu"
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Nouvelle affectation (optionnel)</label>
-              <input
-                type="text"
-                name="nouvelle_affectation"
-                value={formData.nouvelle_affectation}
-                onChange={handleChange}
-                style={styles.input}
-                placeholder="Service/personne responsable"
-              />
-            </div>
-
-            <div style={styles.formGroupFull}>
-              <label style={styles.label}>Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                style={styles.textarea}
-                rows="3"
-                placeholder="Détails du mouvement..."
-              />
-            </div>
-          </div>
-
-          <div style={styles.buttonGroup}>
-            <button type="submit" style={styles.submitButton} disabled={loading}>
-              {loading ? 'Enregistrement...' : (mouvement ? 'Modifier' : 'Enregistrer')}
-            </button>
-            <button type="button" onClick={onCancel} style={styles.cancelButton}>
-              Annuler
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-};
-
-const styles = {
-  container: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '1.5rem',
-    marginBottom: '2rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    border: '1px solid #e5e7eb'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem'
-  },
-  title: {
-    margin: 0,
-    fontSize: '1.1rem',
-    color: 'var(--text-primary)'
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '1.25rem',
-    cursor: 'pointer',
-    color: '#9ca3af',
-    ':hover': {
-      color: 'var(--text-secondary)'
+  // Styles d'animation
+  const animationStyles = `
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1rem'
-  },
-  formGroup: {
-    marginBottom: '1rem'
-  },
-  formGroupFull: {
-    gridColumn: '1 / -1',
-    marginBottom: '1rem'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '0.5rem',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: 'var(--text-primary)'
-  },
-  input: {
-    width: '100%',
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.875rem'
-  },
-  select: {
-    width: '100%',
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-card)'
-  },
-  textarea: {
-    width: '100%',
-    padding: '0.5rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.875rem',
-    resize: 'vertical'
-  },
-  buttonGroup: {
-    display: 'flex',
-    gap: '1rem',
-    justifyContent: 'flex-end',
-    marginTop: '1.5rem'
-  },
-  submitButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#2563eb',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  },
-  cancelButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#9ca3af',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  },
-  errorMessage: {
-    backgroundColor: '#fee2e2',
-    color: '#b91c1c',
-    padding: '0.75rem',
-    borderRadius: '4px',
-    marginBottom: '1rem'
-  },
-  validationMessage: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-    padding: '1rem',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-    border: '1px solid #10b981'
-  },
-  validerButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  skipButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#f3f4f6',
-    color: 'var(--text-primary)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    .form-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    .fade-in {
+      animation: fadeIn 0.2s ease-out;
+    }
+    .validation-pulse {
+      animation: pulse 0.5s ease-out;
+    }
+  `;
+
+  const currentTypeIcon = getTypeIcon(formData.type_mouvement);
+  const currentTypeLabel = typesMouvement.find(t => t.value === formData.type_mouvement)?.label || 'Mouvement';
+
+  return (
+    <>
+      <style>{animationStyles}</style>
+      <div className="form-slide-in">
+        <div className="card shadow-sm border-0 rounded-3 mb-4">
+          {/* En-tête avec icône du type de mouvement */}
+          <div className="card-header bg-gradient bg-primary bg-opacity-10 border-0 rounded-top-3 p-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center gap-3">
+                <div className="rounded-circle bg-white p-2 shadow-sm">
+                  <span style={{ fontSize: '24px' }}>{currentTypeIcon}</span>
+                </div>
+                <div>
+                  <h3 className="h5 fw-semibold text-primary mb-0">
+                    {mouvement ? 'Modifier le mouvement' : 'Nouveau mouvement'}
+                  </h3>
+                  <p className="small text-muted mb-0">
+                    Type: <strong className="text-primary">{currentTypeLabel}</strong>
+                  </p>
+                </div>
+              </div>
+              <button onClick={onCancel} className="btn btn-sm btn-link text-secondary p-0">
+                <FiX size={20} />
+              </button>
+            </div>
+          </div>
+
+          <div className="card-body p-4">
+            {/* Message d'erreur */}
+            {error && (
+              <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+                <div className="d-flex align-items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{error}</span>
+                </div>
+                <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setError('')}></button>
+              </div>
+            )}
+
+            {/* Message après création avec option de validation */}
+            {showValidationOption && nouveauMouvement && (
+              <div className="alert alert-success validation-pulse mb-4" role="alert">
+                <div className="d-flex align-items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="rounded-circle bg-success bg-opacity-25 p-2">
+                      <FiCheck size={20} className="text-success" />
+                    </div>
+                  </div>
+                  <div className="flex-grow-1">
+                    <h6 className="alert-heading mb-2">✅ Mouvement créé avec succès !</h6>
+                    <p className="mb-3 small">Souhaitez-vous le valider immédiatement ?</p>
+                    <div className="d-flex gap-3">
+                      <button
+                        onClick={() => handleValider(nouveauMouvement.id)}
+                        className="btn btn-success btn-sm d-flex align-items-center gap-2"
+                      >
+                        <FiCheck size={14} /> Oui, valider maintenant
+                      </button>
+                      <button
+                        onClick={onSuccess}
+                        className="btn btn-outline-secondary btn-sm"
+                      >
+                        Non, je validerai plus tard
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Formulaire principal */}
+            {!showValidationOption && (
+              <form onSubmit={handleSubmit}>
+                {/* Informations générales */}
+                <div className="row g-3 mb-4">
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                      <span>{currentTypeIcon}</span> Type de mouvement <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      name="type_mouvement"
+                      value={formData.type_mouvement}
+                      onChange={handleChange}
+                      className="form-select"
+                      required
+                      disabled={!!mouvement}
+                    >
+                      {typesMouvement.map(t => (
+                        <option key={t.value} value={t.value}>
+                          {t.icon} {t.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="text-muted">
+                      Le type de mouvement ne peut pas être modifié après création
+                    </small>
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                      <FiCalendar size={14} /> Date du mouvement <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="date_mouvement"
+                      value={formData.date_mouvement}
+                      onChange={handleChange}
+                      className="form-control"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Champs spécifiques au type */}
+                <div className="mb-4">
+                  <div className="border-bottom pb-2 mb-3">
+                    <h6 className="fw-semibold text-primary mb-0">Détails spécifiques</h6>
+                    <small className="text-muted">Informations relatives au type de mouvement</small>
+                  </div>
+                  {renderChampsSpecifiques()}
+                </div>
+
+                {/* Champs optionnels généraux */}
+                <div className="mb-4">
+                  <div className="border-bottom pb-2 mb-3">
+                    <h6 className="fw-semibold text-primary mb-0">Informations complémentaires</h6>
+                    <small className="text-muted">Champs optionnels</small>
+                  </div>
+                  <div className="row g-3">
+                    <div className="col-md-4">
+                      <label className="form-label d-flex align-items-center gap-2">
+                        <FiShield size={14} className="text-muted" /> Nouvel état
+                      </label>
+                      <select
+                        name="nouvel_etat"
+                        value={formData.nouvel_etat}
+                        onChange={handleChange}
+                        className="form-select"
+                      >
+                        <option value="">-- Non modifié --</option>
+                        {etats.map(e => (
+                          <option key={e.value} value={e.value}>{e.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-md-4">
+                      <label className="form-label d-flex align-items-center gap-2">
+                        <FiMapPin size={14} className="text-muted" /> Nouvelle localisation
+                      </label>
+                      <input
+                        type="text"
+                        name="nouvelle_localisation"
+                        value={formData.nouvelle_localisation}
+                        onChange={handleChange}
+                        className="form-control"
+                        placeholder="Si changement de lieu"
+                      />
+                    </div>
+
+                    <div className="col-md-4">
+                      <label className="form-label d-flex align-items-center gap-2">
+                        <FiUser size={14} className="text-muted" /> Nouvelle affectation
+                      </label>
+                      <input
+                        type="text"
+                        name="nouvelle_affectation"
+                        value={formData.nouvelle_affectation}
+                        onChange={handleChange}
+                        className="form-control"
+                        placeholder="Service/personne responsable"
+                      />
+                    </div>
+
+                    <div className="col-12">
+                      <label className="form-label d-flex align-items-center gap-2">
+                        <FiFileText size={14} className="text-muted" /> Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleChange}
+                        className="form-control"
+                        rows="3"
+                        placeholder="Détails du mouvement..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions du formulaire */}
+                <div className="d-flex gap-3 justify-content-end pt-3 border-top">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="btn btn-outline-secondary"
+                    disabled={loading}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary d-flex align-items-center gap-2"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Enregistrement...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSave size={14} /> {mouvement ? 'Modifier' : 'Enregistrer'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Info card pour les types de mouvement */}
+        <div className="card border-0 bg-light rounded-3">
+          <div className="card-body py-2 px-3">
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <span className="small text-muted">💡 Types de mouvements disponibles :</span>
+              {typesMouvement.map(type => (
+                <div key={type.value} className="d-flex align-items-center gap-1">
+                  <span>{type.icon}</span>
+                  <small className="text-muted">{type.label}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default MouvementForm;

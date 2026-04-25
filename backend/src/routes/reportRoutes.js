@@ -14,7 +14,7 @@ router.use(authMiddleware);
  */
 router.get(
   '/etat-immobilisations',
-  authorize('admin', 'comptable', 'auditeur'),
+  authorize('admin', 'comptable', 'auditeur', 'informatique', 'gestionnaire', 'inventoriste'),
   reportController.etatImmobilisations
 );
 
@@ -23,7 +23,7 @@ router.get(
  */
 router.get(
   '/tableau-amortissements',
-  authorize('admin', 'comptable'),
+  authorize('admin', 'comptable', 'informatique', 'gestionnaire'),
   reportController.tableauAmortissements
 );
 
@@ -32,7 +32,7 @@ router.get(
  */
 router.get(
   '/fiche-actif/:id',
-  authorize('admin', 'comptable', 'auditeur'),
+  authorize('admin', 'comptable', 'auditeur', 'informatique', 'gestionnaire', 'inventoriste'),
   reportController.ficheActif
 );
 
@@ -43,7 +43,7 @@ router.get(
  */
 router.get(
   '/etat-par-categorie',
-  authorize('admin', 'comptable', 'auditeur'),
+  authorize('admin', 'comptable', 'auditeur', 'informatique', 'gestionnaire'),
   reportController.getEtatParCategorie
 );
 
@@ -52,7 +52,7 @@ router.get(
  */
 router.get(
   '/etat-par-localisation',
-  authorize('admin', 'comptable', 'auditeur'),
+  authorize('admin', 'comptable', 'auditeur', 'informatique', 'gestionnaire'),
   reportController.getEtatParLocalisation
 );
 
@@ -61,7 +61,7 @@ router.get(
  */
 router.get(
   '/etat-par-service',
-  authorize('admin', 'comptable', 'auditeur'),
+  authorize('admin', 'comptable', 'auditeur', 'informatique', 'gestionnaire'),
   reportController.getEtatParService
 );
 
@@ -70,7 +70,7 @@ router.get(
  */
 router.get(
   '/amortissement-previsionnel',
-  authorize('admin', 'comptable'),
+  authorize('admin', 'comptable', 'informatique', 'gestionnaire'),
   reportController.getAmortissementPrevisionnelVsRealise
 );
 
@@ -79,16 +79,17 @@ router.get(
  */
 router.get(
   '/suivi-investissements',
-  authorize('admin', 'comptable'),
+  authorize('admin', 'comptable', 'informatique', 'gestionnaire'),
   reportController.getSuiviInvestissements
 );
 
 /**
  * Alertes : fin de licence, échéance maintenance, etc.
+ * ✅ AJOUT DU RÔLE 'juridique'
  */
 router.get(
   '/alertes',
-  authorize('admin', 'comptable', 'auditeur'),
+  authorize('admin', 'comptable', 'auditeur', 'informatique', 'gestionnaire', 'inventoriste', 'juridique'),
   reportController.getAlertes
 );
 
@@ -99,7 +100,7 @@ router.get(
  */
 router.get(
   '/export-excel',
-  authorize('admin', 'comptable'),
+  authorize('admin', 'comptable', 'informatique', 'gestionnaire'),
   reportController.exportExcel
 );
 
@@ -108,7 +109,7 @@ router.get(
  */
 router.get(
   '/export-pdf',
-  authorize('admin', 'comptable'),
+  authorize('admin', 'comptable', 'informatique', 'gestionnaire'),
   reportController.exportPDF
 );
 

@@ -4,12 +4,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './authSlice';
 import actifReducer from './actifSlice';
 import navigationReducer from './navigationSlice';
+import usersReducer from './usersSlice';  // ✅ AJOUT : Import du usersSlice
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     actifs: actifReducer,
     navigation: navigationReducer,
+    users: usersReducer,  // ✅ AJOUT : Déclaration du reducer users
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -19,3 +21,4 @@ export const store = configureStore({
 
 // ✅ Pour déboguer
 console.log('Store initialisé avec navigation:', store.getState().navigation);
+console.log('Store initialisé avec users:', store.getState().users); // ✅ Vérification ajoutéex    

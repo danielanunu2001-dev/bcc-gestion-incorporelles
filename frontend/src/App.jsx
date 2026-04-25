@@ -2,35 +2,68 @@
 import React, { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
-import { fr } from 'date-fns/locale/fr';
 import { Toaster } from 'sonner';
 import { store } from './store';
 import { router } from './router';
-import { responsiveTheme } from './theme/responsiveTheme';
-import { useResponsiveMUI } from './hooks/useResponsiveMUI';
 import { NetworkStatus } from './components/Common/NetworkStatus';
 import { MobileOptimizer } from './components/Common/MobileOptimizer';
+import { useResponsive } from './hooks/useResponsive';
 
 // Composant interne pour les optimisations mobiles
 const AppContent = () => {
-  const { isMobile, isTablet } = useResponsiveMUI();
+  const { isMobile, isTablet } = useResponsive();
 
   useEffect(() => {
     // Ajuster la vue pour mobile
     if (isMobile) {
       document.documentElement.style.setProperty('--mobile-viewport', 'true');
+      
       // Éviter le zoom sur les inputs iOS
-      document.addEventListener('touchstart', (e) => {
+      const handleTouchStart = (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
           e.target.style.fontSize = '16px';
         }
-      });
+      };
+      
+      document.addEventListener('touchstart', handleTouchStart);
+      
+      // Ajouter la classe body pour mobile
+      document.body.classList.add('mobile-view');
+      
+      return () => {
+        document.removeEventListener('touchstart', handleTouchStart);
+        document.body.classList.remove('mobile-view');
+      };
+    } else if (isTablet) {
+      document.body.classList.add('tablet-view');
+      return () => document.body.classList.remove('tablet-view');
+    } else {
+      document.body.classList.add('desktop-view');
+      return () => document.body.classList.remove('desktop-view');
     }
-  }, [isMobile]);
+  }, [isMobile, isTablet]);
+
+  // Gestion du thème sombre avec Bootstrap
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+    }
+    
+    // Écouter les changements de thème
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          const isDark = document.body.classList.contains('dark-mode');
+          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+      });
+    });
+    
+    observer.observe(document.body, { attributes: true });
+    
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <>
@@ -42,7 +75,7 @@ const AppContent = () => {
         richColors
         duration={isMobile ? 3000 : 4000}
         closeButton={!isMobile}
-        mobileOffset={{ bottom: isTablet ? 80 : 56 }}
+        offset={isMobile ? '60px' : '80px'}
         style={{
           fontSize: isMobile ? '0.875rem' : '1rem',
         }}
@@ -55,12 +88,7 @@ const AppContent = () => {
 function App() {
   return (
     <Provider store={store}>
-      <ThemeProvider theme={responsiveTheme}>
-        <CssBaseline /> {/* Reset CSS + support dark mode */}
-        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
-          <AppContent />
-        </LocalizationProvider>
-      </ThemeProvider>
+      <AppContent />
     </Provider>
   );
 }

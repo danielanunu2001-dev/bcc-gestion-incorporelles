@@ -16,18 +16,15 @@ const fs = require('fs');
 const validateDate = (dateValue) => {
   if (!dateValue) return null;
   
-  // Si c'est la chaîne "Invalid date", retourner null
   if (dateValue === 'Invalid date') {
     console.warn('⚠️ Date invalide détectée, remplacée par null');
     return null;
   }
   
-  // Si c'est déjà une date valide au format YYYY-MM-DD
   if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
     return dateValue;
   }
   
-  // Essayer de convertir en Date
   const date = new Date(dateValue);
   if (isNaN(date.getTime())) {
     console.warn(`⚠️ Format de date invalide: ${dateValue}`);
@@ -35,52 +32,6 @@ const validateDate = (dateValue) => {
   }
   
   return date.toISOString().split('T')[0];
-};
-
-// ==================== FONCTION DE CONVERSION ====================
-
-const convertToCDF = async (montantDevise, deviseCode, dateAcquisition) => {
-    if (deviseCode === 'CDF') {
-        return { montant_cdf: montantDevise, taux_utilise: 1, date_taux: dateAcquisition };
-    }
-    
-    // Trouver la devise
-    const devise = await Devise.findOne({ where: { code: deviseCode } });
-    if (!devise) {
-        throw new Error(`Devise ${deviseCode} non trouvée`);
-    }
-    
-    // Chercher le taux à la date d'acquisition
-    let taux = await TauxChange.findOne({
-        where: {
-            devise_id: devise.id,
-            date_taux: dateAcquisition
-        }
-    });
-    
-    // Si pas de taux exact, prendre le dernier taux avant cette date
-    if (!taux) {
-        taux = await TauxChange.findOne({
-            where: {
-                devise_id: devise.id,
-                date_taux: { [Op.lte]: dateAcquisition }
-            },
-            order: [['date_taux', 'DESC']]
-        });
-    }
-    
-    if (!taux) {
-        throw new Error(`Aucun taux de change trouvé pour ${deviseCode} à la date ${dateAcquisition}`);
-    }
-    
-    const tauxValue = parseFloat(taux.taux_cdf);
-    const montantCDF = montantDevise * tauxValue;
-    
-    return {
-        montant_cdf: montantCDF,
-        taux_utilise: tauxValue,
-        date_taux: taux.date_taux
-    };
 };
 
 /**
@@ -100,10 +51,8 @@ const calculerAmortissement = (actif) => {
   let valeurRestante = parseFloat(cout_acquisition);
   let cumul = 0;
   
-  // Correction du taux pour dégressif
   let tauxEffectif = taux_amortissement ? parseFloat(taux_amortissement) : 100 / duree_utile_ans;
   
-  // Coefficient dégressif (selon durée)
   let coefficient = 1;
   if (mode_amortissement === 'degressif') {
     if (duree_utile_ans <= 3) coefficient = 1.5;
@@ -122,21 +71,16 @@ const calculerAmortissement = (actif) => {
     let taux = 0;
     
     if (mode_amortissement === 'lineaire') {
-      // Amortissement linéaire
       annuite = (valeurRestante - valeur_residuelle) / (duree_utile_ans - i);
       taux = (100 / (duree_utile_ans - i)).toFixed(2);
     } else {
-      // Amortissement dégressif
       annuite = valeurRestante * (tauxEffectif / 100);
       taux = tauxEffectif.toFixed(2);
       
-      // Calcul de l'amortissement linéaire restant
       const anneesRestantes = duree_utile_ans - i;
       const annuiteLineaire = (valeurRestante - valeur_residuelle) / anneesRestantes;
       
-      // Si l'annuité dégressive devient inférieure à l'annuité linéaire
       if (annuite < annuiteLineaire) {
-        // Passer au mode linéaire pour le reste
         for (let j = i; j < duree_utile_ans; j++) {
           const restes = duree_utile_ans - j;
           const annuiteLin = (valeurRestante - valeur_residuelle) / restes;
@@ -156,7 +100,6 @@ const calculerAmortissement = (actif) => {
       }
     }
     
-    // Éviter de dépasser la valeur résiduelle
     if (valeurRestante - annuite < valeur_residuelle) {
       annuite = valeurRestante - valeur_residuelle;
       if (annuite < 0) annuite = 0;
@@ -173,7 +116,6 @@ const calculerAmortissement = (actif) => {
       taux: parseFloat(taux)
     });
     
-    // Arrêter si valeur atteinte
     if (valeurRestante <= valeur_residuelle) break;
   }
   
@@ -193,7 +135,6 @@ const calculerAmortissementLineaire = (cout, valeurResiduelle, duree) => {
 const genererPlanAmortissement = async (actif, transaction) => {
   const amortissements = [];
   
-  // Récupérer les paramètres
   const cout = parseFloat(actif.cout_acquisition);
   const valeurResiduelle = parseFloat(actif.valeur_residuelle || 0);
   const duree = actif.duree_utile_ans;
@@ -213,7 +154,6 @@ const genererPlanAmortissement = async (actif, transaction) => {
   let resultats = [];
   
   if (mode === 'lineaire') {
-    // ========== AMORTISSEMENT LINÉAIRE ==========
     const annuite = (cout - valeurResiduelle) / duree;
     let cumul = 0;
     let vnc = cout;
@@ -233,19 +173,14 @@ const genererPlanAmortissement = async (actif, transaction) => {
     }
   } 
   else if (mode === 'degressif') {
-    // ========== AMORTISSEMENT DÉGRESSIF CORRIGÉ ==========
-    
-    // Calculer le coefficient selon la durée
     let coefficient = 1.5;
     if (duree <= 4) coefficient = 1.5;
     else if (duree <= 6) coefficient = 2;
     else coefficient = 2.5;
     
-    // Calculer le taux dégressif
     const tauxLineaire = 100 / duree;
     let tauxDegressif = tauxLineaire * coefficient;
     
-    // Utiliser le taux personnalisé s'il existe
     if (taux && taux > 0) {
       tauxDegressif = taux;
     }
@@ -264,14 +199,11 @@ const genererPlanAmortissement = async (actif, transaction) => {
       const anneesRestantes = duree - i;
       
       if (!passageLineaire) {
-        // Calcul dégressif
         annuite = vnc * (tauxDegressif / 100);
         tauxActuel = tauxDegressif;
         
-        // Calcul de l'annuité linéaire restante
         const annuiteLineaire = (vnc - valeurResiduelle) / anneesRestantes;
         
-        // Vérifier si on doit passer au linéaire
         if (annuite <= annuiteLineaire) {
           passageLineaire = true;
           console.log(`Passage au linéaire à l'année ${i + 1}`);
@@ -281,13 +213,11 @@ const genererPlanAmortissement = async (actif, transaction) => {
       }
       
       if (passageLineaire) {
-        // Calcul linéaire pour les années restantes
         const anneesRest = duree - i;
         annuite = (vnc - valeurResiduelle) / anneesRest;
         tauxActuel = (100 / anneesRest);
       }
       
-      // S'assurer de ne pas dépasser la valeur résiduelle
       if (vnc - annuite < valeurResiduelle) {
         annuite = vnc - valeurResiduelle;
       }
@@ -310,7 +240,6 @@ const genererPlanAmortissement = async (actif, transaction) => {
   console.log('=== RÉSULTAT ===');
   console.table(resultats);
   
-  // Sauvegarder en base
   for (const r of resultats) {
     amortissements.push({
       actif_id: actif.id,
@@ -337,7 +266,8 @@ const logAction = async (userId, action, tableName, recordId, oldData = null, ne
       record_id: recordId,
       old_data: oldData,
       new_data: newData,
-      ip_address: ipAddress
+      ip_address: ipAddress,
+      action_date: operationDate || new Date()
     };
     
     if (operationDate) {
@@ -345,6 +275,7 @@ const logAction = async (userId, action, tableName, recordId, oldData = null, ne
     }
     
     await AuditLog.create(logData);
+    console.log(`✅ Log créé: ${action} sur ${tableName} (${recordId}) à ${new Date().toLocaleString('fr-FR')}`);
     return true;
   } catch (error) {
     console.error('❌ Erreur logAction:', error);
@@ -358,40 +289,53 @@ exports.previewConversion = async (req, res) => {
     try {
         const { montant, devise, date } = req.query;
         
-        if (!montant || !devise) {
-            return res.status(400).json({ message: 'Montant et devise requis' });
-        }
+        console.log('🔍 previewConversion reçu:', { montant, devise, date });
         
-        if (devise === 'CDF') {
-            return res.json({
-                montant_original: parseFloat(montant),
-                devise_originale: devise,
-                montant_cdf: parseFloat(montant),
-                taux_utilise: 1
+        if (!montant || !devise) {
+            return res.status(400).json({ 
+                message: 'Montant et devise requis',
+                montant_recu: montant,
+                devise_recue: devise
             });
         }
         
-        const conversion = await TauxService.convertToCDF(parseFloat(montant), devise, date || new Date().toISOString().split('T')[0]);
+        const montantNum = parseFloat(montant);
+        if (isNaN(montantNum) || montantNum <= 0) {
+            return res.status(400).json({ 
+                message: 'Montant invalide',
+                montant_recu: montant
+            });
+        }
+        
+        const conversion = await TauxService.convertToCDF(montantNum, devise, date);
         
         res.json({
-            montant_original: parseFloat(montant),
+            montant_original: montantNum,
             devise_originale: devise,
             montant_cdf: conversion.montant_cdf,
             taux_utilise: conversion.taux_utilise,
             date_taux: conversion.date_taux
         });
+        
     } catch (error) {
-        console.error('Erreur conversion:', error);
-        res.status(500).json({ message: error.message });
+        console.error('❌ Erreur previewConversion:', error);
+        const { montant, devise } = req.query;
+        const montantNum = parseFloat(montant) || 0;
+        const tauxFallback = TauxService.getTauxParDefaut(devise || 'USD');
+        
+        res.json({
+            montant_original: montantNum,
+            devise_originale: devise || 'CDF',
+            montant_cdf: montantNum * tauxFallback,
+            taux_utilise: tauxFallback,
+            date_taux: new Date().toISOString().split('T')[0],
+            avertissement: 'Taux par défaut utilisé'
+        });
     }
 };
 
 // ==================== CRUD OPTIMISÉ AVEC NOUVEAUX CHAMPS ====================
 
-/**
- * Récupérer tous les actifs avec filtres
- * ✅ AJOUT : Filtre typeImmobilisation (corporel / incorporel)
- */
 exports.getAllActifs = async (req, res) => {
   try {
     const { 
@@ -405,20 +349,17 @@ exports.getAllActifs = async (req, res) => {
     
     const where = {};
     
-    // ✅ AJOUT D'UN LOG DÉTAILLÉ
     console.log('🔍 === BACKEND - PARAMÈTRES REÇUS ===');
     console.log('type:', type);
     console.log('typeImmobilisation:', typeImmobilisation);
     console.log('statut:', statut);
     console.log('recherche:', recherche);
     
-    // Filtre par type d'actif
     if (type) {
       where.type = type;
       console.log('✅ Filtre type appliqué:', type);
     }
     
-    // ✅ Filtre par nature (corporel / incorporel)
     if (typeImmobilisation) {
       where.type_immobilisation = typeImmobilisation;
       console.log('✅ Filtre nature appliqué:', typeImmobilisation);
@@ -426,14 +367,12 @@ exports.getAllActifs = async (req, res) => {
       console.log('⚠️ Aucun filtre nature appliqué (typeImmobilisation est undefined)');
     }
     
-    // Filtre par statut
     if (statut === 'actif') {
       where.actif = true;
     } else if (statut === 'inactif') {
       where.actif = false;
     }
     
-    // Filtre par recherche textuelle
     if (recherche) {
       where[Op.or] = [
         { code: { [Op.iLike]: `%${recherche}%` } },
@@ -471,9 +410,6 @@ exports.getAllActifs = async (req, res) => {
   }
 };
 
-/**
- * Récupérer un actif par ID avec toutes ses relations
- */
 exports.getActifById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -496,7 +432,7 @@ exports.getActifById = async (req, res) => {
           as: 'categorie', 
           attributes: ['id', 'code_categorie', 'nom_categorie', 'duree_vie_ans', 'mode_amortissement_defaut', 'compte_comptable_defaut'] 
         },
-        { model: Facture, as: 'facture', attributes: ['id', 'numero_facture', 'date_emission', 'montant_ttc', 'fichier_pdf'] },
+        { model: Facture, as: 'facture', attributes: ['id', 'numero_facture', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'fichier_pdf', 'devise'] },
         { model: User, as: 'createur', attributes: ['id', 'full_name', 'email'] },
         { model: User, as: 'modificateur', attributes: ['id', 'full_name', 'email'] },
         { model: Devise, as: 'devise', attributes: ['id', 'code', 'nom', 'symbole', 'taux_achat', 'taux_vente', 'taux_moyen'] }
@@ -508,7 +444,6 @@ exports.getActifById = async (req, res) => {
       return res.status(404).json({ message: 'Actif non trouvé' });
     }
     
-    // Ajouter les informations de conversion
     const response = actif.toJSON();
     if (actif.montant_devise && actif.devise) {
         response.conversion = {
@@ -519,7 +454,7 @@ exports.getActifById = async (req, res) => {
         };
     }
     
-    console.log(`✅ Actif trouvé: ${actif.code}`);
+    console.log(`✅ Actif trouvé: ${actif.code} - Taux: ${actif.taux_change_utilisation || 'non défini'}`);
     res.json(response);
   } catch (error) {
     console.error('❌ Erreur getActifById:', error);
@@ -527,10 +462,92 @@ exports.getActifById = async (req, res) => {
   }
 };
 
-/**
- * Créer un nouvel actif avec tous les champs
- * ✅ AJOUT : Génération automatique de la facture
- */
+exports.getActifByCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    
+    if (!code) {
+      console.error('❌ Code QR manquant');
+      return res.status(400).json({ message: 'Code QR requis' });
+    }
+    
+    console.log(`🔍 Recherche actif par code QR: ${code}`);
+    
+    const actif = await Actif.findOne({
+      where: {
+        [Op.or]: [
+          { code: code },
+          { numero_inventaire: code }
+        ],
+        actif: true
+      },
+      include: [
+        { 
+          model: Amortissement, 
+          as: 'Amortissements',
+          limit: 1,
+          order: [['exercice', 'DESC']],
+          required: false
+        },
+        { 
+          model: CategorieAmortissement, 
+          as: 'categorie',
+          attributes: ['id', 'code_categorie', 'nom_categorie']
+        },
+        { 
+          model: Devise, 
+          as: 'devise',
+          attributes: ['id', 'code', 'nom', 'symbole']
+        }
+      ]
+    });
+    
+    if (!actif) {
+      console.log(`⚠️ Aucun actif trouvé pour le code: ${code}`);
+      return res.status(404).json({ 
+        message: 'Actif non trouvé',
+        code_recherche: code 
+      });
+    }
+    
+    const dernierAmort = actif.Amortissements?.[0];
+    const valeurNette = dernierAmort 
+      ? parseFloat(dernierAmort.valeur_nette) 
+      : parseFloat(actif.cout_acquisition);
+    
+    console.log(`✅ Actif trouvé: ${actif.code} - ${actif.nom}`);
+    
+    res.json({
+      id: actif.id,
+      code: actif.code,
+      nom: actif.nom,
+      type: actif.type,
+      type_immobilisation: actif.type_immobilisation,
+      date_acquisition: actif.date_acquisition,
+      cout_acquisition: parseFloat(actif.cout_acquisition),
+      valeur_nette: valeurNette,
+      localisation: actif.localisation,
+      affectation: actif.affectation,
+      etat: actif.etat,
+      numero_inventaire: actif.numero_inventaire,
+      marque: actif.marque,
+      modele: actif.modele,
+      numero_serie: actif.numero_serie,
+      fournisseur: actif.fournisseur,
+      categorie: actif.categorie,
+      devise: actif.devise,
+      date_validite: actif.date_validite
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur getActifByCode:', error);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la recherche par code',
+      error: error.message 
+    });
+  }
+};
+
 exports.createActif = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -545,7 +562,6 @@ exports.createActif = async (req, res) => {
       taux_amortissement, devise_id, montant_devise, taux_change_utilisation
     } = req.body;
 
-    // Validation des dates
     const validDateAcquisition = validateDate(date_acquisition);
     const validDateValidite = validateDate(date_validite);
     
@@ -553,13 +569,11 @@ exports.createActif = async (req, res) => {
       return res.status(400).json({ message: 'La date d\'acquisition est invalide' });
     }
 
-    // Vérifier si le code existe déjà
     const existing = await Actif.findOne({ where: { code } });
     if (existing) {
       return res.status(400).json({ message: 'Code déjà utilisé' });
     }
 
-    // Calculer le taux si non fourni
     let tauxFinal = taux_amortissement;
     if (!tauxFinal && duree_utile_ans > 0) {
       if (mode_amortissement === 'lineaire') {
@@ -574,38 +588,56 @@ exports.createActif = async (req, res) => {
       }
     }
 
-    // Gestion de la conversion de devise
     let coutCDF = cout_acquisition;
-    let tauxUtilise = null;
-    let montantDeviseOriginal = null;
+    let tauxUtilise = taux_change_utilisation;
+    let montantDeviseOriginal = montant_devise;
     let deviseIdFinal = devise_id;
     let deviseCodeFinal = devise_code;
 
+    // CONVERSION AVEC LOGS DE DÉBOGAGE
     if (devise_code && devise_code !== 'CDF') {
-        const conversion = await convertToCDF(cout_acquisition, devise_code, validDateAcquisition);
-        coutCDF = conversion.montant_cdf;
-        tauxUtilise = conversion.taux_utilise;
-        montantDeviseOriginal = cout_acquisition;
+        console.log(`💱 Conversion: ${montant_devise || cout_acquisition} ${devise_code} -> CDF (date: ${validDateAcquisition})`);
         
-        // Récupérer l'ID de la devise si non fourni
+        if (montant_devise && !cout_acquisition) {
+            const conversion = await TauxService.convertToCDF(montant_devise, devise_code, validDateAcquisition);
+            coutCDF = conversion.montant_cdf;
+            tauxUtilise = conversion.taux_utilise;
+            montantDeviseOriginal = montant_devise;
+            console.log(`✅ Résultat conversion: ${montant_devise} ${devise_code} = ${coutCDF} CDF (taux: ${tauxUtilise})`);
+        } else if (cout_acquisition) {
+            const conversion = await TauxService.convertToCDF(cout_acquisition, devise_code, validDateAcquisition);
+            coutCDF = conversion.montant_cdf;
+            tauxUtilise = conversion.taux_utilise;
+            montantDeviseOriginal = cout_acquisition;
+            console.log(`✅ Résultat conversion: ${cout_acquisition} ${devise_code} = ${coutCDF} CDF (taux: ${tauxUtilise})`);
+        }
+        
         if (!deviseIdFinal) {
             const devise = await Devise.findOne({ where: { code: devise_code } });
             if (devise) deviseIdFinal = devise.id;
         }
     } else if (devise_code === 'CDF') {
-        coutCDF = cout_acquisition;
-        montantDeviseOriginal = null;
-        tauxUtilise = null;
+        console.log(`💰 Devise CDF, pas de conversion nécessaire`);
+        montantDeviseOriginal = cout_acquisition;
+        tauxUtilise = 1;
     }
 
-    // Créer l'actif
+    if (!coutCDF || coutCDF <= 0) {
+      return res.status(400).json({ message: 'Le coût d\'acquisition est requis et doit être positif' });
+    }
+
+    console.log(`📝 Création actif: ${code} - ${nom}`);
+    console.log(`   - Montant devise: ${montantDeviseOriginal} ${devise_code || 'CDF'}`);
+    console.log(`   - Montant CDF: ${coutCDF}`);
+    console.log(`   - Taux change: ${tauxUtilise || 1}`);
+
     const actif = await Actif.create({
       code, nom, type, 
       date_acquisition: validDateAcquisition,
       cout_acquisition: coutCDF,
       montant_devise: montantDeviseOriginal,
       devise_id: deviseIdFinal,
-      taux_change_utilisation: tauxUtilise,
+      taux_change_utilisation: tauxUtilise || 1,
       valeur_residuelle: valeur_residuelle || 0,
       duree_utile_ans,
       mode_amortissement,
@@ -624,13 +656,10 @@ exports.createActif = async (req, res) => {
       actif: true
     }, { transaction });
 
-    // Générer le plan d'amortissement
     await genererPlanAmortissement(actif, transaction);
     
-    // ✅ GÉNÉRER LA FACTURE
     let facture = null;
     try {
-      // Récupérer la devise pour la facture
       let deviseCodeFacture = 'CDF';
       if (deviseIdFinal) {
         const devise = await Devise.findByPk(deviseIdFinal);
@@ -639,15 +668,12 @@ exports.createActif = async (req, res) => {
         deviseCodeFacture = devise_code;
       }
       
-      // Générer le PDF
       const cheminFacture = await factureService.genererFacture(actif, req.user, deviseCodeFacture);
       
-      // Calculer les montants
-      const montantHt = montantDeviseOriginal ? parseFloat(montantDeviseOriginal) : parseFloat(cout_acquisition);
-      const tva = montantHt * 0.16; // TVA à 16%
+      const montantHt = montantDeviseOriginal ? parseFloat(montantDeviseOriginal) : parseFloat(cout_acquisition || coutCDF);
+      const tva = Math.round(montantHt * 0.16);
       const montantTtc = montantHt + tva;
       
-      // Créer l'enregistrement facture
       const numeroFactureGen = `FAC-${new Date().getFullYear()}-${actif.id.split('-')[0].toUpperCase()}`;
       
       facture = await Facture.create({
@@ -662,22 +688,20 @@ exports.createActif = async (req, res) => {
         created_by: req.user.id
       }, { transaction });
       
-      console.log(`✅ Facture générée: ${numeroFactureGen}`);
+      console.log(`✅ Facture générée: ${numeroFactureGen} | HT=${montantHt} ${deviseCodeFacture} | TVA=${tva} | TTC=${montantTtc}`);
     } catch (factureErr) {
       console.error('⚠️ Erreur lors de la génération de la facture:', factureErr.message);
-      // On continue sans facture en cas d'erreur (ne pas bloquer la création de l'actif)
     }
     
     await transaction.commit();
 
-    // Log d'audit
     await logAction(
       req.user.id,
       'CREATE',
       'actifs',
       actif.id,
       null,
-      { code, nom, type, date_acquisition: validDateAcquisition, cout_acquisition: coutCDF, montant_devise: montantDeviseOriginal, devise_code, numero_facture },
+      { code, nom, type, date_acquisition: validDateAcquisition, cout_acquisition: coutCDF, montant_devise: montantDeviseOriginal, devise_code, taux_utilise: tauxUtilise },
       req.ip,
       new Date(validDateAcquisition)
     );
@@ -694,13 +718,11 @@ exports.createActif = async (req, res) => {
       ]
     });
 
-    // Ajouter la facture dans la réponse si elle a été créée
     const responseData = actifComplet.toJSON();
     if (facture) {
       responseData.facture = facture;
     }
     
-    // Ajouter les informations de conversion
     if (montantDeviseOriginal && devise_code) {
         responseData.conversion = {
             montant_original: `${montantDeviseOriginal} ${devise_code}`,
@@ -710,6 +732,7 @@ exports.createActif = async (req, res) => {
         };
     }
 
+    console.log(`✅ Actif créé avec succès: ${code} - Taux: ${tauxUtilise}`);
     res.status(201).json(responseData);
   } catch (error) {
     await transaction.rollback();
@@ -718,23 +741,25 @@ exports.createActif = async (req, res) => {
   }
 };
 
-/**
- * Mettre à jour un actif
- */
 exports.updateActif = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
     const updateData = req.body;
 
-    const actif = await Actif.findByPk(id);
-    if (!actif) return res.status(404).json({ message: 'Actif non trouvé' });
+    console.log('📝 updateActif - ID:', id);
+    console.log('📝 updateActif - Données reçues:', JSON.stringify(updateData, null, 2));
 
-    // Validation des dates dans les mises à jour
+    const actif = await Actif.findByPk(id);
+    if (!actif) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Actif non trouvé' });
+    }
+
     if (updateData.date_acquisition) {
       updateData.date_acquisition = validateDate(updateData.date_acquisition);
     }
-    if (updateData.date_validite) {
+    if (updateData.date_validite !== undefined) {
       updateData.date_validite = validateDate(updateData.date_validite);
     }
 
@@ -746,29 +771,28 @@ exports.updateActif = async (req, res) => {
       etat: actif.etat,
       date_validite: actif.date_validite,
       date_acquisition: actif.date_acquisition,
-      cout_acquisition: actif.cout_acquisition
+      cout_acquisition: actif.cout_acquisition,
+      taux_change_utilisation: actif.taux_change_utilisation
     };
 
-    // Si le montant ou la devise change, recalculer
-    if (updateData.cout_acquisition && updateData.devise_code) {
-        if (updateData.devise_code !== 'CDF') {
-            const conversion = await convertToCDF(
-                updateData.cout_acquisition,
-                updateData.devise_code,
-                updateData.date_acquisition || actif.date_acquisition
-            );
-            updateData.cout_acquisition = conversion.montant_cdf;
-            updateData.taux_change_utilisation = conversion.taux_utilise;
-            updateData.montant_devise = updateData.cout_acquisition;
-            
-            const devise = await Devise.findOne({ where: { code: updateData.devise_code } });
-            updateData.devise_id = devise ? devise.id : null;
-        } else {
-            updateData.cout_acquisition = updateData.cout_acquisition;
-            updateData.montant_devise = null;
-            updateData.devise_id = null;
-            updateData.taux_change_utilisation = null;
+    if (updateData.devise_code && updateData.devise_code !== 'CDF') {
+      if (updateData.montant_devise && parseFloat(updateData.montant_devise) > 0) {
+        try {
+          const conversion = await TauxService.convertToCDF(
+            parseFloat(updateData.montant_devise),
+            updateData.devise_code,
+            updateData.date_acquisition || actif.date_acquisition
+          );
+          updateData.cout_acquisition = conversion.montant_cdf;
+          updateData.taux_change_utilisation = conversion.taux_utilise;
+          console.log(`✅ Conversion: ${updateData.montant_devise} ${updateData.devise_code} = ${updateData.cout_acquisition} CDF (taux: ${conversion.taux_utilise})`);
+        } catch (convError) {
+          console.error('❌ Erreur conversion:', convError.message);
         }
+      }
+    } else if (updateData.devise_code === 'CDF') {
+      updateData.montant_devise = null;
+      updateData.taux_change_utilisation = 1;
     }
 
     if (updateData.categorie_id && updateData.categorie_id !== actif.categorie_id) {
@@ -780,17 +804,41 @@ exports.updateActif = async (req, res) => {
     }
 
     updateData.updated_by = req.user.id;
+    
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+    
+    console.log('📝 Mise à jour finale:', JSON.stringify(updateData, null, 2));
+    
     await actif.update(updateData, { transaction });
 
     const paramsChanged = 
-      (updateData.cout_acquisition && updateData.cout_acquisition !== oldValues.cout_acquisition) ||
-      (updateData.duree_utile_ans && updateData.duree_utile_ans !== actif.duree_utile_ans) ||
+      (updateData.cout_acquisition && parseFloat(updateData.cout_acquisition) !== parseFloat(oldValues.cout_acquisition)) ||
+      (updateData.duree_utile_ans && parseInt(updateData.duree_utile_ans) !== actif.duree_utile_ans) ||
       (updateData.mode_amortissement && updateData.mode_amortissement !== actif.mode_amortissement) ||
-      (updateData.valeur_residuelle !== undefined && updateData.valeur_residuelle !== actif.valeur_residuelle);
+      (updateData.valeur_residuelle !== undefined && parseFloat(updateData.valeur_residuelle) !== parseFloat(actif.valeur_residuelle));
 
     if (paramsChanged) {
+      console.log('📊 Recalcul des amortissements...');
       await Amortissement.destroy({ where: { actif_id: id }, transaction });
       await genererPlanAmortissement(actif, transaction);
+      
+      const facture = await Facture.findOne({ where: { actif_id: id } });
+      if (facture) {
+        const nouveauMontantHt = actif.montant_devise || actif.cout_acquisition;
+        const nouvelleTva = Math.round(nouveauMontantHt * 0.16);
+        const nouveauMontantTtc = nouveauMontantHt + nouvelleTva;
+        
+        await facture.update({
+          montant_ht: nouveauMontantHt,
+          montant_tva: nouvelleTva,
+          montant_ttc: nouveauMontantTtc
+        }, { transaction });
+        console.log(`✅ Facture mise à jour: HT=${nouveauMontantHt}, TVA=${nouvelleTva}, TTC=${nouveauMontantTtc}`);
+      }
     }
 
     await transaction.commit();
@@ -817,17 +865,21 @@ exports.updateActif = async (req, res) => {
       ]
     });
 
+    console.log('✅ Actif mis à jour avec succès');
     res.json(actifMaj);
+    
   } catch (error) {
     await transaction.rollback();
-    console.error('❌ updateActif:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('❌ updateActif - ERREUR:', error);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Erreur serveur', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
-/**
- * Supprimer un actif
- */
 exports.deleteActif = async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -1278,9 +1330,6 @@ exports.getStats = async (req, res) => {
 
 // ==================== RAPPORTS ANALYTIQUES ====================
 
-/**
- * État des immobilisations par catégorie
- */
 exports.getEtatParCategorie = async (req, res) => {
   try {
     const actifs = await Actif.findAll({
@@ -1310,9 +1359,6 @@ exports.getEtatParCategorie = async (req, res) => {
   }
 };
 
-/**
- * État des immobilisations par localisation
- */
 exports.getEtatParLocalisation = async (req, res) => {
   try {
     const actifs = await Actif.findAll({
@@ -1340,9 +1386,6 @@ exports.getEtatParLocalisation = async (req, res) => {
   }
 };
 
-/**
- * État des immobilisations par service (affectation)
- */
 exports.getEtatParService = async (req, res) => {
   try {
     const actifs = await Actif.findAll({
@@ -1370,9 +1413,6 @@ exports.getEtatParService = async (req, res) => {
   }
 };
 
-/**
- * Plan d'amortissement prévisionnel vs réalisé
- */
 exports.getAmortissementPrevisionnelVsRealise = async (req, res) => {
   try {
     const { annee_debut, annee_fin } = req.query;
@@ -1405,9 +1445,6 @@ exports.getAmortissementPrevisionnelVsRealise = async (req, res) => {
   }
 };
 
-/**
- * Suivi des investissements (budget vs réalisé)
- */
 exports.getSuiviInvestissements = async (req, res) => {
   try {
     const actifs = await Actif.findAll({
@@ -1432,16 +1469,12 @@ exports.getSuiviInvestissements = async (req, res) => {
   }
 };
 
-/**
- * Alertes : fin de licence, échéance maintenance, bien non retrouvé
- */
 exports.getAlertes = async (req, res) => {
   try {
     const now = new Date();
     const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const dans90Jours = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-    // Alertes fin de licence (actifs incorporels avec date_validite)
     const finLicence = await Actif.findAll({
       where: {
         type_immobilisation: 'incorporel',
@@ -1553,47 +1586,12 @@ exports.getAlertes = async (req, res) => {
   }
 };
 
-// ==================== RECHERCHE PAR CODE ====================
-
-/**
- * Récupérer un actif par son code ou numéro d'inventaire
- */
-exports.getActifByCode = async (req, res) => {
-  try {
-    const { code } = req.params;
-    const actif = await Actif.findOne({
-      where: {
-        [Op.or]: [
-          { code },
-          { numero_inventaire: code }
-        ]
-      },
-      include: [
-        { model: Amortissement, limit: 1, order: [['exercice', 'DESC']] }
-      ]
-    });
-    if (!actif) return res.status(404).json({ message: 'Actif non trouvé' });
-    res.json(actif);
-  } catch (error) {
-    console.error('Erreur getActifByCode:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-};
-
 // ==================== GESTION DES FACTURES ====================
 
-/**
- * Récupérer la facture d'un actif
- * GET /api/actifs/:id/facture
- */
 exports.getFacture = async (req, res) => {
   try {
     const { id } = req.params;
-    const Facture = require('../models').Facture;
-    const Actif = require('../models').Actif;
-    const Devise = require('../models').Devise;
     
-    // Récupérer l'actif avec sa devise
     const actif = await Actif.findByPk(id, {
       include: [
         { model: Devise, as: 'devise', attributes: ['code', 'nom', 'symbole'] }
@@ -1610,35 +1608,36 @@ exports.getFacture = async (req, res) => {
       return res.status(404).json({ message: 'Actif non trouvé' });
     }
     
-    // Récupérer la facture si elle existe
     let facture = await Facture.findOne({ 
       where: { actif_id: id },
       raw: true
     });
     
-    // ✅ CORRECTION : Utiliser la devise d'origine pour les montants
     const deviseCode = actif.devise?.code || 'CDF';
     const deviseSymbole = actif.devise?.symbole || 'FC';
-    
-    // Montant en devise d'origine (USD, EUR, etc.)
     const montantDeviseOrigine = actif.montant_devise || actif.cout_acquisition;
-    const tauxChange = actif.taux_change_utilisation || 1;
+    const tauxChange = actif.taux_change_utilisation || TauxService.getTauxParDefaut(deviseCode);
     
-    // Si la facture n'existe pas, créer une structure de facture virtuelle
+    // ✅ Correction du calcul des montants
+    const montantHt = parseFloat(montantDeviseOrigine);
+    const montantTva = Math.round(montantHt * 0.16);
+    const montantTtc = montantHt + montantTva;  // ← CORRECTION ICI
+    
     if (!facture) {
       facture = {
         numero_facture: actif.numero_facture || `FAC-${actif.code}`,
         date_emission: actif.date_acquisition,
-        montant_ht: montantDeviseOrigine,
-        montant_tva: montantDeviseOrigine * 0.16, // TVA à 16%
-        montant_ttc: montantDeviseOrigine * 1.16,
+        montant_ht: montantHt,
+        montant_tva: montantTva,
+        montant_ttc: montantTtc,  // ← CORRECTION ICI
         devise: deviseCode,
         taux_change_cdf: tauxChange,
-        montant_cdf: actif.cout_acquisition
+        montant_cdf: actif.cout_acquisition,
+        nom_fichier: null,
+        est_disponible: false
       };
     }
     
-    // ✅ Ajouter les informations de conversion à la réponse
     const response = {
       ...facture,
       actif: {
@@ -1659,6 +1658,13 @@ exports.getFacture = async (req, res) => {
       }
     };
     
+    // ✅ Forcer les bonnes valeurs dans la réponse
+    response.montant_ht = montantHt;
+    response.montant_tva = montantTva;
+    response.montant_ttc = montantTtc;
+    
+    console.log(`💰 Facture: HT=${montantHt} ${deviseCode}, TVA=${montantTva}, TTC=${montantTtc}`);
+    
     res.json(response);
   } catch (error) {
     console.error('❌ Erreur getFacture:', error);
@@ -1669,164 +1675,126 @@ exports.getFacture = async (req, res) => {
   }
 };
 
-/**
- * Télécharger la facture PDF d'un actif
- * GET /api/actifs/:id/facture/download
- */
 exports.downloadFacture = async (req, res) => {
   try {
     const { id } = req.params;
-    const Facture = require('../models').Facture;
-    const Actif = require('../models').Actif;
-    const Devise = require('../models').Devise;
-    const fs = require('fs');
-    const path = require('path');
+    const PDFDocument = require('pdfkit');
     
-    // Récupérer l'actif avec sa devise
+    console.log(`📄 Génération de facture pour actif: ${id}`);
+    
     const actif = await Actif.findByPk(id, {
       include: [
-        { model: Devise, as: 'devise', attributes: ['code', 'nom', 'symbole'] }
+        { model: Devise, as: 'devise', attributes: ['code', 'nom', 'symbole'] },
+        { model: User, as: 'createur', attributes: ['id', 'full_name'] }
       ]
     });
     
     if (!actif) {
+      console.log(`❌ Actif non trouvé: ${id}`);
       return res.status(404).json({ message: 'Actif non trouvé' });
     }
     
-    // Récupérer la facture
     let facture = await Facture.findOne({ where: { actif_id: id } });
     
-    // Si la facture n'existe pas, en générer une virtuelle
+    const deviseCode = actif.devise?.code || 'CDF';
+    const montantDevise = actif.montant_devise || actif.cout_acquisition;
+    const tauxChange = actif.taux_change_utilisation || TauxService.getTauxParDefaut(deviseCode);
+    const montantTVA = Math.round(montantDevise * 0.16);
+    const montantTTC = montantDevise + montantTVA;
+    
     if (!facture) {
-      const deviseCode = actif.devise?.code || 'CDF';
-      const montantDevise = actif.montant_devise || actif.cout_acquisition;
-      
-      facture = {
-        numero_facture: actif.numero_facture || `FAC-${actif.code}`,
-        date_emission: actif.date_acquisition,
+      const numeroFacture = `FAC-${actif.code}-${new Date().getFullYear()}`;
+      facture = await Facture.create({
+        numero_facture: numeroFacture,
+        actif_id: actif.id,
+        date_emission: new Date(),
         montant_ht: montantDevise,
-        montant_tva: montantDevise * 0.16,
-        montant_ttc: montantDevise * 1.16,
+        montant_tva: montantTVA,
+        montant_ttc: montantTTC,
         devise: deviseCode,
-        taux_change_cdf: actif.taux_change_utilisation || 1,
-        montant_cdf: actif.cout_acquisition,
-        fichier_pdf: null
-      };
+        fichier_pdf: null,
+        created_by: req.user.id
+      });
+      console.log(`✅ Facture créée en base: ${numeroFacture}`);
     }
     
-    // Si un fichier PDF existe, le télécharger
-    if (facture.fichier_pdf && fs.existsSync(path.join(__dirname, '../..', facture.fichier_pdf))) {
-      const filePath = path.join(__dirname, '../..', facture.fichier_pdf);
-      return res.download(filePath, `${facture.numero_facture}.pdf`);
-    }
-    
-    // Sinon, générer un PDF à la volée avec les bons montants
-    const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    
-    // Définir les en-têtes de réponse
+    const fileName = `facture_${actif.code}_${new Date().toISOString().split('T')[0]}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="facture_${actif.code}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Cache-Control', 'no-cache');
     
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
     doc.pipe(res);
     
-    // En-tête de la facture
     doc.fontSize(20).fillColor('#10b981').text('BANQUE CENTRALE DU CONGO', { align: 'center' });
     doc.moveDown();
     doc.fontSize(16).fillColor('#0f172a').text('FACTURE D\'ACQUISITION', { align: 'center' });
     doc.moveDown();
     
-    // Informations de la facture
     doc.fontSize(10).fillColor('#475569');
     doc.text(`Facture N°: ${facture.numero_facture}`, { align: 'right' });
-    doc.text(`Date d'émission: ${new Date(facture.date_emission).toLocaleDateString('fr-FR')}`, { align: 'right' });
+    doc.text(`Date d'émission: ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+    doc.text(`Généré par: ${req.user?.full_name || 'Système'}`, { align: 'right' });
     doc.moveDown();
     
-    // Informations de l'actif
     doc.fontSize(12).fillColor('#0f172a').text('Détails de l\'acquisition', { underline: true });
     doc.moveDown(0.5);
     doc.fontSize(10).fillColor('#334155');
     doc.text(`Actif: ${actif.code} - ${actif.nom}`);
+    doc.text(`Type: ${actif.type_immobilisation === 'incorporel' ? 'Incorporel' : 'Corporel'}`);
     doc.text(`Fournisseur: ${actif.fournisseur || 'Non spécifié'}`);
     doc.text(`Date d'acquisition: ${new Date(actif.date_acquisition).toLocaleDateString('fr-FR')}`);
     doc.moveDown();
     
-    // ✅ DÉTAILS FINANCIERS AVEC LA DEVISE D'ORIGINE
     doc.fontSize(12).fillColor('#0f172a').text('Détails financiers', { underline: true });
     doc.moveDown(0.5);
     
-    // Tableau des montants
-    const startY = doc.y;
     const col1X = 50;
     const col2X = 350;
     
     doc.fontSize(10).fillColor('#475569');
-    doc.text('Description', col1X, startY);
-    doc.text('Montant', col2X, startY);
+    doc.text('Description', col1X, doc.y);
+    doc.text('Montant', col2X, doc.y);
     doc.moveDown();
     
-    const rowY = doc.y;
-    doc.text('Montant HT', col1X, rowY);
-    doc.text(`${facture.montant_ht.toLocaleString()} ${facture.devise}`, col2X, rowY);
+    doc.text('Montant HT', col1X, doc.y);
+    doc.text(`${montantDevise.toLocaleString()} ${deviseCode}`, col2X, doc.y);
     doc.moveDown();
     
     doc.text(`TVA (16%)`, col1X, doc.y);
-    doc.text(`${facture.montant_tva.toLocaleString()} ${facture.devise}`, col2X, doc.y);
+    doc.text(`${montantTVA.toLocaleString()} ${deviseCode}`, col2X, doc.y);
     doc.moveDown();
     
     doc.fontSize(12).fillColor('#10b981');
     doc.text('TOTAL TTC', col1X, doc.y);
-    doc.text(`${facture.montant_ttc.toLocaleString()} ${facture.devise}`, col2X, doc.y);
+    doc.text(`${montantTTC.toLocaleString()} ${deviseCode}`, col2X, doc.y);
     doc.moveDown(2);
     
-    // ✅ SECTION CONVERSION (si la devise n'est pas CDF)
-    if (facture.devise !== 'CDF') {
+    if (deviseCode !== 'CDF') {
       doc.fontSize(10).fillColor('#64748b');
-      doc.text('Conversion en Francs Congolais:', col1X, doc.y);
-      doc.text(`Taux de change appliqué: 1 ${facture.devise} = ${facture.taux_change_cdf.toLocaleString()} CDF`, col1X, doc.y + 15);
-      doc.text(`Montant en CDF: ${facture.montant_cdf.toLocaleString()} CDF`, col1X, doc.y + 30);
+      doc.text('Conversion en Francs Congolais:', 50, doc.y);
+      doc.text(`Taux de change appliqué: 1 ${deviseCode} = ${tauxChange.toLocaleString()} CDF`, 50, doc.y + 15);
+      doc.text(`Montant équivalent: ${actif.cout_acquisition.toLocaleString()} CDF`, 50, doc.y + 30);
       doc.moveDown(2);
     }
     
-    // Pied de page
+    const pageHeight = doc.page.height;
     doc.fontSize(8).fillColor('#94a3b8');
-    doc.text('Document officiel - Banque Centrale du Congo', 50, 750, { align: 'center' });
-    doc.text('www.bcc.cd', 50, 765, { align: 'center' });
+    doc.text('Document officiel - Banque Centrale du Congo', 50, pageHeight - 50, { align: 'center' });
+    doc.text('www.bcc.cd', 50, pageHeight - 40, { align: 'center' });
+    doc.text(`Document généré le ${new Date().toLocaleString('fr-FR')}`, 50, pageHeight - 30, { align: 'center' });
     
     doc.end();
     
+    console.log(`✅ PDF généré et envoyé: ${fileName}`);
+    
   } catch (error) {
     console.error('❌ Erreur downloadFacture:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
-  }
-};
-
-/**
- * Télécharger la facture PDF d'un actif
- * GET /api/actifs/:id/facture/download
- */
-exports.downloadFacture = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const Facture = require('../models').Facture;
-    const fs = require('fs');
-    const path = require('path');
-    
-    const facture = await Facture.findOne({ where: { actif_id: id } });
-    
-    if (!facture) {
-      return res.status(404).json({ message: 'Facture non trouvée pour cet actif' });
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        message: 'Erreur lors de la génération de la facture',
+        error: error.message 
+      });
     }
-    
-    const filePath = path.join(__dirname, '../..', facture.fichier_pdf);
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'Fichier PDF introuvable' });
-    }
-    
-    res.download(filePath, `${facture.numero_facture}.pdf`);
-  } catch (error) {
-    console.error('❌ Erreur downloadFacture:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
   }
 };

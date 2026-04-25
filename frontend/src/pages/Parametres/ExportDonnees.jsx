@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FiArrowLeft, FiDownload, FiFileText, FiCalendar, 
   FiDollarSign, FiPieChart, FiBookOpen, FiLock, 
-  FiTrendingUp, FiGlobe, FiCheckCircle, FiXCircle
+  FiTrendingUp, FiGlobe, FiCheckCircle, FiXCircle,
+  FiInfo, FiBarChart2, FiDatabase, FiShield, FiZap,
+  FiGrid, FiList, FiActivity
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Container, Row, Col, Card, Button, Badge, Alert, Spinner, Form } from 'react-bootstrap';
 
 const ExportDonneesBCC = () => {
   const navigate = useNavigate();
@@ -29,16 +33,13 @@ const ExportDonneesBCC = () => {
   const handleExport = () => {
     setExportStatus({ loading: true, success: false, error: null });
     
-    // Simulation d'export avec délai
     setTimeout(() => {
       try {
         console.log('Export BCC lancé avec config:', exportConfig);
         
-        // Création du contenu à exporter
         const exportData = generateExportData();
         const fileName = generateFileName();
         
-        // Téléchargement selon le format
         downloadFile(exportData, fileName);
         
         setExportStatus({ loading: false, success: true, error: null });
@@ -51,7 +52,6 @@ const ExportDonneesBCC = () => {
   };
 
   const generateExportData = () => {
-    // Données simulées pour l'export
     const data = {
       date: new Date().toISOString(),
       institution: "Banque Centrale du Congo (BCC)",
@@ -144,7 +144,6 @@ const ExportDonneesBCC = () => {
   };
 
   const downloadFile = (data, fileName) => {
-    // Simulation de téléchargement
     const dataStr = JSON.stringify(data, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
     const linkElement = document.createElement('a');
@@ -153,460 +152,501 @@ const ExportDonneesBCC = () => {
     linkElement.click();
   };
 
-  const formatCurrency = (value) => {
-    if (!value) return '0';
-    return value.toLocaleString('fr-FR') + ' CDF';
-  };
+  const typeOptions = [
+    { id: 'immobilisations', label: 'Immobilisations', icon: FiBookOpen, color: '#0F2B3D', bg: 'rgba(15, 43, 61, 0.1)' },
+    { id: 'reserves', label: 'Réserves de change', icon: FiGlobe, color: '#C9A03D', bg: 'rgba(201, 160, 61, 0.1)' },
+    { id: 'operationsMonetaires', label: 'Opérations monétaires', icon: FiTrendingUp, color: '#0D9488', bg: 'rgba(13, 148, 136, 0.1)' },
+    { id: 'resultats', label: 'Résultats financiers', icon: FiPieChart, color: '#E11D48', bg: 'rgba(225, 29, 72, 0.1)' },
+    { id: 'tout', label: 'Export complet BCC', icon: FiDatabase, color: '#64748B', bg: 'rgba(100, 116, 139, 0.1)' }
+  ];
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <button onClick={() => navigate('/parametres')} style={styles.backButton}>
-          <FiArrowLeft /> Retour
-        </button>
-        <div style={styles.headerInfo}>
-          <div style={styles.iconWrapper}>
-            <FiDownload size={28} color="#10b981" />
-          </div>
-          <div>
-            <h1 style={styles.title}>Export de données - BCC</h1>
-            <p style={styles.subtitle}>
-              Export des données comptables et financières - Montants en Francs Congolais (CDF)
-            </p>
-          </div>
-        </div>
-      </div>
+  const formatOptions = [
+    { id: 'excel', label: 'Excel', icon: '📊', extension: '.xlsx', color: '#10b981' },
+    { id: 'csv', label: 'CSV', icon: '📄', extension: '.csv', color: '#3b82f6' },
+    { id: 'pdf', label: 'PDF', icon: '📑', extension: '.pdf', color: '#ef4444' },
+    { id: 'json', label: 'JSON', icon: '🔧', extension: '.json', color: '#f59e0b' }
+  ];
 
-      {/* Message de statut */}
-      {exportStatus.success && (
-        <div style={styles.successMessage}>
-          <FiCheckCircle size={20} />
-          <span>Export réalisé avec succès !</span>
-        </div>
-      )}
-      {exportStatus.error && (
-        <div style={styles.errorMessage}>
-          <FiXCircle size={20} />
-          <span>{exportStatus.error}</span>
-        </div>
-      )}
-
-      <div style={styles.content}>
-        {/* Type de données BCC */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Type de données BCC</h3>
-          <div style={styles.radioGroup}>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="type"
-                value="immobilisations"
-                checked={exportConfig.type === 'immobilisations'}
-                onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
-              />
-              <FiBookOpen size={16} /> Immobilisations
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="type"
-                value="reserves"
-                checked={exportConfig.type === 'reserves'}
-                onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
-              />
-              <FiGlobe size={16} /> Réserves de change
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="type"
-                value="operationsMonetaires"
-                checked={exportConfig.type === 'operationsMonetaires'}
-                onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
-              />
-              <FiTrendingUp size={16} /> Opérations monétaires
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="type"
-                value="resultats"
-                checked={exportConfig.type === 'resultats'}
-                onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
-              />
-              <FiPieChart size={16} /> Résultats financiers
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="type"
-                value="tout"
-                checked={exportConfig.type === 'tout'}
-                onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
-              />
-              Export complet BCC
-            </label>
-          </div>
-        </div>
-
-        {/* Format d'export */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Format d'export</h3>
-          <div style={styles.radioGroup}>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="format"
-                value="excel"
-                checked={exportConfig.format === 'excel'}
-                onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
-              />
-              Excel (.xlsx)
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="format"
-                value="csv"
-                checked={exportConfig.format === 'csv'}
-                onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
-              />
-              CSV
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="format"
-                value="pdf"
-                checked={exportConfig.format === 'pdf'}
-                onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
-              />
-              PDF
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="format"
-                value="json"
-                checked={exportConfig.format === 'json'}
-                onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
-              />
-              JSON
-            </label>
-          </div>
-        </div>
-
-        {/* Période */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Période comptable</h3>
-          <div style={styles.radioGroup}>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="periode"
-                value="tout"
-                checked={exportConfig.periode === 'tout'}
-                onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
-              />
-              Toutes les données
-            </label>
-            <label style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="periode"
-                value="personnalisee"
-                checked={exportConfig.periode === 'personnalisee'}
-                onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
-              />
-              Période personnalisée
-            </label>
-          </div>
-
-          {exportConfig.periode === 'personnalisee' && (
-            <div style={styles.dateRange}>
-              <div style={styles.dateInput}>
-                <FiCalendar style={styles.dateIcon} />
-                <input
-                  type="date"
-                  value={exportConfig.dateDebut}
-                  onChange={(e) => setExportConfig({ ...exportConfig, dateDebut: e.target.value })}
-                  style={styles.dateField}
-                />
-              </div>
-              <span style={styles.dateSeparator}>au</span>
-              <div style={styles.dateInput}>
-                <FiCalendar style={styles.dateIcon} />
-                <input
-                  type="date"
-                  value={exportConfig.dateFin}
-                  onChange={(e) => setExportConfig({ ...exportConfig, dateFin: e.target.value })}
-                  style={styles.dateField}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Options spécifiques BCC */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Options d'export BCC</h3>
-          <div style={styles.checkboxGroup}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={exportConfig.inclureArchives}
-                onChange={(e) => setExportConfig({ ...exportConfig, inclureArchives: e.target.checked })}
-              />
-              Inclure les données archivées
-            </label>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={exportConfig.inclureReservesChange}
-                onChange={(e) => setExportConfig({ ...exportConfig, inclureReservesChange: e.target.checked })}
-              />
-              Inclure les réserves de change
-            </label>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={exportConfig.inclureOperationsMonetaires}
-                onChange={(e) => setExportConfig({ ...exportConfig, inclureOperationsMonetaires: e.target.checked })}
-              />
-              Inclure les opérations monétaires
-            </label>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={exportConfig.inclureRapportsPolitique}
-                onChange={(e) => setExportConfig({ ...exportConfig, inclureRapportsPolitique: e.target.checked })}
-              />
-              Inclure les rapports de politique monétaire
-            </label>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div style={styles.actions}>
-          <button 
-            onClick={handleExport} 
-            style={styles.exportButton}
-            disabled={exportStatus.loading}
-          >
-            {exportStatus.loading ? (
-              <>
-                <div style={styles.spinnerSmall}></div>
-                Export en cours...
-              </>
-            ) : (
-              <>
-                <FiDownload /> Exporter
-              </>
-            )}
-          </button>
-          <button onClick={() => navigate('/parametres')} style={styles.cancelButton}>
-            Annuler
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const styles = {
-  container: {
-    maxWidth: '900px',
-    margin: '0 auto',
-    padding: '2rem'
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    marginBottom: '2rem',
-    flexWrap: 'wrap'
-  },
-  backButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.875rem',
-    color: '#475569'
-  },
-  headerInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  iconWrapper: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '14px',
-    backgroundColor: '#d1fae5',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  title: {
-    fontSize: '1.5rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: '0 0 0.25rem 0'
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    margin: 0
-  },
-  successMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#d1fae5',
-    border: '1px solid #10b981',
-    borderRadius: '10px',
-    marginBottom: '1.5rem',
-    color: '#065f46',
-    fontSize: '0.875rem'
-  },
-  errorMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #ef4444',
-    borderRadius: '10px',
-    marginBottom: '1.5rem',
-    color: '#991b1b',
-    fontSize: '0.875rem'
-  },
-  content: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '2rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  },
-  section: {
-    marginBottom: '2rem',
-    paddingBottom: '2rem',
-    borderBottom: '1px solid #f1f5f9'
-  },
-  sectionTitle: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    marginBottom: '1rem'
-  },
-  radioGroup: {
-    display: 'flex',
-    gap: '1.5rem',
-    flexWrap: 'wrap'
-  },
-  radioLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#1e293b'
-  },
-  dateRange: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    marginTop: '1rem',
-    flexWrap: 'wrap'
-  },
-  dateInput: {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: '8px',
-    padding: '0.5rem 0.75rem',
-    border: '1px solid #e2e8f0'
-  },
-  dateIcon: {
-    color: '#94a3b8',
-    marginRight: '0.5rem'
-  },
-  dateField: {
-    border: 'none',
-    outline: 'none',
-    backgroundColor: 'transparent',
-    fontSize: '0.875rem'
-  },
-  dateSeparator: {
-    color: 'var(--text-secondary)',
-    fontSize: '0.875rem'
-  },
-  checkboxGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem'
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#1e293b'
-  },
-  actions: {
-    display: 'flex',
-    gap: '1rem',
-    justifyContent: 'flex-end',
-    marginTop: '1rem'
-  },
-  exportButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#10b981',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.875rem',
-    fontWeight: '500'
-  },
-  cancelButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--bg-primary)',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569'
-  },
-  spinnerSmall: {
-    width: '16px',
-    height: '16px',
-    border: '2px solid rgba(255,255,255,0.3)',
-    borderTopColor: 'var(--bg-card)',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite'
-  }
-};
-
-// Ajout des animations
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement("style");
-  styleSheet.textContent = `
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+  // Styles personnalisés modernes
+  const modernStyles = `
+    .export-card {
+      background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+      border: none;
+      border-radius: 24px;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .export-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 25px 40px -15px rgba(0, 0, 0, 0.12);
+    }
+    
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748B;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .type-option {
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .type-option input {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+    }
+    
+    .type-option-content {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 16px;
+      background: white;
+      border: 1.5px solid #E2E8F0;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    
+    .type-option input:checked + .type-option-content {
+      border-color: #0F2B3D;
+      background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%);
+      box-shadow: 0 4px 12px rgba(15, 43, 61, 0.1);
+    }
+    
+    .format-option {
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .format-option input {
+      position: absolute;
+      opacity: 0;
+    }
+    
+    .format-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      border-radius: 16px;
+      background: white;
+      border: 1.5px solid #E2E8F0;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      min-width: 80px;
+    }
+    
+    .format-option input:checked + .format-content {
+      border-color: #0D9488;
+      background: linear-gradient(135deg, #F0FDF9 0%, #FFFFFF 100%);
+      transform: translateY(-2px);
+    }
+    
+    .checkbox-custom {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 12px;
+      background: #F8FAFC;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .checkbox-custom:hover {
+      background: #F1F5F9;
+      transform: translateX(4px);
+    }
+    
+    .checkbox-custom input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #0D9488;
+    }
+    
+    .info-note {
+      background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+      border-radius: 16px;
+      padding: 1rem 1.25rem;
+      border: 1px solid #BAE6FD;
+    }
+    
+    .btn-export {
+      background: linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
+      border: none;
+      padding: 0.875rem 2rem;
+      font-weight: 600;
+      border-radius: 40px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+    }
+    
+    .btn-export:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(13, 148, 136, 0.4);
+      background: linear-gradient(135deg, #0F766E 0%, #0D9488 100%);
+    }
+    
+    .btn-export:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary-custom {
+      background: white;
+      border: 1.5px solid #E2E8F0;
+      padding: 0.875rem 1.75rem;
+      font-weight: 500;
+      border-radius: 40px;
+      color: #475569;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-secondary-custom:hover {
+      background: #F8FAFC;
+      border-color: #CBD5E1;
+      transform: translateY(-1px);
+    }
+    
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .fade-slide-up {
+      animation: fadeSlideUp 0.4s ease-out;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .loading-pulse {
+      animation: pulse 1.5s ease-in-out infinite;
     }
   `;
-  document.head.appendChild(styleSheet);
-}
+
+  return (
+    <>
+      <style>{modernStyles}</style>
+      <Container className="py-5 px-3 px-md-5 fade-slide-up" style={{ maxWidth: '1000px' }}>
+        
+        {/* Header avec design élégant */}
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-4 mb-5">
+          <div>
+            <Button 
+              variant="link" 
+              onClick={() => navigate('/parametres')} 
+              className="text-muted text-decoration-none p-0 mb-3 d-inline-flex align-items-center gap-2"
+              style={{ fontSize: '0.875rem' }}
+            >
+              <FiArrowLeft size={16} /> Retour aux paramètres
+            </Button>
+            <div className="d-flex align-items-center gap-4">
+              <div className="rounded-4 d-flex align-items-center justify-content-center" style={{ 
+                width: '64px', 
+                height: '64px', 
+                background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 100%)',
+                boxShadow: '0 10px 20px -5px rgba(13, 148, 136, 0.3)'
+              }}>
+                <FiDownload size={32} color="white" />
+              </div>
+              <div>
+                <h1 className="display-6 fw-bold mb-1" style={{ color: '#0F2B3D' }}>Export de données</h1>
+                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                  Banque Centrale du Congo — Données comptables et financières
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Badge d'institution */}
+          <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3" style={{ background: '#F1F5F9' }}>
+            <FiShield size={14} className="text-success" />
+            <span className="small fw-semibold text-secondary">BCC — Exercice {new Date().getFullYear()}</span>
+          </div>
+        </div>
+
+        {/* Messages de statut stylisés */}
+        {exportStatus.success && (
+          <Alert 
+            variant="success" 
+            dismissible 
+            onClose={() => setExportStatus({ ...exportStatus, success: false })} 
+            className="mb-4 rounded-3 border-0 shadow-sm"
+            style={{ background: '#F0FDF4', borderLeft: '4px solid #10b981' }}
+          >
+            <div className="d-flex align-items-center gap-2">
+              <FiCheckCircle size={18} className="text-success" />
+              <span className="small fw-medium">Export réalisé avec succès ! Le fichier a été téléchargé.</span>
+            </div>
+          </Alert>
+        )}
+        
+        {exportStatus.error && (
+          <Alert 
+            variant="danger" 
+            dismissible 
+            onClose={() => setExportStatus({ ...exportStatus, error: null })} 
+            className="mb-4 rounded-3 border-0 shadow-sm"
+            style={{ background: '#FEF2F2', borderLeft: '4px solid #ef4444' }}
+          >
+            <div className="d-flex align-items-center gap-2">
+              <FiXCircle size={18} className="text-danger" />
+              <span className="small fw-medium">{exportStatus.error}</span>
+            </div>
+          </Alert>
+        )}
+
+        {/* Carte principale */}
+        <Card className="export-card">
+          <Card.Body className="p-4 p-md-5">
+            
+            {/* Type de données - Design moderne en cartes */}
+            <div className="mb-5">
+              <div className="section-title">
+                <FiDatabase size={14} />
+                <span>Catégorie de données</span>
+              </div>
+              <div className="d-flex flex-wrap gap-3">
+                {typeOptions.map(option => {
+                  const Icon = option.icon;
+                  const isChecked = exportConfig.type === option.id;
+                  return (
+                    <label key={option.id} className="type-option">
+                      <input
+                        type="radio"
+                        name="type"
+                        value={option.id}
+                        checked={isChecked}
+                        onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
+                      />
+                      <div className="type-option-content">
+                        <div className="rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ background: option.bg, width: '36px', height: '36px' }}>
+                          <Icon size={18} color={option.color} />
+                        </div>
+                        <span className="fw-medium" style={{ fontSize: '0.9rem' }}>{option.label}</span>
+                        {isChecked && <FiCheckCircle size={14} color="#0D9488" className="ms-auto" />}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Format d'export - Design en grille */}
+            <div className="mb-5">
+              <div className="section-title">
+                <FiFileText size={14} />
+                <span>Format d'export</span>
+              </div>
+              <div className="d-flex flex-wrap gap-3">
+                {formatOptions.map(option => {
+                  const isChecked = exportConfig.format === option.id;
+                  return (
+                    <label key={option.id} className="format-option">
+                      <input
+                        type="radio"
+                        name="format"
+                        value={option.id}
+                        checked={isChecked}
+                        onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
+                      />
+                      <div className="format-content">
+                        <span style={{ fontSize: '1.5rem' }}>{option.icon}</span>
+                        <span className="small fw-semibold">{option.label}</span>
+                        <span className="text-muted" style={{ fontSize: '0.65rem' }}>{option.extension}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Période comptable */}
+            <div className="mb-5">
+              <div className="section-title">
+                <FiCalendar size={14} />
+                <span>Période comptable</span>
+              </div>
+              <div className="d-flex flex-wrap gap-4 mb-4">
+                <Form.Check
+                  type="radio"
+                  id="periode-tout"
+                  label="📆 Toutes les données historiques"
+                  value="tout"
+                  checked={exportConfig.periode === 'tout'}
+                  onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
+                  className="me-4"
+                />
+                <Form.Check
+                  type="radio"
+                  id="periode-personnalisee"
+                  label="📅 Période personnalisée"
+                  value="personnalisee"
+                  checked={exportConfig.periode === 'personnalisee'}
+                  onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
+                />
+              </div>
+
+              {exportConfig.periode === 'personnalisee' && (
+                <div className="p-4 rounded-4" style={{ background: '#F8FAFC' }}>
+                  <Row className="g-3 align-items-center">
+                    <Col md={5}>
+                      <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-2 border">
+                        <FiCalendar size={16} className="text-muted ms-2" />
+                        <Form.Control
+                          type="date"
+                          value={exportConfig.dateDebut}
+                          onChange={(e) => setExportConfig({ ...exportConfig, dateDebut: e.target.value })}
+                          className="border-0 bg-transparent"
+                          placeholder="Date de début"
+                        />
+                      </div>
+                    </Col>
+                    <Col md={2} className="text-center">
+                      <span className="text-muted small">→</span>
+                    </Col>
+                    <Col md={5}>
+                      <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-2 border">
+                        <FiCalendar size={16} className="text-muted ms-2" />
+                        <Form.Control
+                          type="date"
+                          value={exportConfig.dateFin}
+                          onChange={(e) => setExportConfig({ ...exportConfig, dateFin: e.target.value })}
+                          className="border-0 bg-transparent"
+                          placeholder="Date de fin"
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+            </div>
+
+            {/* Options spécifiques - Design moderne */}
+            <div className="mb-5">
+              <div className="section-title">
+                <FiZap size={14} />
+                <span>Options avancées</span>
+              </div>
+              <div className="row g-2">
+                <div className="col-md-6">
+                  <label className="checkbox-custom w-100">
+                    <input
+                      type="checkbox"
+                      checked={exportConfig.inclureArchives}
+                      onChange={(e) => setExportConfig({ ...exportConfig, inclureArchives: e.target.checked })}
+                    />
+                    <span className="small">📦 Inclure les données archivées</span>
+                  </label>
+                </div>
+                <div className="col-md-6">
+                  <label className="checkbox-custom w-100">
+                    <input
+                      type="checkbox"
+                      checked={exportConfig.inclureReservesChange}
+                      onChange={(e) => setExportConfig({ ...exportConfig, inclureReservesChange: e.target.checked })}
+                    />
+                    <span className="small">🌍 Inclure les réserves de change</span>
+                  </label>
+                </div>
+                <div className="col-md-6">
+                  <label className="checkbox-custom w-100">
+                    <input
+                      type="checkbox"
+                      checked={exportConfig.inclureOperationsMonetaires}
+                      onChange={(e) => setExportConfig({ ...exportConfig, inclureOperationsMonetaires: e.target.checked })}
+                    />
+                    <span className="small">💹 Inclure les opérations monétaires</span>
+                  </label>
+                </div>
+                <div className="col-md-6">
+                  <label className="checkbox-custom w-100">
+                    <input
+                      type="checkbox"
+                      checked={exportConfig.inclureRapportsPolitique}
+                      onChange={(e) => setExportConfig({ ...exportConfig, inclureRapportsPolitique: e.target.checked })}
+                    />
+                    <span className="small">📋 Inclure les rapports de politique monétaire</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Note d'information élégante */}
+            <div className="info-note mb-4">
+              <div className="d-flex align-items-start gap-3">
+                <FiInfo size={18} className="text-info flex-shrink-0 mt-0.5" />
+                <div>
+                  <small className="fw-semibold d-block text-info mb-1">Conformité BCC</small>
+                  <small className="text-secondary-emphasis">
+                    Les données exportées sont conformes aux normes comptables de la Banque Centrale du Congo (BCC) 
+                    et au plan comptable GCEC. Montants exprimés en Francs Congolais (CDF).
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="d-flex gap-3 justify-content-end pt-2">
+              <Button 
+                variant="link" 
+                onClick={() => navigate('/parametres')}
+                className="btn-secondary-custom"
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleExport} 
+                disabled={exportStatus.loading}
+                className="btn-export d-flex align-items-center gap-2"
+              >
+                {exportStatus.loading ? (
+                  <>
+                    <Spinner as="span" size="sm" animation="border" className="spinner-border-sm" />
+                    <span>Préparation de l'export...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiDownload size={18} /> Générer l'export
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card.Body>
+        </Card>
+
+        {/* Footer info */}
+        <div className="text-center mt-4">
+          <small className="text-muted d-flex align-items-center justify-content-center gap-2">
+            <FiActivity size={12} />
+            Données en temps réel — Dernière mise à jour: {new Date().toLocaleString('fr-FR')}
+          </small>
+        </div>
+      </Container>
+    </>
+  );
+};
 
 export default ExportDonneesBCC;

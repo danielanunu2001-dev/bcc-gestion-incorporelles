@@ -27,6 +27,11 @@ module.exports = (sequelize) => {
     },
     ip_address: {
       type: DataTypes.INET
+    },
+    action_date: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
     }
   }, {
     tableName: 'audit_logs',

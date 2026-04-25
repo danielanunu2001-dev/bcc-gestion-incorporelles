@@ -1,42 +1,65 @@
+// frontend/src/pages/Contrats/ContratForm.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import usePermissions from '../../hooks/usePermissions';
 import {
   FiSave, FiX, FiArrowLeft, FiFileText,
-  FiUser, FiCalendar, FiDollarSign
+  FiUser, FiCalendar, FiDollarSign, FiInfo,
+  FiAlertCircle, FiCheckCircle, FiTag
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ContratForm = () => {
   const navigate = useNavigate();
-  const { id, contratId } = useParams(); // id = actifId (optionnel), contratId = pour modification
+  const { id, contratId } = useParams();
   const { can } = usePermissions();
   
   const isEditMode = !!contratId;
+  const canModify = can(['admin', 'comptable', 'juridique']);
   
   const [formData, setFormData] = useState({
     numero_contrat: '',
     fournisseur: '',
+    type: 'licence',  // ✅ AJOUTÉ : type de contrat
     date_debut: new Date().toISOString().split('T')[0],
     date_fin: '',
     montant: '',
     description: '',
-    actif_id: id || '' // ← Important : utiliser l'ID de l'actif s'il existe
+    actif_id: id || ''
   });
   
   const [actifs, setActifs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
 
-  // Charger les actifs pour le select (si création sans actif)
+  // ✅ Types de contrat disponibles
+  const typesContrat = [
+    { value: 'licence', label: '📜 Licence logicielle', description: 'Licence d\'utilisation de logiciel' },
+    { value: 'maintenance', label: '🔧 Maintenance', description: 'Contrat de maintenance' },
+    { value: 'support', label: '🛠️ Support technique', description: 'Support technique et assistance' },
+    { value: 'service', label: '📋 Service', description: 'Prestation de service' },
+    { value: 'location', label: '🏢 Location', description: 'Location d\'équipement' },
+    { value: 'assurance', label: '🛡️ Assurance', description: 'Assurance de l\'actif' },
+    { value: 'autre', label: '📄 Autre', description: 'Autre type de contrat' }
+  ];
+
+  useEffect(() => {
+    if (!canModify) {
+      setError('Vous n\'avez pas les droits pour créer ou modifier un contrat');
+      setTimeout(() => navigate('/contrats'), 2000);
+    }
+  }, [canModify]);
+
   useEffect(() => {
     if (!id || id === 'undefined') {
       chargerActifs();
     }
   }, [id]);
 
-  // Charger le contrat en mode édition
   useEffect(() => {
     if (isEditMode && contratId && contratId !== 'undefined') {
       chargerContrat();
@@ -62,11 +85,11 @@ const ContratForm = () => {
       setLoading(true);
       console.log('📦 Chargement contrat ID:', contratId);
       
-      // Essayer d'abord avec la route indépendante
       const res = await api.get(`/contrats/${contratId}`);
       setFormData({
         numero_contrat: res.data.numero_contrat || '',
         fournisseur: res.data.fournisseur || '',
+        type: res.data.type || 'licence',  // ✅ AJOUTÉ
         date_debut: res.data.date_debut?.split('T')[0] || '',
         date_fin: res.data.date_fin?.split('T')[0] || '',
         montant: res.data.montant || '',
@@ -81,24 +104,57 @@ const ContratForm = () => {
     }
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.numero_contrat.trim()) {
+      errors.numero_contrat = 'Le numéro de contrat est requis';
+    }
+    if (!formData.fournisseur.trim()) {
+      errors.fournisseur = 'Le fournisseur est requis';
+    }
+    if (!formData.type) {
+      errors.type = 'Le type de contrat est requis';
+    }
+    if (!formData.date_fin) {
+      errors.date_fin = 'La date de fin est requise';
+    }
+    if (!formData.montant || parseFloat(formData.montant) <= 0) {
+      errors.montant = 'Le montant doit être positif';
+    }
+    if (formData.date_debut && formData.date_fin && new Date(formData.date_fin) < new Date(formData.date_debut)) {
+      errors.date_fin = 'La date de fin doit être postérieure à la date de début';
+    }
+    
+    const actifId = id && id !== 'undefined' ? id : formData.actif_id;
+    if (!actifId && (!id || id === 'undefined')) {
+      errors.actif_id = 'Veuillez sélectionner un actif';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setError('');
     setSuccess('');
     setLoading(true);
 
     try {
-      // Validation
-      if (!formData.numero_contrat || !formData.fournisseur || !formData.date_fin || !formData.montant) {
-        throw new Error('Veuillez remplir tous les champs obligatoires');
-      }
-
-      // Déterminer l'actif_id (soit de l'URL, soit du formulaire)
       const actifId = id && id !== 'undefined' ? id : formData.actif_id;
       
       if (!actifId) {
@@ -115,7 +171,6 @@ const ContratForm = () => {
 
       let response;
       if (isEditMode) {
-        // Mode édition
         if (id && id !== 'undefined') {
           response = await api.put(`/actifs/${id}/contrats/${contratId}`, dataToSend);
         } else {
@@ -123,29 +178,29 @@ const ContratForm = () => {
         }
         setSuccess('Contrat modifié avec succès !');
       } else {
-        // Mode création
         if (id && id !== 'undefined') {
           response = await api.post(`/actifs/${id}/contrats`, dataToSend);
         } else {
           response = await api.post('/contrats', dataToSend);
         }
-        setSuccess('Contrat créé avec succès !');
+        setSuccess('Contrat créé avec succès ! Une facture a été générée automatiquement.');
       }
 
       console.log('✅ Réponse:', response.data);
 
-      // Redirection après 1.5 secondes
       setTimeout(() => {
         if (id && id !== 'undefined') {
-          navigate(`/actifs/${id}/contrats`);
+          navigate(`/actifs/${id}`);
+        } else if (response.data?.id) {
+          navigate(`/contrats/${response.data.id}`);
         } else {
           navigate('/contrats');
         }
-      }, 1500);
+      }, 2000);
 
     } catch (err) {
       console.error('❌ Erreur:', err);
-      setError(err.message || 'Une erreur est survenue');
+      setError(err.response?.data?.message || err.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
@@ -153,328 +208,337 @@ const ContratForm = () => {
 
   const handleGoBack = () => {
     if (id && id !== 'undefined') {
-      navigate(`/actifs/${id}/contrats`);
+      navigate(`/actifs/${id}`);
     } else {
       navigate('/contrats');
     }
   };
 
+  // Animation styles
+  const animationStyles = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .contrat-form-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+    .contrat-form-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+  `;
+
+  // Styles personnalisés
+  const customStyles = `
+    body, .container, .card, .card-body, .modal-content,
+    h1, h2, h3, h4, h5, h6, p, span, div, small, strong,
+    .text-muted, .fw-semibold, .fw-bold, label {
+      color: #ffffff !important;
+    }
+    
+    .form-control, .form-select {
+      background: rgba(15, 23, 42, 0.8) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(0, 255, 247, 0.3) !important;
+    }
+    
+    .form-control:focus, .form-select:focus {
+      border-color: #00fff7 !important;
+      box-shadow: 0 0 0 0.25rem rgba(0, 255, 247, 0.25) !important;
+    }
+    
+    .form-control::placeholder {
+      color: #94a3b8 !important;
+    }
+    
+    .card {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.75)) !important;
+      backdrop-filter: blur(12px) !important;
+      border: 1px solid rgba(0, 255, 247, 0.2) !important;
+    }
+    
+    .btn-outline-secondary {
+      border-color: rgba(0, 255, 247, 0.3) !important;
+      color: #ffffff !important;
+    }
+    
+    .btn-outline-secondary:hover {
+      background: rgba(0, 255, 247, 0.2) !important;
+      border-color: #00fff7 !important;
+    }
+    
+    .input-group-text {
+      background: rgba(15, 23, 42, 0.8) !important;
+      border: 1px solid rgba(0, 255, 247, 0.3) !important;
+      color: #00fff7 !important;
+    }
+    
+    .alert {
+      background: rgba(0, 0, 0, 0.5) !important;
+      border: 1px solid rgba(0, 255, 247, 0.2) !important;
+    }
+    
+    svg {
+      color: #00fff7 !important;
+    }
+  `;
+
   if (loading && isEditMode) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Chargement...</p>
-      </div>
+      <>
+        <style>{animationStyles}</style>
+        <style>{customStyles}</style>
+        <div className="container d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+          <div className="text-center">
+            <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+              <span className="visually-hidden">Chargement...</span>
+            </div>
+            <p>Chargement du contrat...</p>
+          </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <button onClick={handleGoBack} style={styles.backButton}>
-          <FiArrowLeft /> Retour
-        </button>
-        <h1 style={styles.title}>
-          {isEditMode ? 'Modifier le contrat' : 'Nouveau contrat'}
-        </h1>
+    <>
+      <style>{animationStyles}</style>
+      <style>{customStyles}</style>
+      <div className="container py-4 px-3 px-md-4 contrat-form-fade-in" style={{ maxWidth: '700px' }}>
+        
+        {/* Header */}
+        <div className="d-flex align-items-center gap-3 mb-4">
+          <button onClick={handleGoBack} className="btn btn-outline-secondary d-flex align-items-center gap-2">
+            <FiArrowLeft size={16} /> Retour
+          </button>
+          <h1 className="h3 fw-bold mb-0" style={{ background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            {isEditMode ? 'Modifier le contrat' : 'Nouveau contrat'}
+          </h1>
+        </div>
+
+        {/* Messages */}
+        {error && (
+          <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <div className="d-flex align-items-center gap-2">
+              <FiAlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+            <button type="button" className="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close" onClick={() => setError('')}></button>
+          </div>
+        )}
+        
+        {success && (
+          <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <div className="d-flex align-items-center gap-2">
+              <FiCheckCircle size={16} />
+              <span>{success}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Formulaire */}
+        <form onSubmit={handleSubmit} className="contrat-form-slide-in">
+          <div className="card shadow-sm border-0 rounded-3">
+            <div className="card-body p-4">
+              
+              {/* Sélection de l'actif (si pas d'ID dans l'URL) */}
+              {(!id || id === 'undefined') && !isEditMode && (
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiPackage size={14} /> Actif associé <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    name="actif_id"
+                    value={formData.actif_id}
+                    onChange={handleChange}
+                    className={`form-select ${validationErrors.actif_id ? 'is-invalid' : ''}`}
+                    required
+                  >
+                    <option value="">Sélectionner un actif</option>
+                    {actifs.map(actif => (
+                      <option key={actif.id} value={actif.id}>
+                        {actif.code} - {actif.nom}
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.actif_id && (
+                    <div className="invalid-feedback">{validationErrors.actif_id}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Numéro de contrat */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                  <FiFileText size={14} /> Numéro de contrat <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="numero_contrat"
+                  value={formData.numero_contrat}
+                  onChange={handleChange}
+                  className={`form-control ${validationErrors.numero_contrat ? 'is-invalid' : ''}`}
+                  placeholder="ex: CTR-2025-001"
+                  required
+                />
+                {validationErrors.numero_contrat && (
+                  <div className="invalid-feedback">{validationErrors.numero_contrat}</div>
+                )}
+              </div>
+
+              {/* Fournisseur */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                  <FiUser size={14} /> Fournisseur <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="fournisseur"
+                  value={formData.fournisseur}
+                  onChange={handleChange}
+                  className={`form-control ${validationErrors.fournisseur ? 'is-invalid' : ''}`}
+                  placeholder="Nom du fournisseur"
+                  required
+                />
+                {validationErrors.fournisseur && (
+                  <div className="invalid-feedback">{validationErrors.fournisseur}</div>
+                )}
+              </div>
+
+              {/* ✅ Type de contrat (NOUVEAU) */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                  <FiTag size={14} /> Type de contrat <span className="text-danger">*</span>
+                </label>
+                <select
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                  className={`form-select ${validationErrors.type ? 'is-invalid' : ''}`}
+                  required
+                >
+                  {typesContrat.map(type => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                {formData.type && (
+                  <small className="text-muted d-block mt-1">
+                    {typesContrat.find(t => t.value === formData.type)?.description}
+                  </small>
+                )}
+                {validationErrors.type && (
+                  <div className="invalid-feedback">{validationErrors.type}</div>
+                )}
+              </div>
+
+              {/* Dates */}
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiCalendar size={14} /> Date de début
+                  </label>
+                  <input
+                    type="date"
+                    name="date_debut"
+                    value={formData.date_debut}
+                    onChange={handleChange}
+                    className="form-control"
+                  />
+                </div>
+
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiCalendar size={14} /> Date de fin <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="date_fin"
+                    value={formData.date_fin}
+                    onChange={handleChange}
+                    className={`form-control ${validationErrors.date_fin ? 'is-invalid' : ''}`}
+                    required
+                  />
+                  {validationErrors.date_fin && (
+                    <div className="invalid-feedback">{validationErrors.date_fin}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Montant */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                  <FiDollarSign size={14} /> Montant (CDF) <span className="text-danger">*</span>
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text">FC</span>
+                  <input
+                    type="number"
+                    name="montant"
+                    value={formData.montant}
+                    onChange={handleChange}
+                    className={`form-control ${validationErrors.montant ? 'is-invalid' : ''}`}
+                    min="0"
+                    step="1000"
+                    placeholder="0"
+                    required
+                  />
+                </div>
+                {validationErrors.montant && (
+                  <div className="invalid-feedback d-block">{validationErrors.montant}</div>
+                )}
+                <small className="text-muted d-block mt-1">
+                  Le montant en Francs Congolais (CDF). La TVA (16%) sera calculée automatiquement sur la facture.
+                </small>
+              </div>
+
+              {/* Description */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                  <FiInfo size={14} /> Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  className="form-control"
+                  rows="3"
+                  placeholder="Description détaillée du contrat (prestations, conditions, etc.)..."
+                />
+              </div>
+
+              {/* Boutons */}
+              <hr className="my-4" style={{ borderColor: 'rgba(0,255,247,0.2)' }} />
+              <div className="d-flex gap-3 justify-content-end">
+                <button type="button" onClick={handleGoBack} className="btn btn-outline-secondary d-flex align-items-center gap-2">
+                  <FiX size={16} /> Annuler
+                </button>
+                <button type="submit" className="btn btn-success d-flex align-items-center gap-2" disabled={loading}>
+                  <FiSave size={16} /> 
+                  {loading ? 'Enregistrement...' : (isEditMode ? 'Modifier' : 'Créer le contrat')}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </form>
+
+        {/* Note d'information */}
+        <div className="alert alert-info mt-3 py-2">
+          <small className="d-flex align-items-center gap-2">
+            <FiInfo size={14} />
+            <strong>Important :</strong> Une facture sera automatiquement générée lors de la création du contrat. 
+            Vous pourrez la consulter et la télécharger depuis la page de détail du contrat.
+          </small>
+        </div>
       </div>
-
-      {/* Messages */}
-      {error && (
-        <div style={styles.errorMessage}>
-          {error}
-        </div>
-      )}
-      {success && (
-        <div style={styles.successMessage}>
-          {success} Redirection...
-        </div>
-      )}
-
-      {/* Formulaire */}
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.formCard}>
-          {/* Sélection de l'actif (si pas d'ID dans l'URL) */}
-          {(!id || id === 'undefined') && !isEditMode && (
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <FiFileText /> Actif associé <span style={styles.required}>*</span>
-              </label>
-              <select
-                name="actif_id"
-                value={formData.actif_id}
-                onChange={handleChange}
-                style={styles.select}
-                required
-              >
-                <option value="">Sélectionner un actif</option>
-                {actifs.map(actif => (
-                  <option key={actif.id} value={actif.id}>
-                    {actif.code} - {actif.nom}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Numéro de contrat */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              <FiFileText /> Numéro de contrat <span style={styles.required}>*</span>
-            </label>
-            <input
-              type="text"
-              name="numero_contrat"
-              value={formData.numero_contrat}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="ex: CTR-2025-001"
-              required
-            />
-          </div>
-
-          {/* Fournisseur */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              <FiUser /> Fournisseur <span style={styles.required}>*</span>
-            </label>
-            <input
-              type="text"
-              name="fournisseur"
-              value={formData.fournisseur}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="Nom du fournisseur"
-              required
-            />
-          </div>
-
-          {/* Dates */}
-          <div style={styles.formRow}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <FiCalendar /> Date de début
-              </label>
-              <input
-                type="date"
-                name="date_debut"
-                value={formData.date_debut}
-                onChange={handleChange}
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <FiCalendar /> Date de fin <span style={styles.required}>*</span>
-              </label>
-              <input
-                type="date"
-                name="date_fin"
-                value={formData.date_fin}
-                onChange={handleChange}
-                style={styles.input}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Montant */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              <FiDollarSign /> Montant (CDF) <span style={styles.required}>*</span>
-            </label>
-            <input
-              type="number"
-              name="montant"
-              value={formData.montant}
-              onChange={handleChange}
-              style={styles.input}
-              min="0"
-              step="1000"
-              placeholder="0"
-              required
-            />
-          </div>
-
-          {/* Description */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              style={styles.textarea}
-              rows="3"
-              placeholder="Description du contrat..."
-            />
-          </div>
-
-          {/* Boutons */}
-          <div style={styles.formActions}>
-            <button type="submit" style={styles.saveButton} disabled={loading}>
-              <FiSave /> {loading ? 'Enregistrement...' : (isEditMode ? 'Modifier' : 'Créer')}
-            </button>
-            <button type="button" onClick={handleGoBack} style={styles.cancelButton}>
-              <FiX /> Annuler
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
+    </>
   );
 };
-
-const styles = {
-  container: {
-    maxWidth: '600px',
-    margin: '0 auto',
-    padding: '2rem',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    marginBottom: '2rem',
-  },
-  backButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #e5e7eb',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  title: {
-    flex: 1,
-    fontSize: '1.5rem',
-    color: '#1e3a8a',
-    margin: 0,
-  },
-  errorMessage: {
-    backgroundColor: '#fee2e2',
-    color: '#b91c1c',
-    padding: '1rem',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-  },
-  successMessage: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-    padding: '1rem',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-  },
-  form: {
-    width: '100%',
-  },
-  formCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '2rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  },
-  formGroup: {
-    marginBottom: '1.5rem',
-  },
-  formRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-  },
-  label: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '0.5rem',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: 'var(--text-primary)',
-  },
-  required: {
-    color: '#ef4444',
-    marginLeft: '0.25rem',
-  },
-  input: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.95rem',
-  },
-  select: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.95rem',
-    backgroundColor: 'var(--bg-card)',
-  },
-  textarea: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '0.95rem',
-    resize: 'vertical',
-  },
-  formActions: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '2rem',
-  },
-  saveButton: {
-    flex: 1,
-    padding: '0.75rem',
-    backgroundColor: '#10b981',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.95rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-  },
-  cancelButton: {
-    padding: '0.75rem 2rem',
-    backgroundColor: '#9ca3af',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.95rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  loadingContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-  },
-  spinner: {
-    border: '3px solid #f3f4f6',
-    borderTop: '3px solid #2563eb',
-    borderRadius: '50%',
-    width: '40px',
-    height: '40px',
-    animation: 'spin 1s linear infinite',
-    margin: '0 auto 1rem',
-  },
-};
-
-// Animation keyframes
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default ContratForm;

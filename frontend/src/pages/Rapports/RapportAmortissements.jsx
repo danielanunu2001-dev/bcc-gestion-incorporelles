@@ -6,13 +6,15 @@ import api from '../../services/api';
 import { 
   FiTrendingDown, FiRefreshCw, FiDownload, 
   FiEye, FiCalendar, FiDollarSign, FiBarChart2,
-  FiTrendingUp, FiFileText
+  FiTrendingUp, FiFileText, FiShield, FiInfo
 } from 'react-icons/fi';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, 
   Legend, ResponsiveContainer 
 } from 'recharts';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Container, Row, Col, Card, Button, Badge, Alert, Spinner, Form, InputGroup, Nav, Table } from 'react-bootstrap';
 
 const RapportAmortissements = () => {
   const navigate = useNavigate();
@@ -45,7 +47,29 @@ const RapportAmortissements = () => {
   };
 
   const handleExport = () => {
-    console.log('Export des données');
+    const csvContent = [
+      ['Code actif', 'Nom actif', 'Type', 'Compte', 'Valeur brute (CDF)', 'Annuité (CDF)', 'Cumul (CDF)', 'VNC (CDF)'],
+      ...data.map(item => [
+        item.actif_code,
+        item.actif_nom,
+        item.type || 'N/A',
+        item.compte || 'N/A',
+        item.valeur_brute,
+        item.annuite,
+        item.cumul,
+        item.vnc
+      ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', `rapport_amortissements_${exercice}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleViewActif = (actifId) => {
@@ -70,9 +94,7 @@ const RapportAmortissements = () => {
     }
   };
 
-  const formatNumber = (value) => {
-    return new Intl.NumberFormat('fr-FR').format(value || 0);
-  };
+  const formatNumber = (value) => new Intl.NumberFormat('fr-FR').format(value || 0);
 
   const annees = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
 
@@ -83,521 +105,249 @@ const RapportAmortissements = () => {
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Chargement des données...</p>
-      </div>
+      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <Spinner animation="border" variant="primary" className="mb-3" style={{ width: '3rem', height: '3rem' }} />
+          <p className="text-muted">Chargement des données...</p>
+        </div>
+      </Container>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <Container fluid className="py-4 px-3 px-md-4" style={{ maxWidth: '1400px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      
       {/* Header */}
-      <div style={styles.header}>
+      <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
-          <h1 style={styles.title}>
-            <FiTrendingDown style={styles.titleIcon} />
-            Rapport des amortissements
+          <h1 className="display-6 fw-bold text-primary mb-1 d-flex align-items-center gap-2">
+            <FiTrendingDown size={32} /> Rapport des amortissements
           </h1>
-          <p style={styles.subtitle}>
+          <p className="text-muted small mb-0">
             Analyse détaillée des amortissements pour l'exercice {exercice}
           </p>
         </div>
-        <div style={styles.headerActions}>
-          <button onClick={handleExport} style={styles.iconButton} title="Exporter">
-            <FiDownload />
-          </button>
-          <button onClick={handleRefresh} style={styles.refreshButton} disabled={refreshing}>
-            <FiRefreshCw className={refreshing ? 'spin' : ''} />
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={handleExport} className="d-flex align-items-center gap-2">
+            <FiDownload size={16} /> CSV
+          </Button>
+          <Button variant="primary" onClick={handleRefresh} disabled={refreshing} className="d-flex align-items-center gap-2">
+            <FiRefreshCw size={16} className={refreshing ? 'spin' : ''} />
             {refreshing ? 'Actualisation...' : 'Actualiser'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Filtres */}
-      <div style={styles.filtersContainer}>
-        <div style={styles.filterBar}>
-          <FiCalendar size={18} style={styles.filterIcon} />
-          <span style={styles.filterLabel}>Exercice :</span>
-          <select 
-            value={exercice} 
-            onChange={(e) => setExercice(parseInt(e.target.value))}
-            style={styles.select}
-          >
-            {annees.map(an => (
-              <option key={an} value={an}>{an}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div style={styles.viewToggle}>
-          <button 
-            onClick={() => setViewMode('chart')}
-            style={viewMode === 'chart' ? styles.viewActive : styles.viewButton}
-            title="Vue graphique"
-          >
-            <FiBarChart2 />
-          </button>
-          <button 
-            onClick={() => setViewMode('table')}
-            style={viewMode === 'table' ? styles.viewActive : styles.viewButton}
-            title="Vue tableau"
-          >
-            <FiFileText />
-          </button>
-        </div>
-      </div>
+      <Card className="border-0 shadow-sm rounded-3 mb-4">
+        <Card.Body>
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <FiCalendar size={18} className="text-muted" />
+              <span className="fw-semibold small text-muted">Exercice :</span>
+              <Form.Select 
+                value={exercice} 
+                onChange={(e) => setExercice(parseInt(e.target.value))}
+                style={{ width: 'auto', minWidth: '100px' }}
+              >
+                {annees.map(an => <option key={an} value={an}>{an}</option>)}
+              </Form.Select>
+            </div>
+            <div className="btn-group" role="group">
+              <Button variant={viewMode === 'chart' ? 'primary' : 'outline-secondary'} onClick={() => setViewMode('chart')} className="d-flex align-items-center gap-2">
+                <FiBarChart2 size={14} /> Graphique
+              </Button>
+              <Button variant={viewMode === 'table' ? 'primary' : 'outline-secondary'} onClick={() => setViewMode('table')} className="d-flex align-items-center gap-2">
+                <FiFileText size={14} /> Tableau
+              </Button>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
 
-      {/* Résumé */}
-      <div style={styles.summaryGrid}>
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryIconWrapper}>
-            <FiDollarSign size={20} color="#3b82f6" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatNumber(data.length)}</div>
-            <div style={styles.summaryLabel}>Actifs amortis</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#dbeafe' }}>
-            <FiTrendingUp size={20} color="#2563eb" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatCurrency(totalValeurBrute)}</div>
-            <div style={styles.summaryLabel}>Valeur brute</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#fef3c7' }}>
-            <FiTrendingDown size={20} color="#f59e0b" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatCurrency(totalAnnuite)}</div>
-            <div style={styles.summaryLabel}>Annuité totale</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#fee2e2' }}>
-            <FiDollarSign size={20} color="#ef4444" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatCurrency(totalVNC)}</div>
-            <div style={styles.summaryLabel}>VNC totale</div>
-          </div>
-        </div>
-      </div>
+      {/* Cartes résumé */}
+      <Row className="g-3 mb-4">
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-primary">{formatNumber(data.length)}</div><small className="text-muted">Actifs amortis</small><FiBarChart2 size={20} className="text-primary mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-success">{formatCurrency(totalValeurBrute)}</div><small className="text-muted">Valeur brute</small><FiDollarSign size={20} className="text-success mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-warning">{formatCurrency(totalAnnuite)}</div><small className="text-muted">Annuité totale</small><FiTrendingDown size={20} className="text-warning mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-info">{formatCurrency(totalVNC)}</div><small className="text-muted">VNC totale</small><FiTrendingUp size={20} className="text-info mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
       {error ? (
-        <div style={styles.errorContainer}>
-          <p>{error}</p>
-          <button onClick={fetchData} style={styles.retryButton}>Réessayer</button>
-        </div>
+        <Alert variant="danger" className="text-center">
+          <p className="mb-2">{error}</p>
+          <Button variant="danger" size="sm" onClick={fetchData}>Réessayer</Button>
+        </Alert>
       ) : data.length === 0 ? (
-        <div style={styles.emptyContainer}>
-          <FiTrendingDown size={48} color="#cbd5e1" />
-          <p>Aucune donnée disponible pour l'exercice {exercice}</p>
-          <button onClick={fetchData} style={styles.retryButton}>Actualiser</button>
-        </div>
+        <Card className="border-0 shadow-sm rounded-3">
+          <Card.Body className="text-center py-5">
+            <FiTrendingDown size={48} className="text-muted opacity-50 mb-3" />
+            <p className="text-muted">Aucune donnée disponible pour l'exercice {exercice}</p>
+            <Button variant="primary" onClick={fetchData}>
+              <FiRefreshCw className="me-2" /> Actualiser
+            </Button>
+          </Card.Body>
+        </Card>
       ) : (
         <>
-          {/* Contrôle du type de graphique (uniquement en vue graphique) */}
-          {viewMode === 'chart' && (
-            <div style={styles.chartControls}>
-              <button 
-                onClick={() => setChartType('bar')}
-                style={chartType === 'bar' ? styles.chartTypeActive : styles.chartTypeButton}
-                title="Graphique en barres"
-              >
-                <FiBarChart2 /> Barres
-              </button>
-              <button 
-                onClick={() => setChartType('line')}
-                style={chartType === 'line' ? styles.chartTypeActive : styles.chartTypeButton}
-                title="Graphique en lignes"
-              >
-                <FiTrendingUp /> Lignes
-              </button>
-              <button 
-                onClick={() => setChartType('area')}
-                style={chartType === 'area' ? styles.chartTypeActive : styles.chartTypeButton}
-                title="Graphique en aires"
-              >
-                <FiBarChart2 /> Aires
-              </button>
-            </div>
-          )}
-
           {/* Vue Graphique */}
           {viewMode === 'chart' && (
-            <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>
-                {chartType === 'bar' && 'Amortissements par actif (barres)'}
-                {chartType === 'line' && 'Évolution des amortissements'}
-                {chartType === 'area' && 'Répartition des valeurs'}
-              </h3>
-              <ResponsiveContainer width="100%" height={400}>
-                {chartType === 'bar' && (
-                  <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="actif_code" angle={-45} textAnchor="end" height={80} interval={0} />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
-                    <Bar dataKey="annuite" fill="#3b82f6" name="Annuité" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="vnc" fill="#f59e0b" name="VNC" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-                {chartType === 'line' && (
-                  <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="actif_code" angle={-45} textAnchor="end" height={80} interval={0} />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
-                    <Line type="monotone" dataKey="annuite" stroke="#3b82f6" name="Annuité" strokeWidth={2} />
-                    <Line type="monotone" dataKey="cumul" stroke="#10b981" name="Cumul" strokeWidth={2} />
-                    <Line type="monotone" dataKey="vnc" stroke="#f59e0b" name="VNC" strokeWidth={2} />
-                  </LineChart>
-                )}
-                {chartType === 'area' && (
-                  <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="actif_code" angle={-45} textAnchor="end" height={80} interval={0} />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
-                    <Area type="monotone" dataKey="vnc" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="VNC" />
-                    <Area type="monotone" dataKey="cumul" stackId="1" stroke="#10b981" fill="#10b981" name="Cumul" />
-                  </AreaChart>
-                )}
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div className="d-flex justify-content-end gap-2 mb-3">
+                <div className="btn-group" role="group">
+                  <Button variant={chartType === 'bar' ? 'primary' : 'outline-secondary'} onClick={() => setChartType('bar')} className="d-flex align-items-center gap-2">
+                    <FiBarChart2 size={14} /> Barres
+                  </Button>
+                  <Button variant={chartType === 'line' ? 'primary' : 'outline-secondary'} onClick={() => setChartType('line')} className="d-flex align-items-center gap-2">
+                    <FiTrendingUp size={14} /> Lignes
+                  </Button>
+                  <Button variant={chartType === 'area' ? 'primary' : 'outline-secondary'} onClick={() => setChartType('area')} className="d-flex align-items-center gap-2">
+                    <FiBarChart2 size={14} /> Aires
+                  </Button>
+                </div>
+              </div>
+
+              <Card className="border-0 shadow-sm rounded-3 mb-4">
+                <Card.Body>
+                  <h3 className="h6 fw-semibold mb-3">
+                    {chartType === 'bar' && 'Amortissements par actif (barres)'}
+                    {chartType === 'line' && 'Évolution des amortissements'}
+                    {chartType === 'area' && 'Répartition des valeurs'}
+                  </h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    {chartType === 'bar' ? (
+                      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="actif_code" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
+                        <YAxis />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <Legend />
+                        <Bar dataKey="annuite" fill="#3b82f6" name="Annuité" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="vnc" fill="#f59e0b" name="VNC" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    ) : chartType === 'line' ? (
+                      <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="actif_code" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
+                        <YAxis />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <Legend />
+                        <Line type="monotone" dataKey="annuite" stroke="#3b82f6" name="Annuité" strokeWidth={2} />
+                        <Line type="monotone" dataKey="cumul" stroke="#10b981" name="Cumul" strokeWidth={2} />
+                        <Line type="monotone" dataKey="vnc" stroke="#f59e0b" name="VNC" strokeWidth={2} />
+                      </LineChart>
+                    ) : (
+                      <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="actif_code" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
+                        <YAxis />
+                        <Tooltip formatter={(value) => formatCurrency(value)} />
+                        <Legend />
+                        <Area type="monotone" dataKey="vnc" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="VNC" fillOpacity={0.6} />
+                        <Area type="monotone" dataKey="cumul" stackId="1" stroke="#10b981" fill="#10b981" name="Cumul" fillOpacity={0.6} />
+                      </AreaChart>
+                    )}
+                  </ResponsiveContainer>
+                </Card.Body>
+              </Card>
+            </>
           )}
 
           {/* Vue Tableau */}
           {viewMode === 'table' && (
-            <div style={styles.tableCard}>
-              <div style={styles.tableHeader}>
-                <h3 style={styles.chartTitle}>Détail des amortissements - Exercice {exercice}</h3>
-                <div style={styles.tableStats}>
-                  <span>{data.length} actif(s)</span>
-                  <span>Total annuités: {formatCurrency(totalAnnuite)}</span>
+            <Card className="border-0 shadow-sm rounded-3 overflow-hidden">
+              <Card.Body className="p-0">
+                <div className="p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 bg-light">
+                  <h3 className="h6 fw-semibold mb-0">Détail des amortissements - Exercice {exercice}</h3>
+                  <div className="d-flex gap-3">
+                    <Badge bg="secondary" className="px-2 py-1">{data.length} actif(s)</Badge>
+                    <Badge bg="success" className="px-2 py-1">Total annuités: {formatCurrency(totalAnnuite)}</Badge>
+                  </div>
                 </div>
-              </div>
-              <div style={styles.tableContainer}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Code</th>
-                      <th style={styles.th}>Nom</th>
-                      <th style={styles.th}>Type</th>
-                      <th style={styles.th}>Valeur brute</th>
-                      <th style={styles.th}>Annuité</th>
-                      <th style={styles.th}>Cumul</th>
-                      <th style={styles.th}>VNC</th>
-                      <th style={styles.th}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.map((item, index) => (
-                      <tr key={index} style={index % 2 === 0 ? styles.trEven : styles.trOdd}>
-                        <td style={styles.td}>
-                          <span style={styles.codeBadge}>{item.actif_code}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={styles.nomCell}>{item.actif_nom}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={styles.typeBadge}>{item.type || '-'}</span>
-                        </td>
-                        <td style={styles.tdRight}>{formatCurrency(item.valeur_brute)}</td>
-                        <td style={styles.tdRight}>{formatCurrency(item.annuite)}</td>
-                        <td style={styles.tdRight}>{formatCurrency(item.cumul)}</td>
-                        <td style={styles.tdRight}>
-                          <span style={{ fontWeight: '600', color: '#2563eb' }}>
-                            {formatCurrency(item.vnc)}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <button 
-                            onClick={() => handleViewActif(item.actif_id)}
-                            style={styles.viewButton}
-                            title="Voir l'actif"
-                          >
-                            <FiEye size={16} />
-                          </button>
-                        </td>
+                <div className="table-responsive">
+                  <Table hover className="align-middle mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Code</th>
+                        <th>Nom</th>
+                        <th>Type</th>
+                        <th className="text-end">Valeur brute</th>
+                        <th className="text-end">Annuité</th>
+                        <th className="text-end">Cumul</th>
+                        <th className="text-end">VNC</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={styles.tfoot}>
-                      <td colSpan="3" style={styles.td}><strong>Total</strong></td>
-                      <td style={styles.tdRight}><strong>{formatCurrency(totalValeurBrute)}</strong></td>
-                      <td style={styles.tdRight}><strong>{formatCurrency(totalAnnuite)}</strong></td>
-                      <td style={styles.tdRight}><strong>{formatCurrency(totalCumul)}</strong></td>
-                      <td style={styles.tdRight}><strong>{formatCurrency(totalVNC)}</strong></td>
-                      <td style={styles.td}></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
+                    </thead>
+                    <tbody>
+                      {data.map((item, index) => (
+                        <tr key={index}>
+                          <td><code className="bg-info bg-opacity-25 px-2 py-1 rounded">{item.actif_code}</code></td>
+                          <td className="fw-semibold">{item.actif_nom}</td>
+                          <td><Badge bg="secondary" className="bg-opacity-10 text-dark">{item.type || '-'}</Badge></td>
+                          <td className="text-end">{formatCurrency(item.valeur_brute)}</td>
+                          <td className="text-end">{formatCurrency(item.annuite)}</td>
+                          <td className="text-end">{formatCurrency(item.cumul)}</td>
+                          <td className="text-end"><span className="fw-semibold text-primary">{formatCurrency(item.vnc)}</span></td>
+                          <td>
+                            <Button variant="outline-primary" size="sm" onClick={() => handleViewActif(item.actif_id)} title="Voir l'actif">
+                              <FiEye size={14} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="table-light fw-bold">
+                      <tr>
+                        <td colSpan="3">Total</td>
+                        <td className="text-end">{formatCurrency(totalValeurBrute)}</td>
+                        <td className="text-end">{formatCurrency(totalAnnuite)}</td>
+                        <td className="text-end">{formatCurrency(totalCumul)}</td>
+                        <td className="text-end">{formatCurrency(totalVNC)}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </Table>
+                </div>
+              </Card.Body>
+            </Card>
           )}
         </>
       )}
-    </div>
+
+      {/* Footer info */}
+      <div className="text-center mt-4">
+        <small className="text-muted d-flex align-items-center justify-content-center gap-2">
+          <FiShield size={12} /> Données en temps réel — Rapport conforme aux normes BCC
+        </small>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spin { animation: spin 1s linear infinite; }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+      `}</style>
+    </Container>
   );
 };
-
-// ============ STYLES ============
-
-const styles = {
-  container: {
-    padding: '2rem',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    minHeight: 'calc(100vh - 64px)',
-    backgroundColor: 'var(--bg-primary)'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  title: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    fontSize: '1.8rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: 0
-  },
-  titleIcon: {
-    color: '#3b82f6'
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    marginTop: '0.5rem'
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '0.75rem'
-  },
-  iconButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f8fafc',
-      borderColor: '#cbd5e1'
-    }
-  },
-  refreshButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: 'var(--bg-card)',
-    transition: 'all 0.2s',
-    ':hover': { backgroundColor: '#2563eb' },
-    ':disabled': { opacity: 0.5, cursor: 'not-allowed' }
-  },
-  filtersContainer: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  filterBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0'
-  },
-  filterIcon: { color: '#94a3b8' },
-  filterLabel: { fontSize: '0.875rem', color: '#475569' },
-  select: {
-    padding: '0.25rem 0.5rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-card)',
-    cursor: 'pointer'
-  },
-  viewToggle: {
-    display: 'flex',
-    gap: '0.25rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '0.25rem',
-    border: '1px solid #e2e8f0'
-  },
-  viewButton: {
-    padding: '0.5rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: '#94a3b8',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: 'var(--bg-primary)',
-      color: '#475569'
-    }
-  },
-  viewActive: {
-    padding: '0.5rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: 'var(--bg-card)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  summaryGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1rem',
-    marginBottom: '2rem'
-  },
-  summaryCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-    border: '1px solid #e2e8f0',
-    transition: 'all 0.2s',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-    }
-  },
-  summaryIconWrapper: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    backgroundColor: '#eff6ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  summaryNumber: { fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-primary)' },
-  summaryLabel: { fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  chartControls: {
-    display: 'flex',
-    gap: '0.5rem',
-    justifyContent: 'flex-end',
-    marginBottom: '1rem'
-  },
-  chartTypeButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    ':hover': { backgroundColor: '#f8fafc' }
-  },
-  chartTypeActive: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: 'var(--bg-card)'
-  },
-  chartCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    marginBottom: '2rem',
-    border: '1px solid #e2e8f0'
-  },
-  chartTitle: { fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '1rem' },
-  tableCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    border: '1px solid #e2e8f0'
-  },
-  tableHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  tableStats: {
-    display: 'flex',
-    gap: '1rem',
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)'
-  },
-  tableContainer: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' },
-  th: { padding: '0.75rem', textAlign: 'left', backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', fontWeight: '600', color: 'var(--text-primary)' },
-  td: { padding: '0.75rem', borderBottom: '1px solid #e2e8f0', color: '#334155' },
-  tdRight: { padding: '0.75rem', borderBottom: '1px solid #e2e8f0', textAlign: 'right', color: '#334155' },
-  trEven: { backgroundColor: 'var(--bg-card)' },
-  trOdd: { backgroundColor: '#fafafa' },
-  tfoot: { backgroundColor: '#f8fafc', fontWeight: 'bold', borderTop: '2px solid #e2e8f0' },
-  codeBadge: { fontFamily: 'monospace', backgroundColor: '#e0f2fe', padding: '0.125rem 0.375rem', borderRadius: '4px', fontSize: '0.7rem', color: '#1e40af' },
-  nomCell: { fontWeight: '500' },
-  typeBadge: { padding: '0.125rem 0.375rem', borderRadius: '4px', fontSize: '0.7rem', backgroundColor: 'var(--bg-primary)', color: '#475569' },
-  viewButton: { padding: '0.25rem', backgroundColor: 'transparent', border: 'none', borderRadius: '4px', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.2s', display: 'flex', alignItems: 'center', ':hover': { color: '#3b82f6', backgroundColor: '#eff6ff' } },
-  loadingContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', gap: '1rem', color: 'var(--text-secondary)' },
-  spinner: { width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTop: '3px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  errorContainer: { textAlign: 'center', padding: '3rem', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid #fee2e2', color: '#ef4444' },
-  emptyContainer: { textAlign: 'center', padding: '3rem', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8' },
-  retryButton: { marginTop: '1rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'var(--bg-card)', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-};
-
-// Ajouter l'animation spin
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
-document.head.appendChild(styleSheet);
 
 export default RapportAmortissements;

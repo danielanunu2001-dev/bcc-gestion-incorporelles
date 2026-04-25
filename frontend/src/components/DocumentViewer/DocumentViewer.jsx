@@ -1,95 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import {
   FiX, FiDownload, FiPrinter, FiZoomIn, FiZoomOut,
-  FiFileText, FiFile, FiTable, FiImage, FiArchive,
+  FiFileText, FiFile, FiTable, FiImage,
   FiChevronLeft, FiChevronRight, FiMaximize2, FiMinimize2,
-  FiAlertCircle
+  FiAlertCircle, FiExternalLink
 } from 'react-icons/fi';
-
-// IMPORTANT : Utiliser la même version pour l'API et le worker
-// Version 3.11.0 est stable et compatible
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
-
-// Alternative si la version ci-dessus ne fonctionne pas, utiliser le worker local :
-// pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-//   'pdfjs-dist/build/pdf.worker.min.js',
-//   import.meta.url,
-// ).toString();
 
 const DocumentViewer = ({ file, filename, fileType, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [content, setContent] = useState(null);
-  const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1.0);
   const [fullscreen, setFullscreen] = useState(false);
   const [excelData, setExcelData] = useState(null);
   const [excelSheets, setExcelSheets] = useState([]);
   const [activeSheet, setActiveSheet] = useState(0);
-  const [pdfError, setPdfError] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
 
   useEffect(() => {
     loadDocument();
-    
-    // Nettoyer l'URL lors du démontage
     return () => {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     };
   }, [file, fileType]);
 
   const loadDocument = async () => {
     setLoading(true);
     setError(null);
-    setPdfError(false);
     
     try {
       const fileBlob = file instanceof Blob ? file : new Blob([file]);
-      
-      switch (fileType?.toLowerCase()) {
-        case 'pdf':
-          // Nettoyer l'ancienne URL si elle existe
-          if (pdfUrl) {
-            URL.revokeObjectURL(pdfUrl);
-          }
-          const url = URL.createObjectURL(fileBlob);
-          setPdfUrl(url);
-          setContent(url);
-          break;
-          
-        case 'xlsx':
-        case 'xls':
-          await loadExcel(fileBlob);
-          break;
-          
-        case 'docx':
-        case 'doc':
-          await loadWord(fileBlob);
-          break;
-          
-        case 'csv':
-          await loadCSV(fileBlob);
-          break;
-          
-        case 'jpg':
-        case 'jpeg':
-        case 'png':
-        case 'gif':
-          const imgUrl = URL.createObjectURL(fileBlob);
-          setContent(imgUrl);
-          break;
-          
-        default:
-          setContent(URL.createObjectURL(fileBlob));
+      const type = fileType?.toLowerCase();
+
+      if (type === 'pdf') {
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        const url = URL.createObjectURL(fileBlob);
+        setPdfUrl(url);
+        setContent(url);
+      } 
+      else if (type === 'xlsx' || type === 'xls') {
+        await loadExcel(fileBlob);
+      } 
+      else if (type === 'docx' || type === 'doc') {
+        await loadWord(fileBlob);
+      } 
+      else if (type === 'csv') {
+        await loadCSV(fileBlob);
+      } 
+      else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type)) {
+        const imgUrl = URL.createObjectURL(fileBlob);
+        setContent(imgUrl);
+      } 
+      else {
+        setContent(URL.createObjectURL(fileBlob));
       }
     } catch (err) {
-      console.error('Erreur chargement document:', err);
+      console.error('Erreur chargement:', err);
       setError('Impossible de charger le document');
     } finally {
       setLoading(false);
@@ -100,13 +67,11 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
     const data = await blob.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
     const sheets = workbook.SheetNames;
-    
     const sheetData = sheets.map(sheetName => {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
       return { name: sheetName, data: jsonData };
     });
-    
     setExcelSheets(sheets);
     setExcelData(sheetData);
     setActiveSheet(0);
@@ -137,39 +102,45 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
   };
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head><title>${filename}</title></head>
-        <body>${content || 'Contenu du document'}</body>
-      </html>
-    `);
-    printWindow.print();
+    if (fileType?.toLowerCase() === 'pdf' && content) {
+      const printWindow = window.open(content, '_blank');
+      if (printWindow) {
+        printWindow.addEventListener('load', () => printWindow.print());
+      }
+    } else if (content && typeof content === 'string' && content.includes('<')) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>${filename}</title>
+              <style>body { padding: 20px; font-family: Arial; }</style>
+            </head>
+            <body>${content}</body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    } else {
+      handleDownload();
+    }
+  };
+
+  const openInNewTab = () => {
+    if (content) {
+      window.open(content, '_blank');
+    }
   };
 
   const toggleFullscreen = () => {
     const element = document.getElementById('document-viewer-content');
     if (!fullscreen) {
-      if (element.requestFullscreen) {
-        element.requestFullscreen();
-      }
+      element?.requestFullscreen();
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+      document.exitFullscreen();
     }
     setFullscreen(!fullscreen);
-  };
-
-  const onDocumentLoadSuccess = ({ numPages: pages }) => {
-    setNumPages(pages);
-    setPdfError(false);
-  };
-
-  const onDocumentLoadError = (err) => {
-    console.error('Erreur PDF:', err);
-    setPdfError(true);
-    setError('Erreur de chargement du PDF. Le fichier peut être corrompu ou protégé.');
   };
 
   const renderContent = () => {
@@ -194,13 +165,13 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
       );
     }
 
-    // PDF
+    // PDF - Utilisation de l'iframe natif du navigateur
     if (fileType?.toLowerCase() === 'pdf') {
-      if (pdfError || !content) {
+      if (!content) {
         return (
           <div style={styles.errorContainer}>
             <FiAlertCircle size={48} color="#ef4444" />
-            <p>Le PDF ne peut pas être affiché</p>
+            <p>Impossible de charger le PDF</p>
             <button onClick={handleDownload} style={styles.downloadFallbackButton}>
               <FiDownload /> Télécharger le fichier
             </button>
@@ -210,41 +181,16 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
       
       return (
         <div style={styles.pdfContainer}>
-          <Document
-            file={content}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError}
-            loading={<div style={styles.loadingText}>Chargement du PDF...</div>}
-            error={<div style={styles.errorText}>Erreur de chargement</div>}
-          >
-            <Page
-              pageNumber={pageNumber}
-              scale={scale}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </Document>
-          {numPages > 1 && (
-            <div style={styles.pdfNavigation}>
-              <button
-                onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                disabled={pageNumber <= 1}
-                style={{ ...styles.navButton, ...(pageNumber <= 1 ? styles.navButtonDisabled : {}) }}
-              >
-                <FiChevronLeft /> Précédent
-              </button>
-              <span style={styles.pageInfo}>
-                Page {pageNumber} / {numPages}
-              </span>
-              <button
-                onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                disabled={pageNumber >= numPages}
-                style={{ ...styles.navButton, ...(pageNumber >= numPages ? styles.navButtonDisabled : {}) }}
-              >
-                Suivant <FiChevronRight />
-              </button>
-            </div>
-          )}
+          <iframe
+            src={`${content}#toolbar=1&navpanes=1&scrollbar=1`}
+            style={styles.pdfIframe}
+            title={filename}
+          />
+          <div style={styles.pdfActions}>
+            <button onClick={openInNewTab} style={styles.pdfActionButton}>
+              <FiExternalLink /> Ouvrir dans un nouvel onglet
+            </button>
+          </div>
         </div>
       );
     }
@@ -310,10 +256,15 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
     }
 
     // Images
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType?.toLowerCase())) {
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileType?.toLowerCase())) {
       return (
         <div style={styles.imageContainer}>
-          <img src={content} alt={filename} style={styles.image} onError={() => setError('Impossible d\'afficher l\'image')} />
+          <img 
+            src={content} 
+            alt={filename} 
+            style={styles.image} 
+            onError={() => setError("Impossible d'afficher l'image")}
+          />
         </div>
       );
     }
@@ -323,7 +274,7 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
       <div style={styles.fallbackContainer}>
         <FiFile size={64} color="#94a3b8" />
         <h3>Aperçu non disponible</h3>
-        <p>Ce type de fichier ne peut pas être prévisualisé dans l'application</p>
+        <p>Le type de fichier "{fileType}" ne peut pas être prévisualisé</p>
         <button onClick={handleDownload} style={styles.downloadFallbackButton}>
           <FiDownload /> Télécharger le fichier
         </button>
@@ -345,7 +296,7 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
               {fileType === 'pdf' && <FiFileText size={20} />}
               {['xlsx', 'xls', 'csv'].includes(fileType) && <FiTable size={20} />}
               {['docx', 'doc'].includes(fileType) && <FiFileText size={20} />}
-              {['jpg', 'jpeg', 'png'].includes(fileType) && <FiImage size={20} />}
+              {['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileType) && <FiImage size={20} />}
               {!fileType && <FiFile size={20} />}
             </div>
             <div style={styles.fileInfoText}>
@@ -357,17 +308,6 @@ const DocumentViewer = ({ file, filename, fileType, onClose }) => {
           </div>
           
           <div style={styles.controls}>
-            {(fileType === 'pdf' && !pdfError && content) && (
-              <>
-                <button onClick={() => setScale(Math.min(3, scale + 0.1))} style={styles.controlBtn} title="Zoom avant (+)">
-                  <FiZoomIn />
-                </button>
-                <button onClick={() => setScale(Math.max(0.5, scale - 0.1))} style={styles.controlBtn} title="Zoom arrière (-)">
-                  <FiZoomOut />
-                </button>
-                <span style={styles.zoomValue}>{Math.round(scale * 100)}%</span>
-              </>
-            )}
             <button onClick={handleDownload} style={styles.controlBtn} title="Télécharger">
               <FiDownload />
             </button>
@@ -428,7 +368,7 @@ const styles = {
     alignItems: 'center',
     padding: '1rem 1.5rem',
     borderBottom: '1px solid #e5e7eb',
-    backgroundColor: 'var(--bg-secondary)',
+    backgroundColor: '#f8fafc',
     flexWrap: 'wrap',
     gap: '0.5rem'
   },
@@ -457,7 +397,7 @@ const styles = {
   filename: {
     fontSize: '0.875rem',
     fontWeight: '600',
-    color: 'var(--text-primary)',
+    color: '#1e293b',
     margin: 0,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -465,7 +405,7 @@ const styles = {
   },
   fileType: {
     fontSize: '0.7rem',
-    color: 'var(--text-secondary)'
+    color: '#64748b'
   },
   controls: {
     display: 'flex',
@@ -475,7 +415,7 @@ const styles = {
   },
   controlBtn: {
     padding: '0.5rem',
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#ffffff',
     border: '1px solid #e5e7eb',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -494,19 +434,13 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'var(--bg-card)',
+    color: '#ffffff',
     transition: 'all 0.2s'
-  },
-  zoomValue: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    minWidth: '45px',
-    textAlign: 'center'
   },
   content: {
     flex: 1,
     overflow: 'auto',
-    padding: '1.5rem',
+    padding: '1rem',
     backgroundColor: '#f3f4f6'
   },
   loadingContainer: {
@@ -538,24 +472,25 @@ const styles = {
   pdfContainer: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%'
+    height: '100%',
+    gap: '1rem'
   },
-  pdfNavigation: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    marginTop: '1rem',
-    padding: '0.75rem',
-    backgroundColor: 'var(--bg-card)',
+  pdfIframe: {
+    flex: 1,
+    border: 'none',
     borderRadius: '8px',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+    backgroundColor: '#fff'
   },
-  navButton: {
+  pdfActions: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '1rem',
+    padding: '0.5rem'
+  },
+  pdfActionButton: {
     padding: '0.5rem 1rem',
     backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)',
+    color: '#ffffff',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -563,24 +498,6 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     fontSize: '0.875rem'
-  },
-  navButtonDisabled: {
-    backgroundColor: '#cbd5e1',
-    cursor: 'not-allowed'
-  },
-  pageInfo: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)'
-  },
-  loadingText: {
-    padding: '2rem',
-    textAlign: 'center',
-    color: 'var(--text-secondary)'
-  },
-  errorText: {
-    padding: '2rem',
-    textAlign: 'center',
-    color: '#ef4444'
   },
   excelContainer: {
     display: 'flex',
@@ -597,7 +514,7 @@ const styles = {
   },
   sheetTab: {
     padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
+    backgroundColor: '#f1f5f9',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -607,7 +524,7 @@ const styles = {
   },
   sheetTabActive: {
     backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)'
+    color: '#ffffff'
   },
   tableWrapper: {
     overflow: 'auto',
@@ -616,7 +533,7 @@ const styles = {
   excelTable: {
     borderCollapse: 'collapse',
     width: '100%',
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#ffffff',
     borderRadius: '8px',
     overflow: 'hidden'
   },
@@ -624,10 +541,10 @@ const styles = {
     padding: '0.5rem',
     border: '1px solid #e5e7eb',
     fontSize: '0.75rem',
-    color: 'var(--text-primary)'
+    color: '#1e293b'
   },
   excelHeader: {
-    backgroundColor: 'var(--bg-primary)',
+    backgroundColor: '#f1f5f9',
     fontWeight: '600',
     borderBottom: '2px solid #e5e7eb'
   },
@@ -644,7 +561,7 @@ const styles = {
     justifyContent: 'center'
   },
   wordContainer: {
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#ffffff',
     padding: '2rem',
     borderRadius: '8px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -675,7 +592,7 @@ const styles = {
   downloadFallbackButton: {
     padding: '0.75rem 1.5rem',
     backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)',
+    color: '#ffffff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',

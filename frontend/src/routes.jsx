@@ -29,78 +29,47 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      // Redirection
       {
         index: true,
         element: <Navigate to="/dashboard" replace />,
       },
-      
-      // Dashboard
       {
         path: 'dashboard',
         element: <Dashboard />,
       },
-      
-      // Actifs
       {
         path: 'actifs',
         children: [
-          {
-            index: true,
-            element: <ActifsList />,
-          },
-          {
-            path: 'nouveau',
-            element: <ActifForm />,
-          },
-          {
-            path: ':id',
-            element: <ActifDetail />,
-          },
-          {
-            path: 'modifier/:id',
-            element: <ActifForm />,
-          },
+          { index: true, element: <ActifsList /> },
+          { path: 'nouveau', element: <ActifForm /> },
+          { path: ':id', element: <ActifDetail /> },
+          { path: 'modifier/:id', element: <ActifForm /> },
         ],
       },
-      
-      // Amortissements
       {
         path: 'amortissements',
         element: <Amortissements />,
       },
-      
-      // Audit
       {
         path: 'audit',
         element: <Audit />,
       },
-      
-      // Utilisateurs
       {
         path: 'utilisateurs',
         element: <Utilisateurs />,
       },
-      
-      // Contrats
       {
         path: 'contrats',
         element: <Contrats />,
       },
-      
-      // Catégories d'amortissement
       {
         path: 'categories-amortissement',
         element: <CategoriesAmortissement />,
       },
-      
-      // Rapports
       {
         path: 'rapports',
         element: <Rapports />,
       },
-      
-      // Paramètres
       {
         path: 'parametres',
         element: <Parametres />,

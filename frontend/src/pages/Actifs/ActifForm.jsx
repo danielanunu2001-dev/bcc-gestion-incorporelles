@@ -4,22 +4,30 @@ import { useDispatch } from 'react-redux';
 import actifService from '../../services/actif';
 import api from '../../services/api';
 import { fetchActifs } from '../../store/actifSlice';
+import usePermissions from '../../hooks/usePermissions';
 import { 
   FiInfo, FiDollarSign, FiTrendingUp, FiCalendar, 
-  FiTag, FiMapPin, FiUser, FiFileText, FiCheckCircle
+  FiTag, FiMapPin, FiUser, FiFileText, FiCheckCircle,
+  FiLock, FiSave, FiX, FiHelpCircle, FiAlertCircle
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ActifForm = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { id } = useParams();
   const isEditMode = !!id;
+  const { can } = usePermissions();
 
-  // État pour les catégories d'amortissement
+  // Vérification des droits d'accès au formulaire
+  const canAccessForm = can(['admin', 'comptable']);
+  const canModify = can(['admin', 'comptable']);
+
+  // États pour les catégories d'amortissement
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
 
-  // ✅ État pour les devises
+  // État pour les devises
   const [devises, setDevises] = useState([]);
   const [loadingDevises, setLoadingDevises] = useState(false);
   const [montantCDF, setMontantCDF] = useState(null);
@@ -42,7 +50,6 @@ const ActifForm = () => {
     numero_facture: '',
     description: '',
     compte_comptable: '205',
-    // Nouveaux champs
     numero_inventaire: '',
     marque: '',
     modele: '',
@@ -56,7 +63,6 @@ const ActifForm = () => {
     nombre_utilisateurs: '',
     support: '',
     categorie_id: '',
-    // ✅ Devises
     devise_id: '',
     montant_devise: '',
     devise_code: 'CDF',
@@ -66,6 +72,18 @@ const ActifForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Redirection si l'utilisateur n'a pas les droits
+  useEffect(() => {
+    if (!canAccessForm && !isEditMode) {
+      setError('Vous n\'avez pas les droits pour créer un actif');
+      setTimeout(() => navigate('/actifs'), 2000);
+    }
+    if (!canModify && isEditMode) {
+      setError('Vous n\'avez pas les droits pour modifier un actif');
+      setTimeout(() => navigate('/actifs'), 2000);
+    }
+  }, [canAccessForm, canModify, isEditMode, navigate]);
 
   // Charger les catégories d'amortissement et devises au montage
   useEffect(() => {
@@ -85,7 +103,7 @@ const ActifForm = () => {
     }
   };
 
-  // ✅ Charger les devises
+  // Charger les devises
   const chargerDevises = async () => {
     try {
       setLoadingDevises(true);
@@ -98,7 +116,7 @@ const ActifForm = () => {
     }
   };
 
-  // ✅ Calculer le montant en CDF via l'API de conversion
+  // Calculer le montant en CDF via l'API de conversion
   const calculerMontantCDF = async (deviseId, montant, dateAcquisition) => {
     if (!deviseId || !montant || parseFloat(montant) <= 0) {
       setMontantCDF(null);
@@ -111,7 +129,6 @@ const ActifForm = () => {
       const devise = devises.find(d => d.id === parseInt(deviseId));
       if (!devise) return;
       
-      // Utiliser l'API de conversion avec la date d'acquisition
       const res = await api.get('/actifs/preview-conversion', {
         params: {
           montant: parseFloat(montant),
@@ -126,7 +143,6 @@ const ActifForm = () => {
       setTauxActuel(res.data.taux_utilise);
       setConversionInfo(res.data);
       
-      // Mettre à jour le taux de change dans le formulaire
       setFormData(prev => ({
         ...prev,
         devise_code: devise.code,
@@ -142,20 +158,23 @@ const ActifForm = () => {
     }
   };
 
-  // ✅ Gestion du changement de devise
+  // Gestion du changement de devise
   const handleDeviseChange = (deviseId) => {
+    if (!canModify) return;
     setFormData(prev => ({ ...prev, devise_id: deviseId }));
     calculerMontantCDF(deviseId, formData.montant_devise || formData.cout_acquisition, formData.date_acquisition);
   };
 
-  // ✅ Gestion du changement de montant en devise
+  // Gestion du changement de montant en devise
   const handleMontantDeviseChange = (montant) => {
+    if (!canModify) return;
     setFormData(prev => ({ ...prev, montant_devise: montant }));
     calculerMontantCDF(formData.devise_id, montant, formData.date_acquisition);
   };
 
-  // ✅ Gestion du changement de date d'acquisition
+  // Gestion du changement de date d'acquisition
   const handleDateChange = (date) => {
+    if (!canModify) return;
     setFormData(prev => ({ ...prev, date_acquisition: date }));
     if (formData.devise_id && formData.montant_devise) {
       calculerMontantCDF(formData.devise_id, formData.montant_devise, date);
@@ -164,7 +183,7 @@ const ActifForm = () => {
     }
   };
 
-  // ✅ Calculer la conversion en temps réel pour la première version
+  // Calculer la conversion en temps réel pour la première version
   useEffect(() => {
     const calculateConversion = async () => {
       if (formData.devise_code === 'CDF') {
@@ -234,14 +253,12 @@ const ActifForm = () => {
         nombre_utilisateurs: actif.nombre_utilisateurs || '',
         support: actif.support || '',
         categorie_id: actif.categorie_id || '',
-        // ✅ Devises
         devise_id: actif.devise_id || '',
         montant_devise: actif.montant_devise || '',
         devise_code: actif.devise?.code || 'CDF',
         taux_change: actif.taux_change_utilisation || ''
       });
 
-      // Si l'actif a une devise et un montant, calculer l'équivalent CDF
       if (actif.devise_id && actif.montant_devise) {
         await calculerMontantCDF(actif.devise_id, actif.montant_devise, actif.date_acquisition);
       }
@@ -266,10 +283,10 @@ const ActifForm = () => {
   };
 
   const handleChange = (e) => {
+    if (!canModify) return;
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Calcul automatique du taux d'amortissement si durée modifiée
     if (name === 'duree_utile_ans' && formData.mode_amortissement === 'lineaire') {
       const duree = parseInt(value);
       if (duree > 0) {
@@ -278,7 +295,6 @@ const ActifForm = () => {
       }
     }
     
-    // Calcul automatique du taux si mode modifié
     if (name === 'mode_amortissement' && value === 'lineaire') {
       const duree = parseInt(formData.duree_utile_ans);
       if (duree > 0) {
@@ -290,7 +306,6 @@ const ActifForm = () => {
 
   const handleGoBack = () => navigate(-1);
 
-  // ✅ Fonction pour valider et formater les dates
   const validateAndFormatDate = (dateValue) => {
     if (!dateValue) return null;
     
@@ -309,31 +324,42 @@ const ActifForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!canModify) {
+      setError('Vous n\'avez pas les droits pour effectuer cette action');
+      return;
+    }
+    
     setError('');
     setSuccess('');
     setLoading(true);
 
     try {
-      // Validations de base
       if (!formData.code || !formData.nom) {
         throw new Error('Veuillez remplir tous les champs obligatoires');
       }
       
-      // Utiliser le montant en CDF s'il existe via conversion, sinon le cout_acquisition
-      let coutFinal = formData.cout_acquisition;
-      if (montantCDF && formData.devise_code !== 'CDF') {
-        coutFinal = montantCDF;
-      } else if (coutCDF && formData.devise_code !== 'CDF') {
-        coutFinal = coutCDF;
+      let coutAcquisitionCDF = null;
+      
+      if (formData.devise_code === 'CDF') {
+        coutAcquisitionCDF = parseFloat(formData.montant_devise) || parseFloat(formData.cout_acquisition);
+      } else if (formData.devise_id && formData.montant_devise) {
+        coutAcquisitionCDF = montantCDF || coutCDF;
+        
+        if (!coutAcquisitionCDF || coutAcquisitionCDF <= 0) {
+          throw new Error('Conversion impossible. Vérifiez le taux de change.');
+        }
+      } else {
+        coutAcquisitionCDF = parseFloat(formData.cout_acquisition);
       }
       
-      if (parseFloat(coutFinal) <= 0) {
+      if (!coutAcquisitionCDF || isNaN(coutAcquisitionCDF) || coutAcquisitionCDF <= 0) {
         throw new Error('Le coût d\'acquisition doit être positif');
       }
 
       const dataToSend = {
         ...formData,
-        cout_acquisition: parseFloat(coutFinal),
+        cout_acquisition: parseFloat(coutAcquisitionCDF),
         valeur_residuelle: parseFloat(formData.valeur_residuelle) || 0,
         duree_utile_ans: parseInt(formData.duree_utile_ans),
         nombre_utilisateurs: formData.nombre_utilisateurs ? parseInt(formData.nombre_utilisateurs) : null,
@@ -341,19 +367,15 @@ const ActifForm = () => {
         date_validite: validateAndFormatDate(formData.date_validite),
         date_acquisition: validateAndFormatDate(formData.date_acquisition),
         categorie_id: formData.categorie_id || null,
-        // ✅ Devises
         devise_id: formData.devise_id || null,
         montant_devise: formData.montant_devise ? parseFloat(formData.montant_devise) : null,
-        taux_change_utilisation: formData.taux_change ? parseFloat(formData.taux_change) : null,
-        // ✅ Devise code pour la conversion
+        taux_change_utilisation: (tauxChangeActuel || tauxActuel) ? parseFloat(tauxChangeActuel || tauxActuel) : null,
         devise_code: formData.devise_code
       };
 
       if (dataToSend.date_validite === 'Invalid date') {
         dataToSend.date_validite = null;
       }
-
-      console.log('📤 Données envoyées:', dataToSend);
 
       if (isEditMode) {
         await actifService.update(id, dataToSend);
@@ -366,7 +388,7 @@ const ActifForm = () => {
       await dispatch(fetchActifs({}));
       setTimeout(() => navigate('/actifs'), 1500);
     } catch (err) {
-      console.error('❌ Erreur lors de la soumission:', err);
+      console.error('Erreur lors de la soumission:', err);
       setError(err.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
@@ -397,401 +419,635 @@ const ActifForm = () => {
     { value: 'hors_service', label: 'Hors service' }
   ];
 
-  // ✅ Calcul des montants TVA pour l'information
+  // ✅ CORRECTION : Calcul correct du TTC (HT + TVA)
   const montantHT = montantCDF || coutCDF || formData.cout_acquisition;
   const tauxChange = tauxChangeActuel || tauxActuel;
-  const montantTVA = montantHT ? montantHT * 0.16 : 0;
-  const montantTTC = montantHT ? montantHT + montantTVA : 0;
+  const montantTVA = montantHT ? Math.round(montantHT * 0.16) : 0;
+  const montantTTC = montantHT ? montantHT + montantTVA : 0;  // ← CORRECTION ICI
+
+  // Animation styles
+  const animationStyles = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .form-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+    .form-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+  `;
+
+  // Si l'utilisateur n'a pas les droits, afficher un message d'erreur
+  if (!canAccessForm && !isEditMode) {
+    return (
+      <>
+        <style>{animationStyles}</style>
+        <div className="container py-5" style={{ maxWidth: '1200px' }}>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h1 className="h2 fw-bold text-primary">Accès refusé</h1>
+            <button onClick={handleGoBack} className="btn btn-secondary d-flex align-items-center gap-2">
+              ← Retour
+            </button>
+          </div>
+          <div className="alert alert-danger d-flex align-items-center gap-3">
+            <FiLock size={20} />
+            <span>Vous n'avez pas les droits pour créer ou modifier des actifs. Cette action est réservée aux administrateurs et comptables.</span>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (loading && isEditMode) {
-    return <div style={styles.container}><div style={styles.loading}>Chargement...</div></div>;
+    return (
+      <div className="container py-5 text-center">
+        <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+          <span className="visually-hidden">Chargement...</span>
+        </div>
+        <p className="text-muted">Chargement de l'actif...</p>
+      </div>
+    );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>{isEditMode ? 'Modifier l\'actif' : 'Nouvel actif'}</h1>
-        <button onClick={handleGoBack} style={styles.backButton}>← Retour</button>
-      </div>
-
-      {error && <div style={styles.errorMessage}>{error}</div>}
-      {success && <div style={styles.successMessage}>{success} Redirection...</div>}
-
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.formGrid}>
-          {/* Colonne 1 */}
-          <div style={styles.formColumn}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Code *</label>
-              <input type="text" name="code" value={formData.code} onChange={handleChange} style={styles.input} required />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Nom *</label>
-              <input type="text" name="nom" value={formData.nom} onChange={handleChange} style={styles.input} required />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Type *</label>
-              <select name="type" value={formData.type} onChange={handleChange} style={styles.select}>
-                {types.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Type d'immobilisation</label>
-              <select name="type_immobilisation" value={formData.type_immobilisation} onChange={handleChange} style={styles.select}>
-                <option value="corporel">Corporel</option>
-                <option value="incorporel">Incorporel</option>
-              </select>
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Numéro d'inventaire</label>
-              <input type="text" name="numero_inventaire" value={formData.numero_inventaire} onChange={handleChange} style={styles.input} />
-            </div>
-          </div>
-
-          {/* Colonne 2 */}
-          <div style={styles.formColumn}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Date acquisition *</label>
-              <input 
-                type="date" 
-                name="date_acquisition" 
-                value={formData.date_acquisition || ''} 
-                onChange={(e) => handleDateChange(e.target.value)} 
-                style={styles.input} 
-                required 
-              />
-            </div>
-            
-            {/* ✅ SECTION DEVISE - Version améliorée */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <FiDollarSign size={14} /> Devise d'acquisition
-              </label>
-              <select
-                name="devise_id"
-                value={formData.devise_id}
-                onChange={(e) => handleDeviseChange(e.target.value)}
-                style={styles.select}
-                disabled={loadingDevises}
-              >
-                <option value="">-- Sélectionner une devise --</option>
-                {devises.map(dev => (
-                  <option key={dev.id} value={dev.id}>
-                    {dev.code} - {dev.nom} ({dev.symbole})
-                  </option>
-                ))}
-              </select>
-              {loadingDevises && <small>Chargement des devises...</small>}
-              <small style={styles.helperText}>La devise de la facture d'acquisition</small>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                Montant ({formData.devise_code || 'CDF'})
-              </label>
-              <input
-                type="number"
-                name="montant_devise"
-                value={formData.montant_devise}
-                onChange={(e) => handleMontantDeviseChange(e.target.value)}
-                style={styles.input}
-                step="0.01"
-                min="0"
-                placeholder="Montant dans la devise choisie"
-                disabled={!formData.devise_id}
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <FiFileText size={14} /> Numéro de facture
-              </label>
-              <input 
-                type="text" 
-                name="numero_facture" 
-                value={formData.numero_facture} 
-                onChange={handleChange} 
-                style={styles.input} 
-                placeholder="FAC-2025-001" 
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <FiUser size={14} /> Fournisseur
-              </label>
-              <input type="text" name="fournisseur" value={formData.fournisseur} onChange={handleChange} style={styles.input} />
-            </div>
-          </div>
-        </div>
-
-        {/* ✅ Information de conversion - Version améliorée */}
-        {formData.devise_code !== 'CDF' && conversionInfo && (
-          <div style={styles.conversionCard}>
-            <div style={styles.conversionHeader}>
-              <FiInfo size={16} color="#10b981" />
-              <strong>Informations de conversion</strong>
-            </div>
-            <div style={styles.conversionGrid}>
-              <div style={styles.conversionItem}>
-                <span>Montant saisi:</span>
-                <strong>{conversionInfo.montant_original} {conversionInfo.devise_originale}</strong>
-              </div>
-              <div style={styles.conversionItem}>
-                <span>Taux appliqué:</span>
-                <strong>1 {conversionInfo.devise_originale} = {conversionInfo.taux_utilise?.toLocaleString()} CDF</strong>
-                <small>(taux du {new Date(formData.date_acquisition).toLocaleDateString('fr-FR')})</small>
-              </div>
-              <div style={styles.conversionItemHighlight}>
-                <span>Équivalent en CDF:</span>
-                <strong className={styles.conversionHighlight}>
-                  {conversionInfo.montant_cdf?.toLocaleString()} CDF
-                </strong>
-              </div>
-              <div style={styles.conversionItem}>
-                <span>TVA (16%):</span>
-                <strong>{(conversionInfo.montant_cdf * 0.16).toLocaleString()} CDF</strong>
-              </div>
-              <div style={styles.conversionItem}>
-                <span>Total TTC:</span>
-                <strong>{(conversionInfo.montant_cdf * 1.16).toLocaleString()} CDF</strong>
-              </div>
-            </div>
-            <small style={styles.conversionNote}>
-              <FiInfo size={12} /> Le montant en CDF sera automatiquement enregistré dans le champ "Coût d'acquisition"
-            </small>
-          </div>
-        )}
-
-        {/* Valeur en CDF (si devise différente) ou montant direct */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>
-            Valeur d'acquisition (CDF)
-            {formData.devise_code !== 'CDF' && <span style={styles.labelNote}> (calculé automatiquement)</span>}
-          </label>
-          <input
-            type="text"
-            value={(montantCDF || coutCDF) !== null ? (montantCDF || coutCDF).toLocaleString() : ''}
-            style={{ ...styles.input, backgroundColor: '#f3f4f6', fontWeight: 'bold' }}
-            readOnly
-            disabled
-          />
-          {formData.devise_code !== 'CDF' && (
-            <small style={styles.helperText}>Ce montant est calculé à partir du taux de change à la date d'acquisition</small>
-          )}
-        </div>
-
-        {/* Section Amortissement */}
-        <div style={styles.section}>
-          <h3><FiTrendingUp size={18} /> Amortissement</h3>
-          <div style={styles.formGrid}>
-            <div style={styles.formColumn}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Mode d'amortissement *</label>
-                <select name="mode_amortissement" value={formData.mode_amortissement} onChange={handleChange} style={styles.select}>
-                  {modes.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Durée utile (ans) *</label>
-                <input type="number" name="duree_utile_ans" value={formData.duree_utile_ans} onChange={handleChange} style={styles.input} min="1" max="50" required />
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Taux d'amortissement (%)</label>
-                <input type="number" name="taux_amortissement" value={formData.taux_amortissement} onChange={handleChange} style={styles.input} step="0.01" min="0" max="100" placeholder="Calculé automatiquement" />
-                <small style={styles.helperText}>Laissé vide, le taux sera calculé automatiquement (100% / durée)</small>
-              </div>
-            </div>
-            <div style={styles.formColumn}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Valeur résiduelle (CDF)</label>
-                <input type="number" name="valeur_residuelle" value={formData.valeur_residuelle} onChange={handleChange} style={styles.input} min="0" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section Catégorie d'amortissement */}
-        <div style={styles.section}>
-          <h3><FiTag size={18} /> Catégorie d'amortissement (GCEC)</h3>
-          <div style={styles.formGrid}>
-            <div style={styles.formColumn}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Catégorie</label>
-                <select 
-                  name="categorie_id" 
-                  value={formData.categorie_id} 
-                  onChange={handleChange} 
-                  style={styles.select}
-                  disabled={loadingCategories}
-                >
-                  <option value="">-- Sélectionner une catégorie --</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.code_categorie} - {cat.nom_categorie} ({cat.duree_vie_ans} ans)
-                    </option>
-                  ))}
-                </select>
-                {loadingCategories && <small>Chargement des catégories...</small>}
-                {formData.categorie_id && (
-                  <small style={{ display: 'block', marginTop: '0.25rem', color: '#10b981' }}>
-                    <FiCheckCircle size={12} /> La durée et le mode d'amortissement seront automatiquement appliqués
-                  </small>
-                )}
-              </div>
-            </div>
-            <div style={styles.formColumn}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Compte comptable GCEC</label>
-                <input 
-                  type="text" 
-                  name="compte_comptable" 
-                  value={formData.compte_comptable} 
-                  onChange={handleChange} 
-                  style={styles.input} 
-                  placeholder="205"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Champs spécifiques selon le type d'immobilisation */}
-        {formData.type_immobilisation === 'corporel' && (
-          <div style={styles.section}>
-            <h3>🖥️ Informations matérielles</h3>
-            <div style={styles.formGrid}>
-              <div style={styles.formColumn}>
-                <div style={styles.formGroup}>
-                  <label>Marque</label>
-                  <input type="text" name="marque" value={formData.marque} onChange={handleChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Modèle</label>
-                  <input type="text" name="modele" value={formData.modele} onChange={handleChange} style={styles.input} />
-                </div>
-              </div>
-              <div style={styles.formColumn}>
-                <div style={styles.formGroup}>
-                  <label>Numéro de série</label>
-                  <input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>État</label>
-                  <select name="etat" value={formData.etat} onChange={handleChange} style={styles.select}>
-                    {etats.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {formData.type_immobilisation === 'incorporel' && (
-          <div style={styles.section}>
-            <h3>📜 Informations licence</h3>
-            <div style={styles.formGrid}>
-              <div style={styles.formColumn}>
-                <div style={styles.formGroup}>
-                  <label><FiCalendar size={14} /> Date de validité</label>
-                  <input 
-                    type="date" 
-                    name="date_validite" 
-                    value={formData.date_validite || ''} 
-                    onChange={handleChange} 
-                    style={styles.input} 
-                  />
-                  <small style={{ color: '#666' }}>Laissez vide si non applicable</small>
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Nombre d'utilisateurs</label>
-                  <input type="number" name="nombre_utilisateurs" value={formData.nombre_utilisateurs} onChange={handleChange} style={styles.input} min="1" />
-                </div>
-              </div>
-              <div style={styles.formColumn}>
-                <div style={styles.formGroup}>
-                  <label>Support</label>
-                  <input type="text" name="support" value={formData.support} onChange={handleChange} style={styles.input} placeholder="CD, téléchargement, etc." />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Informations complémentaires */}
-        <div style={styles.section}>
-          <h3><FiMapPin size={18} /> Informations complémentaires</h3>
-          <div style={styles.formGrid}>
-            <div style={styles.formColumn}>
-              <div style={styles.formGroup}>
-                <label>Localisation</label>
-                <input type="text" name="localisation" value={formData.localisation} onChange={handleChange} style={styles.input} />
-              </div>
-              <div style={styles.formGroup}>
-                <label>Affectation (service/utilisateur)</label>
-                <input type="text" name="affectation" value={formData.affectation} onChange={handleChange} style={styles.input} />
-              </div>
-            </div>
-            <div style={styles.formColumn}>
-              <div style={styles.formGroup}>
-                <label>Compte comptable</label>
-                <input type="text" name="compte_comptable" value={formData.compte_comptable} onChange={handleChange} style={styles.input} />
-              </div>
-            </div>
-          </div>
-          <div style={styles.formGroup}>
-            <label>Description</label>
-            <textarea name="description" value={formData.description} onChange={handleChange} style={styles.textarea} rows="3" />
-          </div>
-        </div>
-
-        <div style={styles.buttonGroup}>
-          <button type="button" onClick={handleGoBack} style={styles.cancelButton}>Annuler</button>
-          <button type="submit" style={styles.submitButton} disabled={loading}>
-            {loading ? 'En cours...' : (isEditMode ? 'Modifier' : 'Créer')}
+    <>
+      <style>{animationStyles}</style>
+      <div className="container py-4 px-3 px-md-4 form-fade-in" style={{ maxWidth: '1400px', backgroundColor: '#f3f4f6', minHeight: '100vh' }}>
+        {/* En-tête */}
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <h1 className="h2 fw-bold text-primary mb-0">
+            {isEditMode ? 'Modifier l\'actif' : 'Nouvel actif'}
+          </h1>
+          <button onClick={handleGoBack} className="btn btn-outline-secondary d-flex align-items-center gap-2">
+            ← Retour
           </button>
         </div>
-      </form>
-    </div>
-  );
-};
 
-const styles = {
-  container: { maxWidth: '1200px', margin: '0 auto', padding: '2rem', backgroundColor: '#f3f4f6', minHeight: '100vh' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' },
-  title: { fontSize: '2rem', color: '#1e3a8a', margin: 0 },
-  backButton: { padding: '0.5rem 1rem', backgroundColor: 'var(--text-secondary)', color: 'var(--bg-card)', border: 'none', borderRadius: '4px', cursor: 'pointer' },
-  form: { backgroundColor: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '1rem' },
-  formColumn: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  section: { marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' },
-  formGroup: { marginBottom: '1rem' },
-  label: { display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: 'var(--text-primary)' },
-  labelNote: { fontSize: '0.7rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' },
-  input: { width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '1rem' },
-  select: { width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '1rem', backgroundColor: 'var(--bg-card)' },
-  textarea: { width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '1rem', resize: 'vertical' },
-  helperText: { fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' },
-  // ✅ Nouveaux styles pour la conversion
-  conversionCard: { backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' },
-  conversionHeader: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#10b981', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid #bbf7d0' },
-  conversionGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' },
-  conversionItem: { display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#334155', padding: '0.25rem 0' },
-  conversionItemHighlight: { display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', fontWeight: '600', color: '#10b981', padding: '0.5rem 0', borderTop: '1px solid #bbf7d0', marginTop: '0.25rem' },
-  conversionHighlight: { fontSize: '1rem', fontWeight: 'bold', color: '#059669' },
-  conversionNote: { display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #bbf7d0' },
-  // Styles existants
-  infoBox: { backgroundColor: '#f0f9ff', padding: '1rem', borderRadius: '8px', marginTop: '1rem', marginBottom: '1rem', border: '1px solid #bae6fd' },
-  infoRow: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' },
-  infoLabel: { fontSize: '0.875rem', color: '#075985' },
-  infoValue: { fontSize: '0.875rem', fontWeight: 'bold', color: '#0369a1' },
-  conversionResult: { fontSize: '1rem', fontWeight: 'bold', color: '#2563eb' },
-  loadingSmall: { fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0.5rem' },
-  buttonGroup: { display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' },
-  submitButton: { padding: '0.75rem 1.5rem', backgroundColor: '#2563eb', color: 'var(--bg-card)', border: 'none', borderRadius: '4px', fontSize: '1rem', cursor: 'pointer' },
-  cancelButton: { padding: '0.75rem 1.5rem', backgroundColor: '#9ca3af', color: 'var(--bg-card)', border: 'none', borderRadius: '4px', fontSize: '1rem', cursor: 'pointer' },
-  errorMessage: { backgroundColor: '#fee2e2', color: '#b91c1c', padding: '1rem', borderRadius: '4px', marginBottom: '1rem' },
-  successMessage: { backgroundColor: '#dcfce7', color: '#166534', padding: '1rem', borderRadius: '4px', marginBottom: '1rem' },
-  loading: { textAlign: 'center', padding: '2rem', fontSize: '1.2rem', color: '#666' }
+        {/* Messages d'erreur et de succès */}
+        {error && (
+          <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <div className="d-flex align-items-center gap-2">
+              <FiAlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setError('')}></button>
+          </div>
+        )}
+        
+        {success && (
+          <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <div className="d-flex align-items-center gap-2">
+              <FiCheckCircle size={18} />
+              <span>{success} Redirection...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Formulaire principal */}
+        <form onSubmit={handleSubmit} className="card shadow-sm border-0 rounded-3 overflow-hidden">
+          <div className="card-body p-4">
+            {/* Section 1: Informations générales */}
+            <div className="row g-4 mb-4">
+              <div className="col-md-6">
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    Code <span className="text-danger">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="code" 
+                    value={formData.code} 
+                    onChange={handleChange} 
+                    className="form-control" 
+                    required 
+                    disabled={!canModify}
+                    placeholder="ACT-001"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    Nom <span className="text-danger">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="nom" 
+                    value={formData.nom} 
+                    onChange={handleChange} 
+                    className="form-control" 
+                    required 
+                    disabled={!canModify}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Type *</label>
+                  <select 
+                    name="type" 
+                    value={formData.type} 
+                    onChange={handleChange} 
+                    className="form-select"
+                    disabled={!canModify}
+                  >
+                    {types.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Type d'immobilisation</label>
+                  <select 
+                    name="type_immobilisation" 
+                    value={formData.type_immobilisation} 
+                    onChange={handleChange} 
+                    className="form-select"
+                    disabled={!canModify}
+                  >
+                    <option value="corporel">🏭 Corporel</option>
+                    <option value="incorporel">📄 Incorporel</option>
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Numéro d'inventaire</label>
+                  <input 
+                    type="text" 
+                    name="numero_inventaire" 
+                    value={formData.numero_inventaire} 
+                    onChange={handleChange} 
+                    className="form-control"
+                    disabled={!canModify}
+                  />
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiCalendar size={14} /> Date acquisition <span className="text-danger">*</span>
+                  </label>
+                  <input 
+                    type="date" 
+                    name="date_acquisition" 
+                    value={formData.date_acquisition || ''} 
+                    onChange={(e) => handleDateChange(e.target.value)} 
+                    className="form-control" 
+                    required 
+                    disabled={!canModify}
+                  />
+                </div>
+                
+                {/* Section Devise */}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiDollarSign size={14} /> Devise d'acquisition
+                  </label>
+                  <select
+                    name="devise_id"
+                    value={formData.devise_id}
+                    onChange={(e) => handleDeviseChange(e.target.value)}
+                    className="form-select"
+                    disabled={loadingDevises || !canModify}
+                  >
+                    <option value="">-- Sélectionner une devise --</option>
+                    {devises.map(dev => (
+                      <option key={dev.id} value={dev.id}>
+                        {dev.code} - {dev.nom} ({dev.symbole})
+                      </option>
+                    ))}
+                  </select>
+                  {loadingDevises && <small className="text-muted">Chargement des devises...</small>}
+                  <small className="text-muted d-block mt-1">La devise de la facture d'acquisition</small>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">
+                    Montant ({formData.devise_code || 'CDF'})
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-white">💰</span>
+                    <input
+                      type="number"
+                      name="montant_devise"
+                      value={formData.montant_devise}
+                      onChange={(e) => handleMontantDeviseChange(e.target.value)}
+                      className="form-control"
+                      step="0.01"
+                      min="0"
+                      placeholder="Montant dans la devise choisie"
+                      disabled={!formData.devise_id || !canModify}
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiFileText size={14} /> Numéro de facture
+                  </label>
+                  <input 
+                    type="text" 
+                    name="numero_facture" 
+                    value={formData.numero_facture} 
+                    onChange={handleChange} 
+                    className="form-control" 
+                    placeholder="FAC-2025-001"
+                    disabled={!canModify}
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiUser size={14} /> Fournisseur
+                  </label>
+                  <input 
+                    type="text" 
+                    name="fournisseur" 
+                    value={formData.fournisseur} 
+                    onChange={handleChange} 
+                    className="form-control"
+                    disabled={!canModify}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Information de conversion */}
+            {formData.devise_code !== 'CDF' && conversionInfo && (
+              <div className="card border-success bg-success bg-opacity-10 mb-4 form-slide-in">
+                <div className="card-body p-3">
+                  <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-success">
+                    <FiInfo size={16} className="text-success" />
+                    <strong className="text-success">Informations de conversion</strong>
+                  </div>
+                  <div className="row g-3">
+                    <div className="col-md-4">
+                      <small className="text-muted d-block">Montant saisi:</small>
+                      <strong>{conversionInfo.montant_original} {conversionInfo.devise_originale}</strong>
+                    </div>
+                    <div className="col-md-4">
+                      <small className="text-muted d-block">Taux appliqué:</small>
+                      <strong>1 {conversionInfo.devise_originale} = {conversionInfo.taux_utilise?.toLocaleString()} CDF</strong>
+                      <small className="text-muted d-block">(taux du {new Date(formData.date_acquisition).toLocaleDateString('fr-FR')})</small>
+                    </div>
+                    <div className="col-md-4">
+                      <small className="text-muted d-block">Équivalent en CDF:</small>
+                      <strong className="text-success fs-5">{conversionInfo.montant_cdf?.toLocaleString()} CDF</strong>
+                    </div>
+                    <div className="col-md-4">
+                      <small className="text-muted d-block">TVA (16%):</small>
+                      <strong>{(conversionInfo.montant_cdf * 0.16).toLocaleString()} CDF</strong>
+                    </div>
+                    <div className="col-md-4">
+                      <small className="text-muted d-block">Total TTC:</small>
+                      <strong>{((conversionInfo.montant_cdf * 0.16) + conversionInfo.montant_cdf).toLocaleString()} CDF</strong>
+                    </div>
+                  </div>
+                  <small className="text-muted d-block mt-3 pt-2 border-top border-success">
+                    <FiInfo size={12} className="me-1" /> Le montant en CDF sera automatiquement enregistré dans le champ "Coût d'acquisition"
+                  </small>
+                </div>
+              </div>
+            )}
+
+            {/* Valeur d'acquisition en CDF */}
+            <div className="mb-4">
+              <label className="form-label fw-semibold">
+                Valeur d'acquisition (CDF)
+                {formData.devise_code !== 'CDF' && <span className="text-muted ms-2 small">(calculé automatiquement)</span>}
+              </label>
+              <div className="input-group">
+                <span className="input-group-text bg-white">FC</span>
+                <input
+                  type="text"
+                  value={(montantCDF || coutCDF) !== null ? (montantCDF || coutCDF).toLocaleString() : ''}
+                  className="form-control bg-light fw-bold"
+                  readOnly
+                  disabled
+                />
+              </div>
+              {formData.devise_code !== 'CDF' && (
+                <small className="text-muted d-block mt-1">Ce montant est calculé à partir du taux de change à la date d'acquisition</small>
+              )}
+            </div>
+
+            {/* Section Amortissement */}
+            <div className="card bg-light border-0 mb-4">
+              <div className="card-body">
+                <h3 className="h6 fw-semibold mb-3 d-flex align-items-center gap-2">
+                  <FiTrendingUp size={16} /> Amortissement
+                </h3>
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Mode d'amortissement *</label>
+                      <select 
+                        name="mode_amortissement" 
+                        value={formData.mode_amortissement} 
+                        onChange={handleChange} 
+                        className="form-select"
+                        disabled={!canModify}
+                      >
+                        {modes.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Durée utile (ans) *</label>
+                      <input 
+                        type="number" 
+                        name="duree_utile_ans" 
+                        value={formData.duree_utile_ans} 
+                        onChange={handleChange} 
+                        className="form-control" 
+                        min="1" 
+                        max="50" 
+                        required
+                        disabled={!canModify}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Taux d'amortissement (%)</label>
+                      <div className="input-group">
+                        <input 
+                          type="number" 
+                          name="taux_amortissement" 
+                          value={formData.taux_amortissement} 
+                          onChange={handleChange} 
+                          className="form-control" 
+                          step="0.01" 
+                          min="0" 
+                          max="100" 
+                          placeholder="Calculé automatiquement"
+                          disabled={!canModify}
+                        />
+                        <span className="input-group-text">%</span>
+                      </div>
+                      <small className="text-muted">Laissé vide, le taux sera calculé automatiquement (100% / durée)</small>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Valeur résiduelle (CDF)</label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-white">FC</span>
+                        <input 
+                          type="number" 
+                          name="valeur_residuelle" 
+                          value={formData.valeur_residuelle} 
+                          onChange={handleChange} 
+                          className="form-control" 
+                          min="0"
+                          disabled={!canModify}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section Catégorie d'amortissement */}
+            <div className="card bg-light border-0 mb-4">
+              <div className="card-body">
+                <h3 className="h6 fw-semibold mb-3 d-flex align-items-center gap-2">
+                  <FiTag size={16} /> Catégorie d'amortissement (GCEC)
+                </h3>
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Catégorie</label>
+                    <select 
+                      name="categorie_id" 
+                      value={formData.categorie_id} 
+                      onChange={handleChange} 
+                      className="form-select"
+                      disabled={loadingCategories || !canModify}
+                    >
+                      <option value="">-- Sélectionner une catégorie --</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.code_categorie} - {cat.nom_categorie} ({cat.duree_vie_ans} ans)
+                        </option>
+                      ))}
+                    </select>
+                    {loadingCategories && <small className="text-muted">Chargement des catégories...</small>}
+                    {formData.categorie_id && (
+                      <small className="text-success d-block mt-1">
+                        <FiCheckCircle size={12} className="me-1" /> La durée et le mode d'amortissement seront automatiquement appliqués
+                      </small>
+                    )}
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Compte comptable GCEC</label>
+                    <input 
+                      type="text" 
+                      name="compte_comptable" 
+                      value={formData.compte_comptable} 
+                      onChange={handleChange} 
+                      className="form-control" 
+                      placeholder="205"
+                      disabled={!canModify}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Champs spécifiques selon le type d'immobilisation */}
+            {formData.type_immobilisation === 'corporel' && (
+              <div className="card bg-light border-0 mb-4">
+                <div className="card-body">
+                  <h3 className="h6 fw-semibold mb-3">🖥️ Informations matérielles</h3>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Marque</label>
+                        <input 
+                          type="text" 
+                          name="marque" 
+                          value={formData.marque} 
+                          onChange={handleChange} 
+                          className="form-control"
+                          disabled={!canModify}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Modèle</label>
+                        <input 
+                          type="text" 
+                          name="modele" 
+                          value={formData.modele} 
+                          onChange={handleChange} 
+                          className="form-control"
+                          disabled={!canModify}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Numéro de série</label>
+                        <input 
+                          type="text" 
+                          name="numero_serie" 
+                          value={formData.numero_serie} 
+                          onChange={handleChange} 
+                          className="form-control"
+                          disabled={!canModify}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">État</label>
+                        <select 
+                          name="etat" 
+                          value={formData.etat} 
+                          onChange={handleChange} 
+                          className="form-select"
+                          disabled={!canModify}
+                        >
+                          {etats.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formData.type_immobilisation === 'incorporel' && (
+              <div className="card bg-light border-0 mb-4">
+                <div className="card-body">
+                  <h3 className="h6 fw-semibold mb-3">📜 Informations licence</h3>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label d-flex align-items-center gap-2">
+                          <FiCalendar size={14} /> Date de validité
+                        </label>
+                        <input 
+                          type="date" 
+                          name="date_validite" 
+                          value={formData.date_validite || ''} 
+                          onChange={handleChange} 
+                          className="form-control"
+                          disabled={!canModify}
+                        />
+                        <small className="text-muted">Laissez vide si non applicable</small>
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Nombre d'utilisateurs</label>
+                        <input 
+                          type="number" 
+                          name="nombre_utilisateurs" 
+                          value={formData.nombre_utilisateurs} 
+                          onChange={handleChange} 
+                          className="form-control" 
+                          min="1"
+                          disabled={!canModify}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">Support</label>
+                        <input 
+                          type="text" 
+                          name="support" 
+                          value={formData.support} 
+                          onChange={handleChange} 
+                          className="form-control" 
+                          placeholder="CD, téléchargement, etc."
+                          disabled={!canModify}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Informations complémentaires */}
+            <div className="card bg-light border-0 mb-4">
+              <div className="card-body">
+                <h3 className="h6 fw-semibold mb-3 d-flex align-items-center gap-2">
+                  <FiMapPin size={16} /> Informations complémentaires
+                </h3>
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">Localisation</label>
+                      <input 
+                        type="text" 
+                        name="localisation" 
+                        value={formData.localisation} 
+                        onChange={handleChange} 
+                        className="form-control"
+                        disabled={!canModify}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Affectation (service/utilisateur)</label>
+                      <input 
+                        type="text" 
+                        name="affectation" 
+                        value={formData.affectation} 
+                        onChange={handleChange} 
+                        className="form-control"
+                        disabled={!canModify}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">Compte comptable</label>
+                      <input 
+                        type="text" 
+                        name="compte_comptable" 
+                        value={formData.compte_comptable} 
+                        onChange={handleChange} 
+                        className="form-control"
+                        disabled={!canModify}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea 
+                    name="description" 
+                    value={formData.description} 
+                    onChange={handleChange} 
+                    className="form-control" 
+                    rows="3"
+                    disabled={!canModify}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="d-flex justify-content-end gap-3 pt-3 border-top">
+              <button type="button" onClick={handleGoBack} className="btn btn-outline-secondary d-flex align-items-center gap-2">
+                <FiX size={16} /> Annuler
+              </button>
+              {canModify && (
+                <button type="submit" className="btn btn-primary d-flex align-items-center gap-2" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      <span>En cours...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiSave size={16} /> {isEditMode ? 'Modifier' : 'Créer'}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+    </>
+  );
 };
 
 export default ActifForm;

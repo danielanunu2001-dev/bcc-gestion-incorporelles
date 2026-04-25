@@ -1,0 +1,30 @@
+/* Pour garder les animations framer-motion */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Transition fluide pour le dark mode */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Rendre les cartes plus agréables */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Table responsive améliorée */
+.table-responsive {
+  border-radius: 0.5rem;
+}
+
+/* Badges personnalisés */
+.badge {
+  font-weight: 500;
+  padding: 0.35em 0.65em;
+}

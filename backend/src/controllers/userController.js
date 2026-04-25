@@ -2,6 +2,9 @@ const { User, AuditLog } = require('../models');
 const bcrypt = require('bcrypt');
 const { sequelize } = require('../models');
 const { validationResult } = require('express-validator');
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
 
 // ==================== UTILITAIRES ====================
 
@@ -22,6 +25,175 @@ const logAction = async (userId, action, tableName, recordId, oldData = null, ne
   } catch (error) {
     console.error('❌ Erreur lors du logging:', error);
     // Ne pas bloquer l'action principale si le logging échoue
+  }
+};
+
+// ==================== GESTION DE LA PHOTO DE PROFIL ====================
+
+/**
+ * Uploader une photo de profil
+ */
+exports.uploadUserPhoto = async (req, res) => {
+  console.log('📸 Upload photo pour user:', req.params.id);
+  
+  try {
+    const { id } = req.params;
+    
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Aucun fichier uploadé' 
+      });
+    }
+    
+    console.log('📁 Fichier reçu:', req.file.filename);
+    
+    // Récupérer l'utilisateur
+    const user = await User.findByPk(id);
+    if (!user) {
+      // Supprimer le fichier uploadé si l'utilisateur n'existe pas
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Utilisateur non trouvé' 
+      });
+    }
+    
+    // Supprimer l'ancienne photo si elle existe
+    if (user.photo_url) {
+      const oldPhotoPath = path.join(__dirname, '../uploads/profiles', path.basename(user.photo_url));
+      if (fs.existsSync(oldPhotoPath)) {
+        fs.unlinkSync(oldPhotoPath);
+        console.log('🗑️ Ancienne photo supprimée');
+      }
+    }
+    
+    // Optimiser l'image avec Sharp
+    const profilesDir = path.join(__dirname, '../uploads/profiles');
+    const optimizedFilename = `profile-${id}-optimized-${Date.now()}.jpg`;
+    const optimizedPath = path.join(profilesDir, optimizedFilename);
+    
+    await sharp(req.file.path)
+      .resize(400, 400, { fit: 'cover', position: 'center' })
+      .jpeg({ quality: 80 })
+      .toFile(optimizedPath);
+    
+    console.log('🖼️ Image optimisée:', optimizedFilename);
+    
+    // Supprimer le fichier temporaire original
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    // URL de la photo
+    const photoUrl = `/uploads/profiles/${optimizedFilename}`;
+    
+    // Mettre à jour l'utilisateur
+    await user.update({
+      photo_url: photoUrl,
+      updated_at: new Date()
+    });
+    
+    console.log('✅ Photo mise à jour pour user:', id);
+    
+    // Journaliser l'action
+    await logAction(
+      req.user.id,
+      'UPDATE',
+      'users',
+      user.id,
+      { photo_url: user.photo_url },
+      { photo_url: photoUrl },
+      req.ip
+    );
+    
+    // Récupérer l'utilisateur mis à jour (sans le mot de passe)
+    const updatedUser = user.toJSON();
+    delete updatedUser.password_hash;
+    
+    res.json({
+      success: true,
+      message: 'Photo mise à jour avec succès',
+      photo_url: photoUrl,
+      user: updatedUser
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur upload photo:', error);
+    // Supprimer le fichier en cas d'erreur
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur lors de l\'upload de la photo'
+    });
+  }
+};
+
+/**
+ * Supprimer la photo de profil
+ */
+exports.deleteUserPhoto = async (req, res) => {
+  console.log('🗑️ Suppression photo pour user:', req.params.id);
+  
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Utilisateur non trouvé' 
+      });
+    }
+    
+    if (user.photo_url) {
+      const photoPath = path.join(__dirname, '../uploads/profiles', path.basename(user.photo_url));
+      if (fs.existsSync(photoPath)) {
+        fs.unlinkSync(photoPath);
+        console.log('🗑️ Photo supprimée du disque');
+      }
+      
+      const oldPhotoUrl = user.photo_url;
+      
+      await user.update({
+        photo_url: null,
+        updated_at: new Date()
+      });
+      
+      // Journaliser l'action
+      await logAction(
+        req.user.id,
+        'UPDATE',
+        'users',
+        user.id,
+        { photo_url: oldPhotoUrl },
+        { photo_url: null },
+        req.ip
+      );
+      
+      console.log('✅ Photo supprimée pour user:', id);
+    }
+    
+    // Récupérer l'utilisateur mis à jour
+    const updatedUser = user.toJSON();
+    delete updatedUser.password_hash;
+    
+    res.json({
+      success: true,
+      message: 'Photo supprimée avec succès',
+      user: updatedUser
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur suppression photo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la suppression de la photo'
+    });
   }
 };
 
@@ -264,10 +436,18 @@ exports.deleteUser = async (req, res) => {
     console.log(`✅ Utilisateur trouvé: ${user.email}`);
 
     // Empêcher la suppression de son propre compte
-    // ✅ CORRECTION : comparaison directe des UUID (pas de parseInt)
     if (req.user.id === id) {
       console.log('⚠️ Tentative de suppression de son propre compte');
       return res.status(400).json({ message: 'Vous ne pouvez pas supprimer votre propre compte' });
+    }
+
+    // Supprimer la photo de profil si elle existe
+    if (user.photo_url) {
+      const photoPath = path.join(__dirname, '../uploads/profiles', path.basename(user.photo_url));
+      if (fs.existsSync(photoPath)) {
+        fs.unlinkSync(photoPath);
+        console.log('🗑️ Photo de profil supprimée');
+      }
     }
 
     // Sauvegarder les données pour le log

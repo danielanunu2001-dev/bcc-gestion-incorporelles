@@ -17,6 +17,90 @@
     
     <title>BCC Gestion des Immobilisations</title>
     
+    <!-- ============ BOOTSTRAP 5 CSS (CDN officiel) ============ -->
+    <link 
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
+      rel="stylesheet" 
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" 
+      crossorigin="anonymous"
+    />
+    
+    <!-- ============ BOOTSTRAP ICONS (optionnel mais utile) ============ -->
+    <link 
+      rel="stylesheet" 
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    
+    <!-- ============ POLICE INTER POUR MEILLEUR RENDEMENT ============ -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    
+    <style>
+      /* Appliquer la police Inter globalement */
+      * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
+      /* Animation de chargement fluide */
+      #root {
+        min-height: 100vh;
+      }
+      
+      /* Transition pour le dark mode avec Bootstrap */
+      body {
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      /* Surcharge Bootstrap pour le dark mode */
+      body.dark-mode,
+      body.dark-mode .card,
+      body.dark-mode .modal-content,
+      body.dark-mode .dropdown-menu,
+      body.dark-mode .offcanvas,
+      body.dark-mode .list-group-item,
+      body.dark-mode .table {
+        transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+      }
+      
+      /* Amélioration du scroll sur mobile */
+      @media (max-width: 768px) {
+        ::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+        }
+        
+        button, 
+        a, 
+        [role="button"],
+        .btn {
+          min-height: 44px;
+        }
+      }
+      
+      /* Animations personnalisées */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      .fade-in {
+        animation: fadeIn 0.3s ease-out;
+      }
+      
+      /* Loading spinner amélioré */
+      .loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+    
     <script>
       // Récupérer le thème sauvegardé et l'appliquer AVANT le chargement
       (function() {
@@ -25,11 +109,26 @@
           document.documentElement.classList.add('dark-mode');
           document.body.classList.add('dark-mode');
         }
+        
+        // Détection automatique du thème système (optionnel)
+        if (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark-mode');
+          document.body.classList.add('dark-mode');
+          localStorage.setItem('theme', 'dark');
+        }
       })();
     </script>
   </head>
-  <body>
+  <body class="bg-light">
     <div id="root"></div>
+    
+    <!-- ============ BOOTSTRAP 5 JS BUNDLE (avec Popper) ============ -->
+    <script 
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" 
+      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" 
+      crossorigin="anonymous"
+    ></script>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

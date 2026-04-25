@@ -29,6 +29,12 @@ module.exports = (sequelize) => {
       validate: {
         isIn: [['admin', 'gestionnaire', 'comptable', 'auditeur', 'juridique', 'informatique', 'inventoriste']]
       }
+    },
+    // ✅ AJOUT DE LA COLONNE PHOTO_URL
+    photo_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      field: 'photo_url'
     }
   }, {
     tableName: 'users',

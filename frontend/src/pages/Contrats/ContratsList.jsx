@@ -4,17 +4,24 @@ import api from '../../services/api';
 import usePermissions from '../../hooks/usePermissions';
 import {
   FiPlus, FiEye, FiEdit, FiTrash2, FiFileText,
-  FiCalendar, FiDollarSign, FiUser
+  FiCalendar, FiDollarSign, FiUser, FiSearch,
+  FiRefreshCw, FiInfo, FiAlertCircle, FiCheckCircle,
+  FiClock, FiTag
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ContratsList = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // ID de l'actif (optionnel)
+  const { id } = useParams();
   const { can } = usePermissions();
   
   const [contrats, setContrats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState('grid');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [contratToDelete, setContratToDelete] = useState(null);
 
   useEffect(() => {
     console.log('🆔 ID actif reçu:', id);
@@ -62,32 +69,43 @@ const ContratsList = () => {
     }
   };
 
-  const handleDelete = async (contratId) => {
-    if (window.confirm('Supprimer ce contrat ?')) {
-      try {
-        if (id && id !== 'undefined') {
-          await api.delete(`/actifs/${id}/contrats/${contratId}`);
-        } else {
-          await api.delete(`/contrats/${contratId}`);
-        }
-        
-        // Recharger la liste
-        if (id && id !== 'undefined') {
-          chargerContratsParActif();
-        } else {
-          chargerTousContrats();
-        }
-      } catch (err) {
-        console.error('❌ Erreur suppression:', err);
-        alert('Erreur lors de la suppression');
+  const handleDeleteClick = (contrat) => {
+    setContratToDelete(contrat);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!contratToDelete) return;
+    
+    try {
+      if (id && id !== 'undefined') {
+        await api.delete(`/actifs/${id}/contrats/${contratToDelete.id}`);
+      } else {
+        await api.delete(`/contrats/${contratToDelete.id}`);
       }
+      
+      if (id && id !== 'undefined') {
+        chargerContratsParActif();
+      } else {
+        chargerTousContrats();
+      }
+    } catch (err) {
+      console.error('❌ Erreur suppression:', err);
+      alert('Erreur lors de la suppression');
+    } finally {
+      setShowDeleteModal(false);
+      setContratToDelete(null);
     }
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      return new Date(dateString).toLocaleDateString('fr-FR');
+      return new Date(dateString).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
     } catch {
       return 'Date invalide';
     }
@@ -106,303 +124,438 @@ const ContratsList = () => {
     }
   };
 
-  const getStatutStyle = (dateFin) => {
-    if (!dateFin) return { bg: '#f3f4f6', color: 'var(--text-secondary)', label: 'Non défini' };
+  const getStatutInfo = (dateFin) => {
+    if (!dateFin) return { label: 'Non défini', variant: 'secondary', icon: <FiInfo size={12} /> };
     
     const aujourdhui = new Date();
     const fin = new Date(dateFin);
     
     if (fin < aujourdhui) {
-      return { bg: '#fee2e2', color: '#ef4444', label: 'Expiré' };
+      return { label: 'Expiré', variant: 'danger', icon: <FiAlertCircle size={12} /> };
     }
     
     const joursRestants = Math.ceil((fin - aujourdhui) / (1000 * 60 * 60 * 24));
     if (joursRestants < 30) {
-      return { bg: '#fed7aa', color: '#f59e0b', label: 'Expire bientôt' };
+      return { label: `Expire bientôt (${joursRestants}j)`, variant: 'warning', icon: <FiClock size={12} /> };
     }
     
-    return { bg: '#dcfce7', color: '#10b981', label: 'Actif' };
+    return { label: 'Actif', variant: 'success', icon: <FiCheckCircle size={12} /> };
   };
+
+  const filteredContrats = contrats.filter(contrat =>
+    contrat.numero_contrat?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contrat.fournisseur?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (contrat.description && contrat.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const stats = {
+    total: contrats.length,
+    actifs: contrats.filter(c => new Date(c.date_fin) > new Date()).length,
+    expires: contrats.filter(c => new Date(c.date_fin) < new Date()).length,
+    montantTotal: contrats.reduce((sum, c) => sum + (c.montant || 0), 0)
+  };
+
+  // Animation styles
+  const animationStyles = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .contrat-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+    .contrat-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    .card-hover {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+  `;
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Chargement des contrats...</p>
-      </div>
+      <>
+        <style>{animationStyles}</style>
+        <div className="container d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+          <div className="text-center">
+            <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+              <span className="visually-hidden">Chargement...</span>
+            </div>
+            <p className="text-muted">Chargement des contrats...</p>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div style={styles.errorContainer}>
-        <p style={styles.errorMessage}>{error}</p>
-        <button onClick={() => navigate('/actifs')} style={styles.backButton}>
-          Retour
-        </button>
-      </div>
+      <>
+        <style>{animationStyles}</style>
+        <div className="container text-center py-5">
+          <div className="alert alert-danger mx-auto" style={{ maxWidth: '500px' }}>
+            <FiAlertCircle size={24} className="mb-2" />
+            <p className="mb-3">{error}</p>
+            <button onClick={() => navigate('/actifs')} className="btn btn-primary">
+              Retour
+            </button>
+          </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <h1 style={styles.title}>
-          {id ? 'Contrats de l\'actif' : 'Tous les contrats'}
-        </h1>
-        {can(['admin', 'juridique']) && id && (
-          <button
-            onClick={() => navigate(`/actifs/${id}/contrats/nouveau`)}
-            style={styles.addButton}
-          >
-            <FiPlus /> Nouveau contrat
-          </button>
-        )}
-      </div>
-
-      {/* Liste des contrats */}
-      {contrats.length === 0 ? (
-        <div style={styles.noData}>
-          <FiFileText size={48} color="#9ca3af" />
-          <p>Aucun contrat trouvé</p>
-        </div>
-      ) : (
-        <div style={styles.contratsGrid}>
-          {contrats.map((contrat) => {
-            const statut = getStatutStyle(contrat.date_fin);
-            
-            return (
-              <div key={contrat.id} style={styles.contratCard}>
-                <div style={styles.cardHeader}>
-                  <h3 style={styles.contratNumero}>{contrat.numero_contrat}</h3>
-                  <span style={{
-                    ...styles.statutBadge,
-                    backgroundColor: statut.bg,
-                    color: statut.color,
-                  }}>
-                    {statut.label}
-                  </span>
-                </div>
-                
-                <div style={styles.contratInfo}>
-                  <div style={styles.infoItem}>
-                    <FiUser style={styles.infoIcon} />
-                    <span>{contrat.fournisseur || 'N/A'}</span>
-                  </div>
-                  
-                  <div style={styles.infoItem}>
-                    <FiCalendar style={styles.infoIcon} />
-                    <span>
-                      {formatDate(contrat.date_debut)} - {formatDate(contrat.date_fin)}
-                    </span>
-                  </div>
-                  
-                  <div style={styles.infoItem}>
-                    <FiDollarSign style={styles.infoIcon} />
-                    <span>{formatCurrency(contrat.montant)}</span>
-                  </div>
-                </div>
-
-                <div style={styles.cardActions}>
-                  <button
-                    onClick={() => navigate(`/contrats/${contrat.id}`)}
-                    style={styles.viewButton}
-                    title="Voir détails"
-                  >
-                    <FiEye />
-                  </button>
-                  
-                  {can(['admin', 'juridique']) && (
-                    <>
-                      <button
-                        onClick={() => {
-                          if (id) {
-                            navigate(`/actifs/${id}/contrats/modifier/${contrat.id}`);
-                          } else {
-                            navigate(`/contrats/modifier/${contrat.id}`);
-                          }
-                        }}
-                        style={styles.editButton}
-                        title="Modifier"
-                      >
-                        <FiEdit />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDelete(contrat.id)}
-                        style={styles.deleteButton}
-                        title="Supprimer"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </>
-                  )}
-                </div>
+    <>
+      <style>{animationStyles}</style>
+      <div className="container-fluid py-4 px-3 px-md-4 contrat-fade-in" style={{ maxWidth: '1400px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+        
+        {/* Modal de confirmation de suppression */}
+        <div className={`modal fade ${showDeleteModal ? 'show d-block' : ''}`} 
+             style={{ display: showDeleteModal ? 'block' : 'none', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+             onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title d-flex align-items-center gap-2">
+                  <FiTrash2 size={18} /> Confirmer la suppression
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowDeleteModal(false)}></button>
               </div>
-            );
-          })}
+              <div className="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le contrat <strong className="text-danger">"{contratToDelete?.numero_contrat}"</strong> ?</p>
+                <p className="text-muted small mb-0">Cette action est irréversible.</p>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Annuler</button>
+                <button type="button" className="btn btn-danger" onClick={confirmDelete}>Confirmer</button>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <div>
+            <h1 className="display-6 fw-bold text-primary mb-1 d-flex align-items-center gap-2">
+              <FiFileText size={32} /> {id ? 'Contrats de l\'actif' : 'Tous les contrats'}
+            </h1>
+            <p className="text-muted small mb-0">
+              {stats.total} contrat(s) trouvé(s)
+            </p>
+          </div>
+          <div className="d-flex gap-2">
+            <div className="btn-group" role="group">
+              <button 
+                onClick={() => setViewMode('grid')} 
+                className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                title="Vue grille"
+              >
+                🃏 Cartes
+              </button>
+              <button 
+                onClick={() => setViewMode('list')} 
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                title="Vue liste"
+              >
+                📋 Liste
+              </button>
+            </div>
+            <button onClick={() => {
+              if (id && id !== 'undefined') {
+                chargerContratsParActif();
+              } else {
+                chargerTousContrats();
+              }
+            }} className="btn btn-outline-secondary d-flex align-items-center gap-1" title="Rafraîchir">
+              <FiRefreshCw size={16} />
+            </button>
+            {can(['admin', 'juridique', 'comptable', 'gestionnaire']) && id && (
+              <button
+                onClick={() => navigate(`/actifs/${id}/contrats/nouveau`)}
+                className="btn btn-primary d-flex align-items-center gap-2"
+              >
+                <FiPlus size={16} /> Nouveau contrat
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Cartes statistiques */}
+        <div className="row g-3 mb-4">
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-primary bg-opacity-10 text-center card-hover">
+              <div className="card-body py-3">
+                <FiFileText size={24} className="text-primary mb-2" />
+                <small className="text-muted d-block">Total contrats</small>
+                <div className="h3 mb-0 fw-bold text-primary">{stats.total}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-success bg-opacity-10 text-center card-hover">
+              <div className="card-body py-3">
+                <FiTag size={24} className="text-success mb-2" />
+                <small className="text-muted d-block">Contrats actifs</small>
+                <div className="h3 mb-0 fw-bold text-success">{stats.actifs}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-danger bg-opacity-10 text-center card-hover">
+              <div className="card-body py-3">
+                <FiClock size={24} className="text-danger mb-2" />
+                <small className="text-muted d-block">Expirés</small>
+                <div className="h3 mb-0 fw-bold text-danger">{stats.expires}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-info bg-opacity-10 text-center card-hover">
+              <div className="card-body py-3">
+                <FiDollarSign size={24} className="text-info mb-2" />
+                <small className="text-muted d-block">Montant total</small>
+                <div className="h6 mb-0 fw-bold text-info">{formatCurrency(stats.montantTotal)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Barre de recherche */}
+        <div className="card shadow-sm border-0 rounded-3 mb-4">
+          <div className="card-body p-3">
+            <div className="input-group">
+              <span className="input-group-text bg-white border-end-0">
+                <FiSearch className="text-muted" />
+              </span>
+              <input
+                type="text"
+                className="form-control border-start-0"
+                placeholder="Rechercher par numéro, fournisseur ou description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={() => setSearchTerm('')}
+                  type="button"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Contenu principal */}
+        {contrats.length === 0 ? (
+          <div className="text-center py-5 bg-white rounded-3">
+            <FiFileText size={48} className="text-muted mb-3" />
+            <p className="text-muted mb-3">Aucun contrat trouvé</p>
+            {can(['admin', 'juridique', 'comptable', 'gestionnaire']) && id && (
+              <button
+                onClick={() => navigate(`/actifs/${id}/contrats/nouveau`)}
+                className="btn btn-primary d-inline-flex align-items-center gap-2"
+              >
+                <FiPlus size={16} /> Ajouter un contrat
+              </button>
+            )}
+          </div>
+        ) : filteredContrats.length === 0 ? (
+          <div className="text-center py-5 bg-white rounded-3">
+            <FiSearch size={48} className="text-muted mb-3" />
+            <p className="text-muted mb-0">Aucun contrat ne correspond à votre recherche</p>
+          </div>
+        ) : viewMode === 'grid' ? (
+          // Vue Grille
+          <div className="row g-3">
+            {filteredContrats.map((contrat) => {
+              const statutInfo = getStatutInfo(contrat.date_fin);
+              return (
+                <div key={contrat.id} className="col-md-6 col-lg-4">
+                  <div className="card h-100 shadow-sm border-0 rounded-3 card-hover">
+                    <div className="card-body">
+                      <div className="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                          <h6 className="card-title fw-semibold mb-1">{contrat.numero_contrat}</h6>
+                          <small className="text-muted d-flex align-items-center gap-1">
+                            <FiUser size={12} /> {contrat.fournisseur || 'N/A'}
+                          </small>
+                        </div>
+                        <span className={`badge bg-${statutInfo.variant} bg-opacity-10 text-${statutInfo.variant} d-inline-flex align-items-center gap-1 px-2 py-1`}>
+                          {statutInfo.icon} {statutInfo.label}
+                        </span>
+                      </div>
+                      
+                      {contrat.description && (
+                        <p className="card-text small text-muted mb-3">{contrat.description.substring(0, 80)}</p>
+                      )}
+                      
+                      <hr />
+                      
+                      <div className="d-flex justify-content-between small mb-2">
+                        <span className="text-muted d-flex align-items-center gap-1">
+                          <FiCalendar size={12} /> Période
+                        </span>
+                        <span>{formatDate(contrat.date_debut)} → {formatDate(contrat.date_fin)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between small">
+                        <span className="text-muted d-flex align-items-center gap-1">
+                          <FiDollarSign size={12} /> Montant
+                        </span>
+                        <span className="fw-bold text-success">{formatCurrency(contrat.montant)}</span>
+                      </div>
+                    </div>
+                    <div className="card-footer bg-white border-top-0 pb-3 pt-0">
+                      <div className="d-flex gap-2">
+                        <button
+                          onClick={() => navigate(`/contrats/${contrat.id}`)}
+                          className="btn btn-outline-primary btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1"
+                        >
+                          <FiEye size={14} /> Détails
+                        </button>
+                        {can(['admin', 'juridique', 'comptable', 'gestionnaire']) && (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (id) {
+                                  navigate(`/actifs/${id}/contrats/modifier/${contrat.id}`);
+                                } else {
+                                  navigate(`/contrats/modifier/${contrat.id}`);
+                                }
+                              }}
+                              className="btn btn-outline-warning btn-sm d-flex align-items-center justify-content-center gap-1"
+                              style={{ flex: '0.5' }}
+                            >
+                              <FiEdit size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(contrat)}
+                              className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center gap-1"
+                              style={{ flex: '0.5' }}
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Vue Liste
+          <div className="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Numéro</th>
+                    <th>Fournisseur</th>
+                    <th>Période</th>
+                    <th>Montant</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredContrats.map((contrat) => {
+                    const statutInfo = getStatutInfo(contrat.date_fin);
+                    return (
+                      <tr key={contrat.id}>
+                        <td>
+                          <div className="fw-semibold">{contrat.numero_contrat}</div>
+                          {contrat.description && (
+                            <small className="text-muted d-block">{contrat.description.substring(0, 50)}</small>
+                          )}
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <FiUser size={14} className="text-muted" />
+                            <span>{contrat.fournisseur || 'N/A'}</span>
+                          </div>
+                        </td>
+                        <td className="text-nowrap">
+                          {formatDate(contrat.date_debut)} → {formatDate(contrat.date_fin)}
+                        </td>
+                        <td className="fw-semibold text-success">{formatCurrency(contrat.montant)}</td>
+                        <td>
+                          <span className={`badge bg-${statutInfo.variant} bg-opacity-10 text-${statutInfo.variant} d-inline-flex align-items-center gap-1 px-2 py-1`}>
+                            {statutInfo.icon} {statutInfo.label}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            <button
+                              onClick={() => navigate(`/contrats/${contrat.id}`)}
+                              className="btn btn-outline-primary"
+                              title="Voir détails"
+                            >
+                              <FiEye size={14} />
+                            </button>
+                            {can(['admin', 'juridique', 'comptable', 'gestionnaire']) && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    if (id) {
+                                      navigate(`/actifs/${id}/contrats/modifier/${contrat.id}`);
+                                    } else {
+                                      navigate(`/contrats/modifier/${contrat.id}`);
+                                    }
+                                  }}
+                                  className="btn btn-outline-warning"
+                                  title="Modifier"
+                                >
+                                  <FiEdit size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(contrat)}
+                                  className="btn btn-outline-danger"
+                                  title="Supprimer"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="table-light">
+                  <tr>
+                    <td colSpan="3" className="fw-bold">Total</td>
+                    <td className="fw-bold text-success">{formatCurrency(stats.montantTotal)}</td>
+                    <td colSpan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Note d'information */}
+        <div className="alert alert-info mt-3 mb-0 py-2">
+          <small className="d-flex align-items-center gap-2">
+            <FiInfo size={14} />
+            Les contrats expirés seront automatiquement signalés dans les alertes.
+          </small>
+        </div>
+      </div>
+    </>
   );
 };
-
-const styles = {
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '2rem',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-  },
-  title: {
-    fontSize: '1.5rem',
-    color: '#1e3a8a',
-    margin: 0,
-  },
-  addButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#10b981',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  contratsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-    gap: '1.5rem',
-  },
-  contratCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    transition: 'box-shadow 0.2s',
-    ':hover': {
-      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    },
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-  },
-  contratNumero: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: '#1e3a8a',
-    margin: 0,
-  },
-  statutBadge: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-    fontWeight: '500',
-  },
-  contratInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem',
-    marginBottom: '1rem',
-  },
-  infoItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.875rem',
-    color: '#4b5563',
-  },
-  infoIcon: {
-    color: '#2563eb',
-    fontSize: '1rem',
-  },
-  cardActions: {
-    display: 'flex',
-    gap: '0.5rem',
-    justifyContent: 'flex-end',
-    borderTop: '1px solid #e5e7eb',
-    paddingTop: '1rem',
-  },
-  viewButton: {
-    padding: '0.25rem 0.5rem',
-    backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  editButton: {
-    padding: '0.25rem 0.5rem',
-    backgroundColor: '#f59e0b',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  deleteButton: {
-    padding: '0.25rem 0.5rem',
-    backgroundColor: '#ef4444',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  noData: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'var(--bg-secondary)',
-    borderRadius: '8px',
-    color: '#9ca3af',
-  },
-  loadingContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-  },
-  spinner: {
-    border: '3px solid #f3f4f6',
-    borderTop: '3px solid #2563eb',
-    borderRadius: '50%',
-    width: '40px',
-    height: '40px',
-    animation: 'spin 1s linear infinite',
-    margin: '0 auto 1rem',
-  },
-  errorContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-  },
-  errorMessage: {
-    color: '#dc2626',
-    marginBottom: '1rem',
-  },
-  backButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-};
-
-// Animation keyframes
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default ContratsList;

@@ -6,8 +6,10 @@ import usePermissions from '../../hooks/usePermissions';
 import {
   FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiRefreshCw,
   FiSearch, FiFilter, FiDownload, FiEye, FiClock,
-  FiTrendingUp, FiDollarSign, FiCalendar, FiTag
+  FiTrendingUp, FiDollarSign, FiCalendar, FiTag,
+  FiInfo, FiAlertCircle, FiCheckCircle
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const CategoriesAmortissement = () => {
   const navigate = useNavigate();
@@ -33,13 +35,13 @@ const CategoriesAmortissement = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [viewMode, setViewMode] = useState('table');
 
   useEffect(() => {
     fetchCategories();
   }, []);
 
   useEffect(() => {
-    // Filtrer les catégories en fonction de la recherche
     if (searchTerm) {
       const filtered = categories.filter(cat => 
         cat.code_categorie?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,7 +112,6 @@ const CategoriesAmortissement = () => {
     setSuccess('');
 
     try {
-      // Validation
       if (!formData.code_categorie || !formData.nom_categorie || !formData.duree_vie_ans) {
         throw new Error('Veuillez remplir tous les champs obligatoires');
       }
@@ -170,783 +171,583 @@ const CategoriesAmortissement = () => {
     return mode === 'lineaire' ? 'Linéaire' : 'Dégressif';
   };
 
+  const getModeClass = (mode) => {
+    return mode === 'lineaire' ? 'primary' : 'warning';
+  };
+
   const getStatusBadge = (actif) => {
     return actif ? (
-      <span style={styles.badge.active}>Actif</span>
+      <span className="badge bg-success bg-opacity-10 text-success px-2 py-1">Actif</span>
     ) : (
-      <span style={styles.badge.inactive}>Inactif</span>
+      <span className="badge bg-danger bg-opacity-10 text-danger px-2 py-1">Inactif</span>
     );
   };
 
+  // Animation styles
+  const animationStyles = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .category-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+    .category-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    .stat-card-hover {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .table-row-hover {
+      transition: background-color 0.2s ease;
+    }
+    .table-row-hover:hover {
+      background-color: rgba(13, 110, 253, 0.05);
+    }
+  `;
+
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Catégories d'amortissement</h1>
-          <p style={styles.subtitle}>
-            Paramétrage des durées de vie par catégorie selon les règles de la BCC
-          </p>
-        </div>
-        <div style={styles.headerActions}>
-          <button 
-            onClick={fetchCategories} 
-            style={styles.iconButton}
-            title="Rafraîchir"
-          >
-            <FiRefreshCw />
-          </button>
-          {can(['admin']) && (
-            <button
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-              }}
-              style={styles.primaryButton}
+    <>
+      <style>{animationStyles}</style>
+      <div className="container-fluid py-4 px-3 px-md-4 category-fade-in" style={{ maxWidth: '1400px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+        
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <div>
+            <h1 className="display-6 fw-bold text-primary mb-1 d-flex align-items-center gap-2">
+              <FiTag size={32} /> Catégories d'amortissement
+            </h1>
+            <p className="text-muted small mb-0">
+              Paramétrage des durées de vie par catégorie selon les règles de la BCC
+            </p>
+          </div>
+          <div className="d-flex gap-2">
+            {/* Toggle vue */}
+            <div className="btn-group" role="group">
+              <button 
+                onClick={() => setViewMode('table')} 
+                className={`btn btn-sm ${viewMode === 'table' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                title="Vue tableau"
+              >
+                📋 Tableau
+              </button>
+              <button 
+                onClick={() => setViewMode('cards')} 
+                className={`btn btn-sm ${viewMode === 'cards' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                title="Vue cartes"
+              >
+                🃏 Cartes
+              </button>
+            </div>
+            <button 
+              onClick={fetchCategories} 
+              className="btn btn-outline-secondary d-flex align-items-center gap-1"
+              title="Rafraîchir"
             >
-              <FiPlus /> Nouvelle catégorie
+              <FiRefreshCw size={16} />
             </button>
-          )}
+            {can(['admin']) && (
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowForm(true);
+                }}
+                className="btn btn-primary d-flex align-items-center gap-2"
+              >
+                <FiPlus size={16} /> Nouvelle catégorie
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Messages */}
-      {error && (
-        <div style={styles.errorMessage}>
-          {error}
-        </div>
-      )}
-      {success && (
-        <div style={styles.successMessage}>
-          {success}
-        </div>
-      )}
-
-      {/* Barre de recherche */}
-      <div style={styles.searchBar}>
-        <FiSearch style={styles.searchIcon} />
-        <input
-          type="text"
-          placeholder="Rechercher par code, nom ou description..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={styles.searchInput}
-        />
-        {searchTerm && (
-          <button
-            onClick={() => setSearchTerm('')}
-            style={styles.clearButton}
-          >
-            <FiX />
-          </button>
+        {/* Messages */}
+        {error && (
+          <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <div className="d-flex align-items-center gap-2">
+              <FiAlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setError('')}></button>
+          </div>
         )}
-      </div>
-
-      {/* Formulaire d'ajout/édition */}
-      {showForm && (
-        <div style={styles.formCard}>
-          <div style={styles.formHeader}>
-            <h3 style={styles.formTitle}>
-              {editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
-            </h3>
-            <button onClick={resetForm} style={styles.closeButton}>
-              <FiX />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <div style={styles.formGrid}>
-              {/* Colonne 1 */}
-              <div style={styles.formColumn}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Code catégorie <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="code_categorie"
-                    value={formData.code_categorie}
-                    onChange={handleInputChange}
-                    placeholder="ex: LOG, MAT, VEH"
-                    style={styles.input}
-                    required
-                    disabled={!!editing}
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Nom <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="nom_categorie"
-                    value={formData.nom_categorie}
-                    onChange={handleInputChange}
-                    placeholder="ex: Logiciels, Matériel informatique"
-                    style={styles.input}
-                    required
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Durée de vie (ans) <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="duree_vie_ans"
-                    value={formData.duree_vie_ans}
-                    onChange={handleInputChange}
-                    min="1"
-                    max="50"
-                    style={styles.input}
-                    required
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Mode d'amortissement par défaut</label>
-                  <select
-                    name="mode_amortissement_defaut"
-                    value={formData.mode_amortissement_defaut}
-                    onChange={handleInputChange}
-                    style={styles.select}
-                  >
-                    <option value="lineaire">Linéaire</option>
-                    <option value="degressif">Dégressif</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Colonne 2 */}
-              <div style={styles.formColumn}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Taux d'amortissement (%)</label>
-                  <input
-                    type="number"
-                    name="taux_amortissement"
-                    value={formData.taux_amortissement}
-                    onChange={handleInputChange}
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    style={styles.input}
-                    placeholder="20"
-                  />
-                </div>
-
-                {formData.mode_amortissement_defaut === 'degressif' && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Coefficient dégressif</label>
-                    <input
-                      type="number"
-                      name="coefficient_degressif"
-                      value={formData.coefficient_degressif}
-                      onChange={handleInputChange}
-                      step="0.25"
-                      min="1"
-                      max="3"
-                      style={styles.input}
-                    />
-                    <small style={styles.helper}>
-                      Standard: 1.25 (3-4 ans), 1.75 (5-6 ans), 2.25 (6+ ans)
-                    </small>
-                  </div>
-                )}
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Compte comptable par défaut</label>
-                  <input
-                    type="text"
-                    name="compte_comptable_defaut"
-                    value={formData.compte_comptable_defaut}
-                    onChange={handleInputChange}
-                    placeholder="ex: 205, 2183"
-                    style={styles.input}
-                  />
-                </div>
-
-                {editing && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Statut</label>
-                    <div style={styles.checkboxGroup}>
-                      <input
-                        type="checkbox"
-                        name="actif"
-                        checked={formData.actif}
-                        onChange={handleInputChange}
-                        id="actif"
-                      />
-                      <label htmlFor="actif">Catégorie active</label>
-                    </div>
-                  </div>
-                )}
-              </div>
+        {success && (
+          <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <div className="d-flex align-items-center gap-2">
+              <FiCheckCircle size={16} />
+              <span>{success}</span>
             </div>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setSuccess('')}></button>
+          </div>
+        )}
 
-            {/* Description (pleine largeur) */}
-            <div style={styles.formGroupFull}>
-              <label style={styles.label}>Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows="3"
-                style={styles.textarea}
-                placeholder="Description de la catégorie..."
+        {/* Barre de recherche */}
+        <div className="card shadow-sm border-0 rounded-3 mb-4">
+          <div className="card-body p-3">
+            <div className="input-group">
+              <span className="input-group-text bg-white border-end-0">
+                <FiSearch className="text-muted" />
+              </span>
+              <input
+                type="text"
+                className="form-control border-start-0"
+                placeholder="Rechercher par code, nom ou description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </div>
-
-            {/* Boutons */}
-            <div style={styles.formActions}>
-              <button 
-                type="submit" 
-                style={styles.saveButton}
-                disabled={saving}
-              >
-                <FiSave /> {saving ? 'Enregistrement...' : (editing ? 'Modifier' : 'Créer')}
-              </button>
-              <button 
-                type="button" 
-                onClick={resetForm} 
-                style={styles.cancelButton}
-              >
-                <FiX /> Annuler
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Statistiques */}
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <FiTag size={20} color="#2563eb" />
-          <div>
-            <span style={styles.statLabel}>Total catégories</span>
-            <span style={styles.statValue}>{categories.length}</span>
-          </div>
-        </div>
-        <div style={styles.statCard}>
-          <FiClock size={20} color="#16a34a" />
-          <div>
-            <span style={styles.statLabel}>Durée moyenne</span>
-            <span style={styles.statValue}>
-              {categories.length > 0 
-                ? (categories.reduce((sum, c) => sum + (c.duree_vie_ans || 0), 0) / categories.length).toFixed(1) 
-                : 0} ans
-            </span>
-          </div>
-        </div>
-        <div style={styles.statCard}>
-          <FiTrendingUp size={20} color="#f59e0b" />
-          <div>
-            <span style={styles.statLabel}>Mode linéaire</span>
-            <span style={styles.statValue}>
-              {categories.filter(c => c.mode_amortissement_defaut === 'lineaire').length}
-            </span>
-          </div>
-        </div>
-        <div style={styles.statCard}>
-          <FiTrendingUp size={20} color="#dc2626" />
-          <div>
-            <span style={styles.statLabel}>Mode dégressif</span>
-            <span style={styles.statValue}>
-              {categories.filter(c => c.mode_amortissement_defaut === 'degressif').length}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tableau des catégories */}
-      {loading ? (
-        <div style={styles.loadingContainer}>
-          <div style={styles.spinner}></div>
-          <p>Chargement des catégories...</p>
-        </div>
-      ) : (
-        <div style={styles.tableContainer}>
-          {filteredCategories.length === 0 ? (
-            <div style={styles.emptyState}>
-              <p style={styles.emptyText}>
-                {searchTerm 
-                  ? 'Aucune catégorie ne correspond à votre recherche' 
-                  : 'Aucune catégorie trouvée'}
-              </p>
-              {can(['admin']) && !searchTerm && (
+              {searchTerm && (
                 <button
-                  onClick={() => {
-                    resetForm();
-                    setShowForm(true);
-                  }}
-                  style={styles.createButton}
+                  className="btn btn-outline-secondary"
+                  onClick={() => setSearchTerm('')}
+                  type="button"
                 >
-                  <FiPlus /> Créer votre première catégorie
+                  <FiX />
                 </button>
               )}
             </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Code</th>
-                  <th style={styles.th}>Nom</th>
-                  <th style={styles.th}>Durée (ans)</th>
-                  <th style={styles.th}>Mode</th>
-                  <th style={styles.th}>Coefficient</th>
-                  <th style={styles.th}>Compte</th>
-                  <th style={styles.th}>Statut</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCategories.map((cat) => (
-                  <tr key={cat.id} style={styles.tr}>
-                    <td style={styles.td}>
-                      <span style={styles.code}>{cat.code_categorie}</span>
-                    </td>
-                    <td style={styles.td}>
-                      <div style={styles.cellWithDesc}>
-                        <span style={styles.nom}>{cat.nom_categorie}</span>
-                        {cat.description && (
-                          <span style={styles.description}>{cat.description}</span>
+          </div>
+        </div>
+
+        {/* Formulaire d'ajout/édition */}
+        {showForm && (
+          <div className="card shadow-sm border-0 rounded-3 mb-4 category-slide-in">
+            <div className="card-header bg-primary bg-opacity-10 border-0 d-flex justify-content-between align-items-center">
+              <h3 className="h5 mb-0 fw-semibold text-primary">
+                {editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
+              </h3>
+              <button onClick={resetForm} className="btn btn-sm btn-link text-secondary p-0">
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="card-body">
+              <form onSubmit={handleSubmit}>
+                <div className="row g-3">
+                  {/* Colonne 1 */}
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Code catégorie <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="code_categorie"
+                        value={formData.code_categorie}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        placeholder="ex: LOG, MAT, VEH"
+                        required
+                        disabled={!!editing}
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Nom <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="nom_categorie"
+                        value={formData.nom_categorie}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        placeholder="ex: Logiciels, Matériel informatique"
+                        required
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Durée de vie (ans) <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="duree_vie_ans"
+                        value={formData.duree_vie_ans}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        min="1"
+                        max="50"
+                        required
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Mode d'amortissement par défaut</label>
+                      <select
+                        name="mode_amortissement_defaut"
+                        value={formData.mode_amortissement_defaut}
+                        onChange={handleInputChange}
+                        className="form-select"
+                      >
+                        <option value="lineaire">Linéaire</option>
+                        <option value="degressif">Dégressif</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Colonne 2 */}
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Taux d'amortissement (%)</label>
+                      <input
+                        type="number"
+                        name="taux_amortissement"
+                        value={formData.taux_amortissement}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="20"
+                      />
+                    </div>
+
+                    {formData.mode_amortissement_defaut === 'degressif' && (
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Coefficient dégressif</label>
+                        <input
+                          type="number"
+                          name="coefficient_degressif"
+                          value={formData.coefficient_degressif}
+                          onChange={handleInputChange}
+                          className="form-control"
+                          step="0.25"
+                          min="1"
+                          max="3"
+                        />
+                        <small className="text-muted">
+                          Standard: 1.25 (3-4 ans), 1.75 (5-6 ans), 2.25 (6+ ans)
+                        </small>
+                      </div>
+                    )}
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Compte comptable par défaut</label>
+                      <input
+                        type="text"
+                        name="compte_comptable_defaut"
+                        value={formData.compte_comptable_defaut}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        placeholder="ex: 205, 2183"
+                      />
+                    </div>
+
+                    {editing && (
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Statut</label>
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            name="actif"
+                            checked={formData.actif}
+                            onChange={handleInputChange}
+                            className="form-check-input"
+                            id="actif"
+                          />
+                          <label className="form-check-label" htmlFor="actif">
+                            Catégorie active
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description (pleine largeur) */}
+                  <div className="col-12">
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Description</label>
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        className="form-control"
+                        rows="3"
+                        placeholder="Description de la catégorie..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Boutons */}
+                  <div className="col-12">
+                    <hr />
+                    <div className="d-flex gap-3 justify-content-end">
+                      <button 
+                        type="button" 
+                        onClick={resetForm} 
+                        className="btn btn-outline-secondary d-flex align-items-center gap-2"
+                      >
+                        <FiX size={16} /> Annuler
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="btn btn-success d-flex align-items-center gap-2"
+                        disabled={saving}
+                      >
+                        <FiSave size={16} /> {saving ? 'Enregistrement...' : (editing ? 'Modifier' : 'Créer')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Cartes statistiques */}
+        <div className="row g-3 mb-4">
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-primary bg-opacity-10 text-center stat-card-hover">
+              <div className="card-body py-2">
+                <FiTag size={20} className="text-primary mb-1" />
+                <small className="text-muted d-block">Total catégories</small>
+                <div className="h5 mb-0 fw-bold text-primary">{categories.length}</div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-success bg-opacity-10 text-center stat-card-hover">
+              <div className="card-body py-2">
+                <FiClock size={20} className="text-success mb-1" />
+                <small className="text-muted d-block">Durée moyenne</small>
+                <div className="h5 mb-0 fw-bold text-success">
+                  {categories.length > 0 
+                    ? (categories.reduce((sum, c) => sum + (c.duree_vie_ans || 0), 0) / categories.length).toFixed(1) 
+                    : 0} ans
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-info bg-opacity-10 text-center stat-card-hover">
+              <div className="card-body py-2">
+                <FiTrendingUp size={20} className="text-info mb-1" />
+                <small className="text-muted d-block">Mode linéaire</small>
+                <div className="h5 mb-0 fw-bold text-info">
+                  {categories.filter(c => c.mode_amortissement_defaut === 'lineaire').length}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-md-3 col-6">
+            <div className="card border-0 bg-warning bg-opacity-10 text-center stat-card-hover">
+              <div className="card-body py-2">
+                <FiTrendingUp size={20} className="text-warning mb-1" />
+                <small className="text-muted d-block">Mode dégressif</small>
+                <div className="h5 mb-0 fw-bold text-warning">
+                  {categories.filter(c => c.mode_amortissement_defaut === 'degressif').length}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tableau des catégories - Vue Tableau */}
+        {loading ? (
+          <div className="text-center py-5 bg-white rounded-3">
+            <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+              <span className="visually-hidden">Chargement...</span>
+            </div>
+            <p className="text-muted">Chargement des catégories...</p>
+          </div>
+        ) : viewMode === 'table' ? (
+          <div className="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <div className="table-responsive">
+              {filteredCategories.length === 0 ? (
+                <div className="text-center py-5">
+                  <FiTag size={48} className="text-muted mb-3" />
+                  <p className="text-muted mb-0">
+                    {searchTerm 
+                      ? 'Aucune catégorie ne correspond à votre recherche' 
+                      : 'Aucune catégorie trouvée'}
+                  </p>
+                  {can(['admin']) && !searchTerm && (
+                    <button
+                      onClick={() => {
+                        resetForm();
+                        setShowForm(true);
+                      }}
+                      className="btn btn-primary mt-3 d-inline-flex align-items-center gap-2"
+                    >
+                      <FiPlus size={16} /> Créer votre première catégorie
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Code</th>
+                      <th>Nom</th>
+                      <th>Durée (ans)</th>
+                      <th>Mode</th>
+                      <th>Coefficient</th>
+                      <th>Compte</th>
+                      <th>Statut</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCategories.map((cat) => (
+                      <tr key={cat.id} className="table-row-hover">
+                        <td>
+                          <code className="bg-light px-2 py-1 rounded">{cat.code_categorie}</code>
+                        </td>
+                        <td>
+                          <div className="fw-semibold">{cat.nom_categorie}</div>
+                          {cat.description && (
+                            <small className="text-muted d-block">{cat.description}</small>
+                          )}
+                        </td>
+                        <td>{cat.duree_vie_ans}</td>
+                        <td>
+                          <span className={`badge bg-${getModeClass(cat.mode_amortissement_defaut)} bg-opacity-10 text-${getModeClass(cat.mode_amortissement_defaut)}`}>
+                            {getModeLabel(cat.mode_amortissement_defaut)}
+                          </span>
+                        </td>
+                        <td>{cat.coefficient_degressif || '-'}</td>
+                        <td>
+                          {cat.compte_comptable_defaut ? (
+                            <code className="bg-light px-2 py-1 rounded">{cat.compte_comptable_defaut}</code>
+                          ) : '-'}
+                        </td>
+                        <td>{getStatusBadge(cat.actif)}</td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            <button
+                              onClick={() => handleEdit(cat)}
+                              className="btn btn-outline-warning"
+                              title="Modifier"
+                              disabled={!can(['admin'])}
+                            >
+                              <FiEdit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(cat.id, cat.nom_categorie)}
+                              className="btn btn-outline-danger"
+                              title="Désactiver"
+                              disabled={!can(['admin'])}
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Vue Cartes
+          <div className="row g-3">
+            {filteredCategories.length === 0 ? (
+              <div className="col-12">
+                <div className="text-center py-5 bg-white rounded-3">
+                  <FiTag size={48} className="text-muted mb-3" />
+                  <p className="text-muted mb-0">
+                    {searchTerm 
+                      ? 'Aucune catégorie ne correspond à votre recherche' 
+                      : 'Aucune catégorie trouvée'}
+                  </p>
+                  {can(['admin']) && !searchTerm && (
+                    <button
+                      onClick={() => {
+                        resetForm();
+                        setShowForm(true);
+                      }}
+                      className="btn btn-primary mt-3 d-inline-flex align-items-center gap-2"
+                    >
+                      <FiPlus size={16} /> Créer votre première catégorie
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              filteredCategories.map((cat) => (
+                <div key={cat.id} className="col-md-6 col-lg-4">
+                  <div className="card h-100 shadow-sm border-0 rounded-3 category-fade-in">
+                    <div className="card-body">
+                      <div className="d-flex justify-content-between align-items-start mb-3">
+                        <code className="bg-primary bg-opacity-10 text-primary px-2 py-1 rounded">
+                          {cat.code_categorie}
+                        </code>
+                        {getStatusBadge(cat.actif)}
+                      </div>
+                      <h5 className="card-title fw-semibold mb-1">{cat.nom_categorie}</h5>
+                      {cat.description && (
+                        <p className="card-text small text-muted mb-3">{cat.description}</p>
+                      )}
+                      <hr />
+                      <div className="row g-2 small">
+                        <div className="col-6">
+                          <span className="text-muted d-block">Durée</span>
+                          <strong>{cat.duree_vie_ans} ans</strong>
+                        </div>
+                        <div className="col-6">
+                          <span className="text-muted d-block">Mode</span>
+                          <span className={`badge bg-${getModeClass(cat.mode_amortissement_defaut)} bg-opacity-10 text-${getModeClass(cat.mode_amortissement_defaut)}`}>
+                            {getModeLabel(cat.mode_amortissement_defaut)}
+                          </span>
+                        </div>
+                        {cat.coefficient_degressif && (
+                          <div className="col-6">
+                            <span className="text-muted d-block">Coefficient</span>
+                            <strong>{cat.coefficient_degressif}</strong>
+                          </div>
+                        )}
+                        {cat.compte_comptable_defaut && (
+                          <div className="col-6">
+                            <span className="text-muted d-block">Compte</span>
+                            <code>{cat.compte_comptable_defaut}</code>
+                          </div>
                         )}
                       </div>
-                    </td>
-                    <td style={styles.td}>{cat.duree_vie_ans}</td>
-                    <td style={styles.td}>
-                      <span style={{
-                        ...styles.modeBadge,
-                        backgroundColor: cat.mode_amortissement_defaut === 'lineaire' ? '#dbeafe' : '#fed7aa',
-                        color: cat.mode_amortissement_defaut === 'lineaire' ? '#1e40af' : '#9a3412'
-                      }}>
-                        {getModeLabel(cat.mode_amortissement_defaut)}
-                      </span>
-                    </td>
-                    <td style={styles.td}>{cat.coefficient_degressif || '-'}</td>
-                    <td style={styles.td}>
-                      {cat.compte_comptable_defaut ? (
-                        <span style={styles.compte}>{cat.compte_comptable_defaut}</span>
-                      ) : '-'}
-                    </td>
-                    <td style={styles.td}>{getStatusBadge(cat.actif)}</td>
-                    <td style={styles.td}>
-                      <div style={styles.actions}>
-                        <button
-                          onClick={() => handleEdit(cat)}
-                          style={styles.actionButton.edit}
-                          title="Modifier"
-                          disabled={!can(['admin'])}
-                        >
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(cat.id, cat.nom_categorie)}
-                          style={styles.actionButton.delete}
-                          title="Désactiver"
-                          disabled={!can(['admin'])}
-                        >
-                          <FiTrash2 />
-                        </button>
+                    </div>
+                    {can(['admin']) && (
+                      <div className="card-footer bg-white border-top-0 pb-3 pt-0">
+                        <div className="d-flex gap-2">
+                          <button
+                            onClick={() => handleEdit(cat)}
+                            className="btn btn-outline-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-1"
+                          >
+                            <FiEdit2 size={14} /> Modifier
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cat.id, cat.nom_categorie)}
+                            className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center gap-1"
+                            style={{ flex: '0.5' }}
+                          >
+                            <FiTrash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Note d'information */}
+        <div className="alert alert-info mt-3 mb-0 py-2">
+          <small className="d-flex align-items-center gap-2">
+            <FiInfo size={14} />
+            Les catégories d'amortissement permettent de paramétrer automatiquement la durée de vie et le mode d'amortissement des actifs selon leur nature.
+          </small>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
-
-// ============ STYLES ============
-const styles = {
-  container: {
-    maxWidth: '1400px',
-    margin: '0 auto',
-    padding: '2rem',
-    backgroundColor: '#f3f4f6',
-    minHeight: '100vh'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  title: {
-    fontSize: '2rem',
-    color: '#1e3a8a',
-    margin: '0 0 0.5rem 0'
-  },
-  subtitle: {
-    fontSize: '0.95rem',
-    color: '#666',
-    margin: 0
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'center'
-  },
-  iconButton: {
-    padding: '0.5rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e5e7eb',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s'
-  },
-  primaryButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#2563eb',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    transition: 'background-color 0.2s'
-  },
-  errorMessage: {
-    backgroundColor: '#fee2e2',
-    color: '#b91c1c',
-    padding: '1rem',
-    borderRadius: '4px',
-    marginBottom: '1rem'
-  },
-  successMessage: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-    padding: '1rem',
-    borderRadius: '4px',
-    marginBottom: '1rem'
-  },
-  searchBar: {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '0.5rem 1rem',
-    marginBottom: '2rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  },
-  searchIcon: {
-    color: '#9ca3af',
-    marginRight: '0.75rem'
-  },
-  searchInput: {
-    flex: 1,
-    border: 'none',
-    outline: 'none',
-    fontSize: '0.95rem',
-    padding: '0.5rem 0'
-  },
-  clearButton: {
-    background: 'none',
-    border: 'none',
-    color: '#9ca3af',
-    cursor: 'pointer',
-    padding: '0.25rem'
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
-    marginBottom: '2rem'
-  },
-  statCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '1rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  statLabel: {
-    display: 'block',
-    fontSize: '0.75rem',
-    color: '#666',
-    textTransform: 'uppercase'
-  },
-  statValue: {
-    display: 'block',
-    fontSize: '1.25rem',
-    fontWeight: 'bold',
-    color: '#111'
-  },
-  formCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '2rem',
-    marginBottom: '2rem',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-  },
-  formHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem'
-  },
-  formTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '600',
-    color: '#1e3a8a',
-    margin: 0
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '1.25rem',
-    cursor: 'pointer',
-    color: '#9ca3af'
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '2rem',
-    marginBottom: '1.5rem'
-  },
-  formColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
-  formGroup: {
-    marginBottom: '0.5rem'
-  },
-  formGroupFull: {
-    marginBottom: '1.5rem'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '0.5rem',
-    fontWeight: '500',
-    color: 'var(--text-primary)'
-  },
-  required: {
-    color: '#ef4444'
-  },
-  input: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    transition: 'border-color 0.2s'
-  },
-  select: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    backgroundColor: 'var(--bg-card)'
-  },
-  textarea: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    resize: 'vertical'
-  },
-  helper: {
-    display: 'block',
-    fontSize: '0.75rem',
-    color: '#666',
-    marginTop: '0.25rem'
-  },
-  checkboxGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  formActions: {
-    display: 'flex',
-    gap: '1rem',
-    justifyContent: 'flex-end'
-  },
-  saveButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#10b981',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  cancelButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#9ca3af',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  tableContainer: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'auto'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: '900px'
-  },
-  th: {
-    padding: '1rem',
-    textAlign: 'left',
-    backgroundColor: 'var(--bg-secondary)',
-    borderBottom: '2px solid #e5e7eb',
-    fontWeight: '600',
-    color: 'var(--text-primary)'
-  },
-  tr: {
-    borderBottom: '1px solid #e5e7eb',
-    transition: 'background-color 0.2s'
-  },
-  td: {
-    padding: '1rem',
-    color: '#4b5563'
-  },
-  code: {
-    backgroundColor: '#e0f2fe',
-    padding: '0.25rem 0.5rem',
-    borderRadius: '4px',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    fontFamily: 'monospace'
-  },
-  cellWithDesc: {
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  nom: {
-    fontWeight: '500'
-  },
-  description: {
-    fontSize: '0.75rem',
-    color: '#666',
-    marginTop: '0.25rem'
-  },
-  modeBadge: {
-    padding: '0.25rem 0.5rem',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-    fontWeight: '500'
-  },
-  compte: {
-    backgroundColor: '#f3f4f6',
-    padding: '0.25rem 0.5rem',
-    borderRadius: '4px',
-    fontSize: '0.875rem',
-    fontFamily: 'monospace'
-  },
-  badge: {
-    active: {
-      backgroundColor: '#dcfce7',
-      color: '#166534',
-      padding: '0.25rem 0.5rem',
-      borderRadius: '4px',
-      fontSize: '0.75rem',
-      fontWeight: '500'
-    },
-    inactive: {
-      backgroundColor: '#fee2e2',
-      color: '#b91c1c',
-      padding: '0.25rem 0.5rem',
-      borderRadius: '4px',
-      fontSize: '0.75rem',
-      fontWeight: '500'
-    }
-  },
-  actions: {
-    display: 'flex',
-    gap: '0.5rem'
-  },
-  actionButton: {
-    edit: {
-      padding: '0.25rem 0.5rem',
-      backgroundColor: '#f59e0b',
-      color: 'var(--bg-card)',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer'
-    },
-    delete: {
-      padding: '0.25rem 0.5rem',
-      backgroundColor: '#ef4444',
-      color: 'var(--bg-card)',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer'
-    }
-  },
-  loadingContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px'
-  },
-  spinner: {
-    border: '3px solid #f3f4f6',
-    borderTop: '3px solid #2563eb',
-    borderRadius: '50%',
-    width: '40px',
-    height: '40px',
-    animation: 'spin 1s linear infinite',
-    margin: '0 auto 1rem'
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '3rem'
-  },
-  emptyText: {
-    color: '#666',
-    marginBottom: '1rem'
-  },
-  createButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#2563eb',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  }
-};
-
-// Animation keyframes
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default CategoriesAmortissement;

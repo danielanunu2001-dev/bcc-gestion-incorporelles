@@ -5,6 +5,12 @@ const userController = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
 const authorize = require('../middleware/authorize');
 
+// ✅ IMPORTER LE MODÈLE
+const { User } = require('../models');
+
+// ✅ IMPORTER LE MIDDLEWARE D'UPLOAD (chemin corrigé)
+const uploadMiddleware = require('../middleware/upload');
+
 // ==================== VALIDATIONS ====================
 
 const userValidationRules = {
@@ -12,7 +18,6 @@ const userValidationRules = {
     body('email').isEmail().withMessage('Email invalide'),
     body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
     body('full_name').notEmpty().withMessage('Le nom complet est requis'),
-    // ✅ Ajout de 'gestionnaire' à la liste des rôles autorisés
     body('role').isIn(['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'inventoriste', 'gestionnaire'])
       .withMessage('Rôle invalide'),
   ],
@@ -20,7 +25,6 @@ const userValidationRules = {
     body('email').optional().isEmail().withMessage('Email invalide'),
     body('password').optional().isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
     body('full_name').optional().notEmpty().withMessage('Le nom complet ne peut pas être vide'),
-    // ✅ Ajout de 'gestionnaire' à la liste des rôles autorisés
     body('role').optional().isIn(['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'inventoriste', 'gestionnaire'])
       .withMessage('Rôle invalide'),
     body('active').optional().isBoolean().withMessage('Le statut actif doit être un booléen'),
@@ -32,7 +36,6 @@ const userValidationRules = {
   resetPassword: [
     body('newPassword').isLength({ min: 6 }).withMessage('Le nouveau mot de passe doit contenir au moins 6 caractères'),
   ],
-  // ✅ NOUVELLE VALIDATION pour mise à jour profil
   updateProfile: [
     body('email').optional().isEmail().withMessage('Email invalide'),
     body('full_name').optional().notEmpty().withMessage('Le nom complet ne peut pas être vide'),
@@ -41,82 +44,67 @@ const userValidationRules = {
 
 // ==================== ROUTES PUBLIQUES (avec authentification) ====================
 
-// Toutes les routes nécessitent une authentification
 router.use(authMiddleware);
 
 // ==================== ROUTES PROFIL PERSONNEL ====================
 
-/**
- * Route pour changer son propre mot de passe
- * Accessible à tous les utilisateurs connectés (pas besoin d'être admin)
- */
-router.post(
-  '/change-password',
-  userValidationRules.changePassword,
-  userController.changePassword
-);
-
-/**
- * Route pour récupérer son propre profil
- * Accessible à tous les utilisateurs connectés
- */
+router.post('/change-password', userValidationRules.changePassword, userController.changePassword);
 router.get('/profile', userController.getMyProfile);
+router.put('/profile', userValidationRules.updateProfile, userController.updateMyProfile);
 
-/**
- * Route pour mettre à jour son propre profil
- * Accessible à tous les utilisateurs connectés
- */
-router.put(
-  '/profile',
-  userValidationRules.updateProfile,
-  userController.updateMyProfile
-);
+// ==================== ROUTES POUR LA PHOTO DE PROFIL ====================
+
+// Middleware de vérification des permissions pour la photo
+const checkPhotoPermission = (req, res, next) => {
+  const userId = req.params.id;
+  if (req.user.id !== userId && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Non autorisé à modifier cette photo' });
+  }
+  next();
+};
+
+// Upload de photo de profil
+router.post('/:id/photo', checkPhotoPermission, uploadMiddleware.uploadProfilePhoto.single('photo'), userController.uploadUserPhoto);
+
+// Supprimer la photo de profil
+router.delete('/:id/photo', checkPhotoPermission, userController.deleteUserPhoto);
+
+// ==================== ROUTE POUR L'AUDIT ====================
+
+router.get('/audit-list', async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    
+    console.log(`🔐 Accès à /audit-list par rôle: ${userRole}`);
+    
+    let attributes = ['id', 'full_name'];
+    
+    if (['admin', 'auditeur'].includes(userRole)) {
+      attributes.push('email');
+    }
+    
+    const users = await User.findAll({
+      attributes,
+      order: [['full_name', 'ASC']]
+    });
+    
+    console.log(`✅ ${users.length} utilisateurs retournés pour ${userRole}`);
+    return res.json(users);
+  } catch (error) {
+    console.error('❌ Erreur route /audit-list:', error);
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
 
 // ==================== ROUTES ADMIN ====================
 
-// Toutes les routes ci-dessous nécessitent d'être admin
 router.use(authorize('admin'));
 
-/**
- * Récupérer tous les utilisateurs
- */
 router.get('/', userController.getAllUsers);
-
-/**
- * Récupérer un utilisateur par ID
- */
 router.get('/:id', userController.getUserById);
-
-/**
- * Créer un nouvel utilisateur
- */
-router.post(
-  '/',
-  userValidationRules.create,
-  userController.createUser
-);
-
-/**
- * Mettre à jour un utilisateur
- */
-router.put(
-  '/:id',
-  userValidationRules.update,
-  userController.updateUser
-);
-
-/**
- * Supprimer (désactiver) un utilisateur
- */
+router.post('/', userValidationRules.create, userController.createUser);
+router.put('/:id', userValidationRules.update, userController.updateUser);
 router.delete('/:id', userController.deleteUser);
-
-/**
- * Réinitialiser le mot de passe d'un utilisateur (admin uniquement)
- */
-router.post(
-  '/:id/reset-password',
-  userValidationRules.resetPassword,
-  userController.resetPassword
-);
+router.post('/:id/reset-password', userValidationRules.resetPassword, userController.resetPassword);
 
 module.exports = router;

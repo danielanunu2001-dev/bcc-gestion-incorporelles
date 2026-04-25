@@ -13,8 +13,11 @@ import {
   FiBarChart2, FiPieChart, FiRefreshCw, 
   FiDownload, FiFilter, FiTrendingUp, 
   FiTrendingDown, FiDollarSign, FiPackage,
-  FiGrid, FiList, FiEye, FiCalendar
+  FiGrid, FiList, FiEye, FiCalendar, FiShield,
+  FiInfo
 } from 'react-icons/fi';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Container, Row, Col, Card, Button, Badge, Alert, Spinner, Form, InputGroup, Nav, Table } from 'react-bootstrap';
 
 const EtatImmobilisations = () => {
   const navigate = useNavigate();
@@ -75,12 +78,29 @@ const EtatImmobilisations = () => {
   };
 
   const handleExport = () => {
-    // Fonction d'export à implémenter
-    console.log('Export des données');
+    const csvContent = [
+      ['Groupe', 'Nombre', 'Valeur brute (CDF)', 'Valeur nette (CDF)', '% du total'],
+      ...data.map(item => [
+        item.groupe,
+        item.nombre,
+        item.valeur_brute,
+        item.valeur_nette,
+        ((item.valeur_nette / totaux.valeur_nette) * 100).toFixed(1)
+      ])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', `etat_immobilisations_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleViewActif = (groupe) => {
-    // Navigation vers les actifs filtrés par groupe
     navigate(`/actifs?${groupePar}=${encodeURIComponent(groupe)}`);
   };
 
@@ -94,6 +114,15 @@ const EtatImmobilisations = () => {
       case 'localisation': return 'Localisation';
       case 'affectation': return 'Service/Affectation';
       default: return 'Groupe';
+    }
+  };
+
+  const getGroupeIcon = () => {
+    switch(groupePar) {
+      case 'categorie': return '🏷️';
+      case 'localisation': return '📍';
+      case 'affectation': return '👥';
+      default: return '📊';
     }
   };
 
@@ -111,701 +140,313 @@ const EtatImmobilisations = () => {
     }
   };
 
-  const formatNumber = (value) => {
-    return new Intl.NumberFormat('fr-FR').format(value || 0);
-  };
+  const formatNumber = (value) => new Intl.NumberFormat('fr-FR').format(value || 0);
 
   const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Chargement des données...</p>
-      </div>
+      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <Spinner animation="border" variant="primary" className="mb-3" style={{ width: '3rem', height: '3rem' }} />
+          <p className="text-muted">Chargement des données...</p>
+        </div>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <div style={styles.errorContainer}>
-        <FiTrendingDown size={48} color="#ef4444" />
-        <p>{error}</p>
-        <button onClick={fetchData} style={styles.retryButton}>
-          <FiRefreshCw /> Réessayer
-        </button>
-      </div>
+      <Container className="py-5 text-center">
+        <Card className="border-0 shadow-sm bg-danger bg-opacity-10">
+          <Card.Body className="py-5">
+            <FiTrendingDown size={48} className="text-danger mb-3" />
+            <p className="text-danger">{error}</p>
+            <Button variant="danger" onClick={fetchData} className="mt-3">
+              <FiRefreshCw className="me-2" /> Réessayer
+            </Button>
+          </Card.Body>
+        </Card>
+      </Container>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div style={styles.emptyContainer}>
-        <FiPackage size={48} color="#cbd5e1" />
-        <p>Aucune donnée disponible</p>
-        <button onClick={fetchData} style={styles.retryButton}>
-          <FiRefreshCw /> Actualiser
-        </button>
-      </div>
+      <Container className="py-5 text-center">
+        <Card className="border-0 shadow-sm">
+          <Card.Body className="py-5">
+            <FiPackage size={48} className="text-muted opacity-50 mb-3" />
+            <p className="text-muted">Aucune donnée disponible</p>
+            <Button variant="primary" onClick={fetchData} className="mt-3">
+              <FiRefreshCw className="me-2" /> Actualiser
+            </Button>
+          </Card.Body>
+        </Card>
+      </Container>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <Container fluid className="py-4 px-3 px-md-4" style={{ maxWidth: '1400px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      
       {/* Header */}
-      <div style={styles.header}>
+      <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
-          <h1 style={styles.title}>
-            <FiBarChart2 style={styles.titleIcon} />
-            État des immobilisations
+          <h1 className="display-6 fw-bold text-primary mb-1 d-flex align-items-center gap-2">
+            <FiBarChart2 size={32} /> État des immobilisations
           </h1>
-          <p style={styles.subtitle}>
+          <p className="text-muted small mb-0">
             Analyse de la répartition des actifs par {getGroupeLabel().toLowerCase()}
           </p>
         </div>
-        <div style={styles.headerActions}>
-          <button onClick={handleExport} style={styles.iconButton} title="Exporter">
-            <FiDownload />
-          </button>
-          <button onClick={handleRefresh} style={styles.refreshButton} disabled={refreshing}>
-            <FiRefreshCw className={refreshing ? 'spin' : ''} />
+        <div className="d-flex gap-2">
+          <Button variant="outline-secondary" onClick={handleExport} className="d-flex align-items-center gap-2">
+            <FiDownload size={16} /> CSV
+          </Button>
+          <Button variant="primary" onClick={handleRefresh} disabled={refreshing} className="d-flex align-items-center gap-2">
+            <FiRefreshCw size={16} className={refreshing ? 'spin' : ''} />
             {refreshing ? 'Actualisation...' : 'Actualiser'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Filtres */}
-      <div style={styles.filtersContainer}>
-        <div style={styles.filterBar}>
-          <FiFilter size={18} style={styles.filterIcon} />
-          <span style={styles.filterLabel}>Grouper par :</span>
-          <select 
-            value={groupePar} 
-            onChange={(e) => setGroupePar(e.target.value)}
-            style={styles.select}
-          >
-            <option value="categorie">🏷️ Catégorie</option>
-            <option value="localisation">📍 Localisation</option>
-            <option value="affectation">👥 Service/Affectation</option>
-          </select>
-        </div>
-        
-        <div style={styles.viewToggle}>
-          <button 
-            onClick={() => setViewMode('chart')}
-            style={viewMode === 'chart' ? styles.viewActive : styles.viewButton}
-            title="Vue graphique"
-          >
-            <FiGrid />
-          </button>
-          <button 
-            onClick={() => setViewMode('table')}
-            style={viewMode === 'table' ? styles.viewActive : styles.viewButton}
-            title="Vue tableau"
-          >
-            <FiList />
-          </button>
-        </div>
-      </div>
+      <Card className="border-0 shadow-sm rounded-3 mb-4">
+        <Card.Body>
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <FiFilter size={18} className="text-muted" />
+              <span className="fw-semibold small text-muted">Grouper par :</span>
+              <Form.Select 
+                value={groupePar} 
+                onChange={(e) => setGroupePar(e.target.value)}
+                style={{ width: 'auto', minWidth: '180px' }}
+              >
+                <option value="categorie">🏷️ Catégorie</option>
+                <option value="localisation">📍 Localisation</option>
+                <option value="affectation">👥 Service/Affectation</option>
+              </Form.Select>
+            </div>
+            <div className="btn-group" role="group">
+              <Button variant={viewMode === 'chart' ? 'primary' : 'outline-secondary'} onClick={() => setViewMode('chart')} className="d-flex align-items-center gap-2">
+                <FiGrid size={14} /> Graphique
+              </Button>
+              <Button variant={viewMode === 'table' ? 'primary' : 'outline-secondary'} onClick={() => setViewMode('table')} className="d-flex align-items-center gap-2">
+                <FiList size={14} /> Tableau
+              </Button>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
 
-      {/* Résumé */}
-      <div style={styles.summaryGrid}>
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryIconWrapper}>
-            <FiPackage size={20} color="#3b82f6" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatNumber(totaux.nombre)}</div>
-            <div style={styles.summaryLabel}>Total actifs</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#dbeafe' }}>
-            <FiTrendingUp size={20} color="#2563eb" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatCurrency(totaux.valeur_brute)}</div>
-            <div style={styles.summaryLabel}>Valeur brute</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#fef3c7' }}>
-            <FiDollarSign size={20} color="#f59e0b" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{formatCurrency(totaux.valeur_nette)}</div>
-            <div style={styles.summaryLabel}>Valeur nette</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#f3e8ff' }}>
-            <FiCalendar size={20} color="#8b5cf6" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{data.length}</div>
-            <div style={styles.summaryLabel}>{getGroupeLabel()}s</div>
-          </div>
-        </div>
-      </div>
+      {/* Cartes résumé */}
+      <Row className="g-3 mb-4">
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-primary">{formatNumber(totaux.nombre)}</div><small className="text-muted">Total actifs</small><FiPackage size={20} className="text-primary mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-success">{formatCurrency(totaux.valeur_brute)}</div><small className="text-muted">Valeur brute</small><FiTrendingUp size={20} className="text-success mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-warning">{formatCurrency(totaux.valeur_nette)}</div><small className="text-muted">Valeur nette</small><FiDollarSign size={20} className="text-warning mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} md={3}>
+          <Card className="border-0 shadow-sm text-center h-100 stat-card">
+            <Card.Body><div className="h2 mb-0 fw-bold text-info">{data.length}</div><small className="text-muted">{getGroupeLabel()}s</small><FiCalendar size={20} className="text-info mt-2 opacity-50" /></Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Graphiques ou Tableau */}
+      {/* Contenu principal */}
       {viewMode === 'chart' ? (
-        <div style={styles.chartsContainer}>
+        <>
           {/* Contrôle du type de graphique */}
-          <div style={styles.chartControls}>
-            <button 
-              onClick={() => setChartType('bar')}
-              style={chartType === 'bar' ? styles.chartTypeActive : styles.chartTypeButton}
-              title="Graphique en barres"
-            >
-              <FiBarChart2 /> Barres
-            </button>
-            <button 
-              onClick={() => setChartType('pie')}
-              style={chartType === 'pie' ? styles.chartTypeActive : styles.chartTypeButton}
-              title="Camembert"
-            >
-              <FiPieChart /> Camembert
-            </button>
-            <button 
-              onClick={() => setChartType('area')}
-              style={chartType === 'area' ? styles.chartTypeActive : styles.chartTypeButton}
-              title="Graphique en aires"
-            >
-              <FiTrendingUp /> Aires
-            </button>
+          <div className="d-flex justify-content-end gap-2 mb-3">
+            <div className="btn-group" role="group">
+              <Button variant={chartType === 'bar' ? 'primary' : 'outline-secondary'} onClick={() => setChartType('bar')} className="d-flex align-items-center gap-2">
+                <FiBarChart2 size={14} /> Barres
+              </Button>
+              <Button variant={chartType === 'pie' ? 'primary' : 'outline-secondary'} onClick={() => setChartType('pie')} className="d-flex align-items-center gap-2">
+                <FiPieChart size={14} /> Camembert
+              </Button>
+              <Button variant={chartType === 'area' ? 'primary' : 'outline-secondary'} onClick={() => setChartType('area')} className="d-flex align-items-center gap-2">
+                <FiTrendingUp size={14} /> Aires
+              </Button>
+            </div>
           </div>
 
-          {/* Graphique en barres */}
+          {/* Graphique en barres / Aires */}
           {(chartType === 'bar' || chartType === 'area') && (
-            <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>
-                {chartType === 'bar' ? 'Répartition par barres' : 'Évolution par aires'}
-              </h3>
-              <ResponsiveContainer width="100%" height={400}>
-                {chartType === 'bar' ? (
-                  <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="groupe" angle={-45} textAnchor="end" height={80} />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip 
-                      formatter={(value, name) => {
+            <Card className="border-0 shadow-sm rounded-3 mb-4">
+              <Card.Body>
+                <h3 className="h6 fw-semibold mb-3">{chartType === 'bar' ? 'Répartition par barres' : 'Évolution par aires'}</h3>
+                <ResponsiveContainer width="100%" height={400}>
+                  {chartType === 'bar' ? (
+                    <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="groupe" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
+                      <YAxis yAxisId="left" />
+                      <YAxis yAxisId="right" orientation="right" />
+                      <Tooltip formatter={(value, name) => {
                         if (name === 'nombre') return [formatNumber(value), 'Nombre'];
                         return [formatCurrency(value), name === 'valeur_brute' ? 'Valeur brute' : 'Valeur nette'];
-                      }}
-                    />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="nombre" fill="#2563eb" name="Nombre d'actifs" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="valeur_brute" fill="#10b981" name="Valeur brute" radius={[4, 4, 0, 0]} />
-                    <Bar yAxisId="right" dataKey="valeur_nette" fill="#f59e0b" name="Valeur nette" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                ) : (
-                  <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="groupe" angle={-45} textAnchor="end" height={80} />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
-                    <Area type="monotone" dataKey="valeur_brute" stackId="1" stroke="#10b981" fill="#10b981" name="Valeur brute" />
-                    <Area type="monotone" dataKey="valeur_nette" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Valeur nette" />
-                  </AreaChart>
-                )}
-              </ResponsiveContainer>
-            </div>
+                      }} />
+                      <Legend />
+                      <Bar yAxisId="left" dataKey="nombre" fill="#2563eb" name="Nombre d'actifs" radius={[4, 4, 0, 0]} />
+                      <Bar yAxisId="right" dataKey="valeur_brute" fill="#10b981" name="Valeur brute" radius={[4, 4, 0, 0]} />
+                      <Bar yAxisId="right" dataKey="valeur_nette" fill="#f59e0b" name="Valeur nette" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="groupe" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} />
+                      <YAxis />
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                      <Area type="monotone" dataKey="valeur_brute" stackId="1" stroke="#10b981" fill="#10b981" name="Valeur brute" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="valeur_nette" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Valeur nette" fillOpacity={0.6} />
+                    </AreaChart>
+                  )}
+                </ResponsiveContainer>
+              </Card.Body>
+            </Card>
           )}
 
           {/* Graphique en camembert */}
           {chartType === 'pie' && (
-            <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>Répartition par nombre</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ groupe, percent }) => `${groupe} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="nombre"
-                    nameKey="groupe"
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatNumber(value)} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-              
-              {/* Graphique en camembert pour la valeur nette */}
-              <h3 style={{ ...styles.chartTitle, marginTop: '2rem' }}>Répartition par valeur nette</h3>
-              <ResponsiveContainer width="100%" height={400}>
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ groupe, percent }) => `${groupe} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="valeur_nette"
-                    nameKey="groupe"
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Vue Tableau */
-        <div style={styles.tableContainer}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>{getGroupeLabel()}</th>
-                <th style={styles.th}>Nombre d'actifs</th>
-                <th style={styles.th}>Valeur brute</th>
-                <th style={styles.th}>Valeur nette</th>
-                <th style={styles.th}>% du total</th>
-                <th style={styles.th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((item, index) => {
-                const pourcentage = ((item.valeur_nette / totaux.valeur_nette) * 100).toFixed(1);
-                return (
-                  <tr key={index} style={index % 2 === 0 ? styles.trEven : styles.trOdd}>
-                    <td style={styles.td}>
-                      <span style={styles.groupeBadge}>{item.groupe}</span>
-                    </td>
-                    <td style={styles.td}>{formatNumber(item.nombre)}</td>
-                    <td style={styles.td}>{formatCurrency(item.valeur_brute)}</td>
-                    <td style={styles.td}>
-                      <span style={{ fontWeight: '600', color: '#2563eb' }}>
-                        {formatCurrency(item.valeur_nette)}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <div style={styles.progressBar}>
-                        <div style={{ ...styles.progressFill, width: `${pourcentage}%` }} />
-                        <span style={styles.progressText}>{pourcentage}%</span>
-                      </div>
-                    </td>
-                    <td style={styles.td}>
-                      <button 
-                        onClick={() => handleViewActif(item.groupe)}
-                        style={styles.viewButton}
-                        title={`Voir les actifs de ${item.groupe}`}
+            <>
+              <Card className="border-0 shadow-sm rounded-3 mb-4">
+                <Card.Body>
+                  <h3 className="h6 fw-semibold mb-3">Répartition par nombre</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ groupe, percent }) => `${groupe} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="nombre"
+                        nameKey="groupe"
                       >
-                        <FiEye size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={styles.tfoot}>
-                <td style={styles.td}><strong>Total</strong></td>
-                <td style={styles.td}><strong>{formatNumber(totaux.nombre)}</strong></td>
-                <td style={styles.td}><strong>{formatCurrency(totaux.valeur_brute)}</strong></td>
-                <td style={styles.td}><strong>{formatCurrency(totaux.valeur_nette)}</strong></td>
-                <td style={styles.td}><strong>100%</strong></td>
-                <td style={styles.td}></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                        {data.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatNumber(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Card.Body>
+              </Card>
+
+              <Card className="border-0 shadow-sm rounded-3">
+                <Card.Body>
+                  <h3 className="h6 fw-semibold mb-3">Répartition par valeur nette</h3>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ groupe, percent }) => `${groupe} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="valeur_nette"
+                        nameKey="groupe"
+                      >
+                        {data.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Card.Body>
+              </Card>
+            </>
+          )}
+        </>
+      ) : (
+        <Card className="border-0 shadow-sm rounded-3 overflow-hidden">
+          <div className="table-responsive">
+            <Table hover className="align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>{getGroupeLabel()} {getGroupeIcon()}</th>
+                  <th>Nombre d'actifs</th>
+                  <th>Valeur brute</th>
+                  <th>Valeur nette</th>
+                  <th>% du total</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((item, index) => {
+                  const pourcentage = ((item.valeur_nette / totaux.valeur_nette) * 100).toFixed(1);
+                  return (
+                    <tr key={index}>
+                      <td className="fw-semibold">{item.groupe}</td>
+                      <td>{formatNumber(item.nombre)}</td>
+                      <td>{formatCurrency(item.valeur_brute)}</td>
+                      <td className="fw-semibold text-primary">{formatCurrency(item.valeur_nette)}</td>
+                      <td>
+                        <div className="d-flex align-items-center gap-2">
+                          <div className="progress flex-grow-1" style={{ height: '8px' }}>
+                            <div className="progress-bar bg-primary" style={{ width: `${pourcentage}%` }} />
+                          </div>
+                          <span className="small text-muted" style={{ minWidth: '45px' }}>{pourcentage}%</span>
+                        </div>
+                      </td>
+                      <td>
+                        <Button variant="outline-primary" size="sm" onClick={() => handleViewActif(item.groupe)} title={`Voir les actifs de ${item.groupe}`}>
+                          <FiEye size={14} />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="table-light fw-bold">
+                <tr>
+                  <td>Total</td>
+                  <td>{formatNumber(totaux.nombre)}</td>
+                  <td>{formatCurrency(totaux.valeur_brute)}</td>
+                  <td>{formatCurrency(totaux.valeur_nette)}</td>
+                  <td>100%</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </Table>
+          </div>
+        </Card>
       )}
-    </div>
+
+      {/* Footer info */}
+      <div className="text-center mt-4">
+        <small className="text-muted d-flex align-items-center justify-content-center gap-2">
+          <FiShield size={12} /> Données en temps réel — Mise à jour automatique
+        </small>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spin { animation: spin 1s linear infinite; }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+      `}</style>
+    </Container>
   );
 };
-
-// ============ STYLES ============
-
-const styles = {
-  container: {
-    padding: '2rem',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    minHeight: 'calc(100vh - 64px)',
-    backgroundColor: 'var(--bg-primary)'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  title: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    fontSize: '1.8rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: 0
-  },
-  titleIcon: {
-    color: '#3b82f6'
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    marginTop: '0.5rem'
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '0.75rem'
-  },
-  iconButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f8fafc',
-      borderColor: '#cbd5e1'
-    }
-  },
-  refreshButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: 'var(--bg-card)',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#2563eb'
-    },
-    ':disabled': {
-      opacity: 0.5,
-      cursor: 'not-allowed'
-    }
-  },
-  filtersContainer: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  filterBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0'
-  },
-  filterIcon: {
-    color: '#94a3b8'
-  },
-  filterLabel: {
-    fontSize: '0.875rem',
-    color: '#475569'
-  },
-  select: {
-    padding: '0.25rem 0.5rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-card)',
-    cursor: 'pointer'
-  },
-  viewToggle: {
-    display: 'flex',
-    gap: '0.25rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '8px',
-    padding: '0.25rem',
-    border: '1px solid #e2e8f0'
-  },
-  viewButton: {
-    padding: '0.5rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: '#94a3b8',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: 'var(--bg-primary)',
-      color: '#475569'
-    }
-  },
-  viewActive: {
-    padding: '0.5rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    color: 'var(--bg-card)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  summaryGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1rem',
-    marginBottom: '2rem'
-  },
-  summaryCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-    border: '1px solid #e2e8f0',
-    transition: 'all 0.2s',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-    }
-  },
-  summaryIconWrapper: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    backgroundColor: '#eff6ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  summaryNumber: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: 'var(--text-primary)'
-  },
-  summaryLabel: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  chartsContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem'
-  },
-  chartControls: {
-    display: 'flex',
-    gap: '0.5rem',
-    justifyContent: 'flex-end'
-  },
-  chartTypeButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f8fafc'
-    }
-  },
-  chartTypeActive: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: 'var(--bg-card)'
-  },
-  chartCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    border: '1px solid #e2e8f0'
-  },
-  chartTitle: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    marginBottom: '1rem'
-  },
-  tableContainer: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    overflow: 'auto',
-    border: '1px solid #e2e8f0'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.875rem'
-  },
-  th: {
-    padding: '1rem',
-    textAlign: 'left',
-    backgroundColor: '#f8fafc',
-    borderBottom: '2px solid #e2e8f0',
-    fontWeight: '600',
-    color: 'var(--text-primary)'
-  },
-  td: {
-    padding: '1rem',
-    borderBottom: '1px solid #e2e8f0',
-    color: '#334155'
-  },
-  trEven: {
-    backgroundColor: 'var(--bg-card)'
-  },
-  trOdd: {
-    backgroundColor: '#fafafa'
-  },
-  tfoot: {
-    backgroundColor: '#f8fafc',
-    fontWeight: 'bold'
-  },
-  groupeBadge: {
-    display: 'inline-block',
-    padding: '0.25rem 0.5rem',
-    backgroundColor: 'var(--bg-primary)',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-    color: '#1e293b'
-  },
-  progressBar: {
-    position: 'relative',
-    width: '100px',
-    height: '24px',
-    backgroundColor: 'var(--border-color)',
-    borderRadius: '12px',
-    overflow: 'hidden'
-  },
-  progressFill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    height: '100%',
-    backgroundColor: '#3b82f6',
-    borderRadius: '12px',
-    transition: 'width 0.3s ease'
-  },
-  progressText: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    fontSize: '0.7rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    zIndex: 1
-  },
-  viewButton: {
-    padding: '0.25rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    color: '#94a3b8',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    ':hover': {
-      color: '#3b82f6',
-      backgroundColor: '#eff6ff'
-    }
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-    gap: '1rem',
-    color: 'var(--text-secondary)'
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid #e2e8f0',
-    borderTop: '3px solid #3b82f6',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  },
-  errorContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    border: '1px solid #fee2e2',
-    color: '#ef4444'
-  },
-  emptyContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    color: '#94a3b8'
-  },
-  retryButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  }
-};
-
-// Ajouter l'animation spin
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default EtatImmobilisations;

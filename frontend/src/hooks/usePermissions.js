@@ -1,3 +1,4 @@
+// frontend/src/hooks/usePermissions.js
 import { useSelector } from 'react-redux';
 
 /**
@@ -10,7 +11,7 @@ const usePermissions = () => {
 
   /**
    * Vérifie si le rôle actuel fait partie de la liste autorisée.
-   * @param {Array<string>} allowedRoles - Liste des rôes autorisés (ex: ['admin', 'comptable'])
+   * @param {Array<string>} allowedRoles - Liste des rôles autorisés (ex: ['admin', 'comptable'])
    * @returns {boolean}
    */
   const can = (allowedRoles) => {

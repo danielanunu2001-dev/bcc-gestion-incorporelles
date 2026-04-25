@@ -38,73 +38,77 @@ console.log('  - createContratForActif:', typeof contratController.createContrat
 router.use(authMiddleware);
 
 // ==================== ROUTES GÉNÉRIQUES ====================
+// ✅ AJOUT DE 'gestionnaire' À LA ROUTE GET
 
 /**
  * Récupérer tous les contrats avec filtres
  * GET /api/contrats
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/', authorize('admin', 'juridique', 'comptable'), contratController.getAllContrats);
+router.get('/', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.getAllContrats);
 
 /**
  * Créer un nouveau contrat
  * POST /api/contrats
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.post('/', authorize('admin', 'juridique'), contratController.createContrat);
 
 // ==================== ROUTES D'EXPORT ====================
+// ✅ AJOUT DE 'gestionnaire' À LA ROUTE GET
 
 /**
  * Exporter la liste des contrats en PDF
  * GET /api/contrats/export/pdf
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/export/pdf', authorize('admin', 'juridique', 'comptable'), contratController.exportContratsPDF);
+router.get('/export/pdf', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.exportContratsPDF);
 
 // ==================== ROUTES SPÉCIFIQUES ====================
+// ✅ AJOUT DE 'gestionnaire' À LA ROUTE GET
 
 /**
  * Récupérer un contrat par son ID
  * GET /api/contrats/:id
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/:id', authorize('admin', 'juridique', 'comptable'), contratController.getContratById);
+router.get('/:id', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.getContratById);
 
 /**
  * Mettre à jour un contrat
  * PUT /api/contrats/:id
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.put('/:id', authorize('admin', 'juridique'), contratController.updateContrat);
 
 /**
  * Supprimer un contrat
  * DELETE /api/contrats/:id
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.delete('/:id', authorize('admin', 'juridique'), contratController.deleteContrat);
 
 // ==================== ROUTES FACTURE ====================
+// ✅ AJOUT DE 'gestionnaire' AUX ROUTES GET
 
 /**
  * Obtenir les informations de la facture (métadonnées)
  * GET /api/contrats/:id/facture
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/:id/facture', authorize('admin', 'juridique', 'comptable'), contratController.getFacture);
+router.get('/:id/facture', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.getFacture);
 
 /**
  * Télécharger la facture PDF
  * GET /api/contrats/:id/facture/download
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/:id/facture/download', authorize('admin', 'juridique', 'comptable'), contratController.downloadFacture);
+router.get('/:id/facture/download', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.downloadFacture);
 
 /**
  * Régénérer la facture pour un contrat existant
  * POST /api/contrats/:id/regenerate-facture
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.post('/:id/regenerate-facture', authorize('admin', 'juridique'), contratController.regenerateFacture);
 
@@ -113,46 +117,48 @@ router.post('/:id/regenerate-facture', authorize('admin', 'juridique'), contratC
 /**
  * Upload d'un fichier pour un contrat
  * POST /api/contrats/:contratId/upload
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.post('/:contratId/upload', authorize('admin', 'juridique'), uploadDocument.single('fichier'), contratController.uploadContratFile);
 
 // ==================== ROUTES COMPLÉMENTAIRES ====================
+// ✅ AJOUT DE 'gestionnaire' À LA ROUTE GET
 
 /**
  * Télécharger un fichier de contrat
  * GET /api/contrats/:contratId/fichier/:fichierId
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/:contratId/fichier/:fichierId', authorize('admin', 'juridique', 'comptable'), contratController.downloadContratFile);
+router.get('/:contratId/fichier/:fichierId', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.downloadContratFile);
 
 /**
  * Renouveler un contrat
  * POST /api/contrats/:id/renouveler
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.post('/:id/renouveler', authorize('admin', 'juridique'), contratController.renouvelerContrat);
 
 /**
  * Résilier un contrat
  * POST /api/contrats/:id/resilier
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.post('/:id/resilier', authorize('admin', 'juridique'), contratController.resilierContrat);
 
 // ==================== ROUTES POUR LES CONTRATS LIÉS À UN ACTIF ====================
+// ✅ AJOUT DE 'gestionnaire' À LA ROUTE GET
 
 /**
  * Récupérer tous les contrats d'un actif spécifique
  * GET /api/contrats/actif/:actifId
- * Accessible à : admin, juridique, comptable
+ * Accessible à : admin, juridique, comptable, auditeur, informatique, gestionnaire
  */
-router.get('/actif/:actifId', authorize('admin', 'juridique', 'comptable'), contratController.getContratsByActif);
+router.get('/actif/:actifId', authorize('admin', 'juridique', 'comptable', 'auditeur', 'informatique', 'gestionnaire'), contratController.getContratsByActif);
 
 /**
  * Créer un contrat pour un actif spécifique
  * POST /api/contrats/actif/:actifId
- * Accessible à : admin, juridique
+ * Accessible à : admin, juridique (pas informatique, pas gestionnaire)
  */
 router.post('/actif/:actifId', authorize('admin', 'juridique'), contratController.createContratForActif);
 

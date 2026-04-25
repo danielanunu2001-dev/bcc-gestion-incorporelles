@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import authService from '../services/auth';
 
-// Récupérer l'utilisateur stocké
 const storedUser = authService.getStoredUser();
 
 export const login = createAsyncThunk(
@@ -28,7 +27,7 @@ export const checkAuth = createAsyncThunk('auth/check', async () => {
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: storedUser,
+    user: storedUser || null,
     isAuthenticated: !!storedUser,
     loading: false,
     error: null
@@ -40,7 +39,6 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Login
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -55,12 +53,10 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Logout
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
       })
-      // Check Auth
       .addCase(checkAuth.fulfilled, (state, action) => {
         if (action.payload) {
           state.user = action.payload;

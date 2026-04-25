@@ -224,6 +224,12 @@ const ContratsListPro = () => {
   };
 
   const handleDelete = async (contratId) => {
+    // ✅ Le gestionnaire ne peut pas supprimer
+    if (!can(['admin', 'juridique'])) {
+      alert('Vous n\'avez pas les droits pour supprimer un contrat');
+      return;
+    }
+    
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contrat ?')) {
       try {
         await api.delete(`/contrats/${contratId}`);
@@ -342,6 +348,7 @@ const ContratsListPro = () => {
           <h1 style={styles.title}>Gestion des contrats</h1>
           <p style={styles.subtitle}>Suivi et gestion de tous les contrats</p>
         </div>
+        {/* ✅ Le gestionnaire ne peut PAS créer de contrat */}
         {can(['admin', 'juridique']) && (
           <button
             onClick={() => navigate('/contrats/nouveau')}
@@ -564,6 +571,7 @@ const ContratsListPro = () => {
           <FiFileText size={64} color="#d1d5db" />
           <h3>Aucun contrat trouvé</h3>
           <p>Aucun contrat ne correspond à vos critères de recherche.</p>
+          {/* ✅ Le gestionnaire ne peut PAS créer de contrat */}
           {can(['admin', 'juridique']) && (
             <button onClick={() => navigate('/contrats/nouveau')} style={styles.createButton}>
               <FiPlus /> Créer un contrat
@@ -636,6 +644,7 @@ const ContratsListPro = () => {
                           >
                             <FiEye />
                           </button>
+                          {/* ✅ Le gestionnaire ne peut PAS modifier de contrat */}
                           {can(['admin', 'juridique']) && (
                             <>
                               <button

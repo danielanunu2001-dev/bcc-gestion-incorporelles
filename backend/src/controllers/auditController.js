@@ -22,9 +22,9 @@ exports.getAllLogs = async (req, res) => {
     }
     
     if (startDate || endDate) {
-      where.created_at = {};
-      if (startDate) where.created_at[Op.gte] = new Date(startDate);
-      if (endDate) where.created_at[Op.lte] = new Date(endDate);
+      where.action_date = {};  // ✅ Utiliser action_date au lieu de created_at
+      if (startDate) where.action_date[Op.gte] = new Date(startDate);
+      if (endDate) where.action_date[Op.lte] = new Date(endDate);
     }
 
     console.log('🔍 Filtres reçus:', { page, limit, userId, table, action, startDate, endDate });
@@ -33,7 +33,7 @@ exports.getAllLogs = async (req, res) => {
     const { count, rows } = await AuditLog.findAndCountAll({
       where,
       include: [{ model: User, as: 'utilisateur', attributes: ['id', 'email', 'full_name'] }],
-      order: [['created_at', 'DESC']],
+      order: [['action_date', 'DESC']],  // ✅ Trier par action_date
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit)
     });
@@ -59,17 +59,16 @@ exports.getLogsForRecord = async (req, res) => {
     console.log(`🔍 AUDIT - Récupération logs pour ${tableName}/${recordId}`);
 
     const logs = await AuditLog.findAll({
-      where: { 
-        table_name: tableName, 
-        record_id: recordId 
-      },
-      include: [{ 
+    where: {
+        [Op.or]: conditions
+    },
+    include: [{ 
         model: User, 
         as: 'utilisateur', 
         attributes: ['id', 'email', 'full_name'] 
-      }],
-      order: [['created_at', 'DESC']]
-    });
+    }],
+    order: [['action_date', 'DESC']]  // ✅ Tri par action_date décroissant (plus récent d'abord)
+});
 
     console.log(`✅ AUDIT - ${logs.length} logs trouvés`);
     res.json(logs);
@@ -176,7 +175,7 @@ exports.getLogsForActif = async (req, res) => {
         as: 'utilisateur', 
         attributes: ['id', 'email', 'full_name'] 
       }],
-      order: [['created_at', 'DESC']]
+      order: [['action_date', 'DESC']]  // ✅ Trier par action_date
     });
 
     console.log(`✅ ${logs.length} logs trouvés pour l'actif ${actifId}`);
@@ -210,13 +209,13 @@ exports.exportLogs = async (req, res) => {
   try {
     const logs = await AuditLog.findAll({
       include: [{ model: User, as: 'utilisateur', attributes: ['email', 'full_name'] }],
-      order: [['created_at', 'DESC']]
+      order: [['action_date', 'DESC']]  // ✅ Trier par action_date
     });
 
     const csv = [
       ['Date', 'Utilisateur', 'Action', 'Table', 'ID Enregistrement', 'Anciennes valeurs', 'Nouvelles valeurs'].join(','),
       ...logs.map(log => [
-        log.created_at,
+        log.action_date || log.created_at,  // ✅ Utiliser action_date en priorité
         log.utilisateur?.full_name || 'Système',
         log.action,
         log.table_name,
@@ -282,7 +281,7 @@ exports.getUserActivity = async (req, res) => {
     const logs = await AuditLog.findAll({
       where: { user_id: userId },
       include: [{ model: User, as: 'utilisateur', attributes: ['id', 'email', 'full_name'] }],
-      order: [['created_at', 'DESC']],
+      order: [['action_date', 'DESC']],  // ✅ Trier par action_date
       limit: parseInt(limit)
     });
     res.json(logs);
@@ -306,7 +305,7 @@ exports.getMyActivity = async (req, res) => {
     const logs = await AuditLog.findAll({
       where: { user_id: userId },
       include: [{ model: User, as: 'utilisateur', attributes: ['id', 'email', 'full_name'] }],
-      order: [['created_at', 'DESC']],
+      order: [['action_date', 'DESC']],  // ✅ Trier par action_date
       limit: parseInt(limit)
     });
     
@@ -316,7 +315,7 @@ exports.getMyActivity = async (req, res) => {
       action: log.action,
       entity_type: log.table_name,
       entity_id: log.record_id,
-      created_at: log.created_at,
+      created_at: log.action_date || log.created_at,  // ✅ Utiliser action_date en priorité
       ip_address: log.ip_address,
       description: getActionDescription(log),
       icon: getActionIcon(log.action),
@@ -412,7 +411,7 @@ exports.getActivitySummary = async (req, res) => {
 
     const resume = await AuditLog.findAll({
       attributes: ['action', [sequelize.fn('COUNT', '*'), 'total']],
-      where: { created_at: { [Op.gte]: dateDebut } },
+      where: { action_date: { [Op.gte]: dateDebut } },  // ✅ Utiliser action_date
       group: ['action'],
       order: [[sequelize.literal('total'), 'DESC']]
     });
@@ -446,7 +445,7 @@ exports.searchLogs = async (req, res) => {
         ]
       },
       include: [{ model: User, as: 'utilisateur', attributes: ['id', 'email', 'full_name'] }],
-      order: [['created_at', 'DESC']],
+      order: [['action_date', 'DESC']],  // ✅ Trier par action_date
       limit: parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit)
     });
@@ -469,7 +468,7 @@ exports.cleanOldLogs = async (req, res) => {
     dateLimite.setDate(dateLimite.getDate() - parseInt(days));
     
     const deleted = await AuditLog.destroy({
-      where: { created_at: { [Op.lt]: dateLimite } }
+      where: { action_date: { [Op.lt]: dateLimite } }  // ✅ Utiliser action_date
     });
     
     res.json({ message: `${deleted} logs supprimés` });
@@ -502,7 +501,8 @@ exports.logAction = async (userId, action, tableName, recordId, oldValues = null
       record_id: recordId,
       old_data: oldValues,
       new_data: newValues,
-      ip_address: req?.ip || null
+      ip_address: req?.ip || null,
+      action_date: operationDate || new Date()  // ✅ AJOUT de action_date avec la date exacte
     };
     
     if (operationDate) {
@@ -510,7 +510,7 @@ exports.logAction = async (userId, action, tableName, recordId, oldValues = null
     }
     
     await AuditLog.create(logData);
-    console.log(`✅ Log créé: ${action} sur ${tableName} (${recordId})`);
+    console.log(`✅ Log créé: ${action} sur ${tableName} (${recordId}) à ${new Date().toLocaleString('fr-FR')}`);
     return true;
   } catch (error) {
     console.error('❌ Erreur logAction:', error);
