@@ -167,14 +167,35 @@ const ExportDonneesBCC = () => {
     { id: 'json', label: 'JSON', icon: '🔧', extension: '.json', color: '#f59e0b' }
   ];
 
-  // Styles personnalisés modernes
+  // Styles personnalisés modernes avec fond dégradé
   const modernStyles = `
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .fade-slide-up {
+      animation: fadeSlideUp 0.4s ease-out;
+    }
+    
     .export-card {
-      background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+      background: rgba(255, 255, 255, 0.95);
       border: none;
       border-radius: 24px;
       box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.08);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(10px);
     }
     
     .export-card:hover {
@@ -321,330 +342,332 @@ const ExportDonneesBCC = () => {
       transform: translateY(-1px);
     }
     
-    @keyframes fadeSlideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: white;
+      transition: all 0.2s ease;
+      text-decoration: none;
     }
     
-    .fade-slide-up {
-      animation: fadeSlideUp 0.4s ease-out;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    
-    .loading-pulse {
-      animation: pulse 1.5s ease-in-out infinite;
+    .back-button:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+      transform: translateX(-2px);
+      color: white;
     }
   `;
 
   return (
     <>
       <style>{modernStyles}</style>
-      <Container className="py-5 px-3 px-md-5 fade-slide-up" style={{ maxWidth: '1000px' }}>
-        
-        {/* Header avec design élégant */}
-        <div className="d-flex justify-content-between align-items-center flex-wrap gap-4 mb-5">
-          <div>
-            <Button 
-              variant="link" 
-              onClick={() => navigate('/parametres')} 
-              className="text-muted text-decoration-none p-0 mb-3 d-inline-flex align-items-center gap-2"
-              style={{ fontSize: '0.875rem' }}
-            >
-              <FiArrowLeft size={16} /> Retour aux paramètres
-            </Button>
-            <div className="d-flex align-items-center gap-4">
-              <div className="rounded-4 d-flex align-items-center justify-content-center" style={{ 
-                width: '64px', 
-                height: '64px', 
-                background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 100%)',
-                boxShadow: '0 10px 20px -5px rgba(13, 148, 136, 0.3)'
-              }}>
-                <FiDownload size={32} color="white" />
-              </div>
-              <div>
-                <h1 className="display-6 fw-bold mb-1" style={{ color: '#0F2B3D' }}>Export de données</h1>
-                <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                  Banque Centrale du Congo — Données comptables et financières
-                </p>
-              </div>
-            </div>
-          </div>
+      
+      {/* Fond dégradé comme les autres pages */}
+      <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <Container className="py-5 px-3 px-md-5 fade-slide-up" style={{ maxWidth: '1000px' }}>
           
-          {/* Badge d'institution */}
-          <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3" style={{ background: '#F1F5F9' }}>
-            <FiShield size={14} className="text-success" />
-            <span className="small fw-semibold text-secondary">BCC — Exercice {new Date().getFullYear()}</span>
-          </div>
-        </div>
-
-        {/* Messages de statut stylisés */}
-        {exportStatus.success && (
-          <Alert 
-            variant="success" 
-            dismissible 
-            onClose={() => setExportStatus({ ...exportStatus, success: false })} 
-            className="mb-4 rounded-3 border-0 shadow-sm"
-            style={{ background: '#F0FDF4', borderLeft: '4px solid #10b981' }}
-          >
-            <div className="d-flex align-items-center gap-2">
-              <FiCheckCircle size={18} className="text-success" />
-              <span className="small fw-medium">Export réalisé avec succès ! Le fichier a été téléchargé.</span>
-            </div>
-          </Alert>
-        )}
-        
-        {exportStatus.error && (
-          <Alert 
-            variant="danger" 
-            dismissible 
-            onClose={() => setExportStatus({ ...exportStatus, error: null })} 
-            className="mb-4 rounded-3 border-0 shadow-sm"
-            style={{ background: '#FEF2F2', borderLeft: '4px solid #ef4444' }}
-          >
-            <div className="d-flex align-items-center gap-2">
-              <FiXCircle size={18} className="text-danger" />
-              <span className="small fw-medium">{exportStatus.error}</span>
-            </div>
-          </Alert>
-        )}
-
-        {/* Carte principale */}
-        <Card className="export-card">
-          <Card.Body className="p-4 p-md-5">
-            
-            {/* Type de données - Design moderne en cartes */}
-            <div className="mb-5">
-              <div className="section-title">
-                <FiDatabase size={14} />
-                <span>Catégorie de données</span>
-              </div>
-              <div className="d-flex flex-wrap gap-3">
-                {typeOptions.map(option => {
-                  const Icon = option.icon;
-                  const isChecked = exportConfig.type === option.id;
-                  return (
-                    <label key={option.id} className="type-option">
-                      <input
-                        type="radio"
-                        name="type"
-                        value={option.id}
-                        checked={isChecked}
-                        onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
-                      />
-                      <div className="type-option-content">
-                        <div className="rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ background: option.bg, width: '36px', height: '36px' }}>
-                          <Icon size={18} color={option.color} />
-                        </div>
-                        <span className="fw-medium" style={{ fontSize: '0.9rem' }}>{option.label}</span>
-                        {isChecked && <FiCheckCircle size={14} color="#0D9488" className="ms-auto" />}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Format d'export - Design en grille */}
-            <div className="mb-5">
-              <div className="section-title">
-                <FiFileText size={14} />
-                <span>Format d'export</span>
-              </div>
-              <div className="d-flex flex-wrap gap-3">
-                {formatOptions.map(option => {
-                  const isChecked = exportConfig.format === option.id;
-                  return (
-                    <label key={option.id} className="format-option">
-                      <input
-                        type="radio"
-                        name="format"
-                        value={option.id}
-                        checked={isChecked}
-                        onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
-                      />
-                      <div className="format-content">
-                        <span style={{ fontSize: '1.5rem' }}>{option.icon}</span>
-                        <span className="small fw-semibold">{option.label}</span>
-                        <span className="text-muted" style={{ fontSize: '0.65rem' }}>{option.extension}</span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Période comptable */}
-            <div className="mb-5">
-              <div className="section-title">
-                <FiCalendar size={14} />
-                <span>Période comptable</span>
-              </div>
-              <div className="d-flex flex-wrap gap-4 mb-4">
-                <Form.Check
-                  type="radio"
-                  id="periode-tout"
-                  label="📆 Toutes les données historiques"
-                  value="tout"
-                  checked={exportConfig.periode === 'tout'}
-                  onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
-                  className="me-4"
-                />
-                <Form.Check
-                  type="radio"
-                  id="periode-personnalisee"
-                  label="📅 Période personnalisée"
-                  value="personnalisee"
-                  checked={exportConfig.periode === 'personnalisee'}
-                  onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
-                />
-              </div>
-
-              {exportConfig.periode === 'personnalisee' && (
-                <div className="p-4 rounded-4" style={{ background: '#F8FAFC' }}>
-                  <Row className="g-3 align-items-center">
-                    <Col md={5}>
-                      <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-2 border">
-                        <FiCalendar size={16} className="text-muted ms-2" />
-                        <Form.Control
-                          type="date"
-                          value={exportConfig.dateDebut}
-                          onChange={(e) => setExportConfig({ ...exportConfig, dateDebut: e.target.value })}
-                          className="border-0 bg-transparent"
-                          placeholder="Date de début"
-                        />
-                      </div>
-                    </Col>
-                    <Col md={2} className="text-center">
-                      <span className="text-muted small">→</span>
-                    </Col>
-                    <Col md={5}>
-                      <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-2 border">
-                        <FiCalendar size={16} className="text-muted ms-2" />
-                        <Form.Control
-                          type="date"
-                          value={exportConfig.dateFin}
-                          onChange={(e) => setExportConfig({ ...exportConfig, dateFin: e.target.value })}
-                          className="border-0 bg-transparent"
-                          placeholder="Date de fin"
-                        />
-                      </div>
-                    </Col>
-                  </Row>
+          {/* Header avec design élégant */}
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-4 mb-5">
+            <div>
+              <button 
+                onClick={() => navigate('/parametres')} 
+                className="back-button mb-3"
+              >
+                <FiArrowLeft size={18} /> Retour aux paramètres
+              </button>
+              <div className="d-flex align-items-center gap-4">
+                <div className="rounded-4 d-flex align-items-center justify-content-center" style={{ 
+                  width: '64px', 
+                  height: '64px', 
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: '14px'
+                }}>
+                  <FiDownload size={32} color="white" />
                 </div>
-              )}
-            </div>
-
-            {/* Options spécifiques - Design moderne */}
-            <div className="mb-5">
-              <div className="section-title">
-                <FiZap size={14} />
-                <span>Options avancées</span>
-              </div>
-              <div className="row g-2">
-                <div className="col-md-6">
-                  <label className="checkbox-custom w-100">
-                    <input
-                      type="checkbox"
-                      checked={exportConfig.inclureArchives}
-                      onChange={(e) => setExportConfig({ ...exportConfig, inclureArchives: e.target.checked })}
-                    />
-                    <span className="small">📦 Inclure les données archivées</span>
-                  </label>
-                </div>
-                <div className="col-md-6">
-                  <label className="checkbox-custom w-100">
-                    <input
-                      type="checkbox"
-                      checked={exportConfig.inclureReservesChange}
-                      onChange={(e) => setExportConfig({ ...exportConfig, inclureReservesChange: e.target.checked })}
-                    />
-                    <span className="small">🌍 Inclure les réserves de change</span>
-                  </label>
-                </div>
-                <div className="col-md-6">
-                  <label className="checkbox-custom w-100">
-                    <input
-                      type="checkbox"
-                      checked={exportConfig.inclureOperationsMonetaires}
-                      onChange={(e) => setExportConfig({ ...exportConfig, inclureOperationsMonetaires: e.target.checked })}
-                    />
-                    <span className="small">💹 Inclure les opérations monétaires</span>
-                  </label>
-                </div>
-                <div className="col-md-6">
-                  <label className="checkbox-custom w-100">
-                    <input
-                      type="checkbox"
-                      checked={exportConfig.inclureRapportsPolitique}
-                      onChange={(e) => setExportConfig({ ...exportConfig, inclureRapportsPolitique: e.target.checked })}
-                    />
-                    <span className="small">📋 Inclure les rapports de politique monétaire</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Note d'information élégante */}
-            <div className="info-note mb-4">
-              <div className="d-flex align-items-start gap-3">
-                <FiInfo size={18} className="text-info flex-shrink-0 mt-0.5" />
                 <div>
-                  <small className="fw-semibold d-block text-info mb-1">Conformité BCC</small>
-                  <small className="text-secondary-emphasis">
-                    Les données exportées sont conformes aux normes comptables de la Banque Centrale du Congo (BCC) 
-                    et au plan comptable GCEC. Montants exprimés en Francs Congolais (CDF).
-                  </small>
+                  <h1 className="display-6 fw-bold mb-1" style={{ color: 'white' }}>Export de données</h1>
+                  <p className="mb-0" style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>
+                    Banque Centrale du Congo — Données comptables et financières
+                  </p>
                 </div>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="d-flex gap-3 justify-content-end pt-2">
-              <Button 
-                variant="link" 
-                onClick={() => navigate('/parametres')}
-                className="btn-secondary-custom"
-              >
-                Annuler
-              </Button>
-              <Button 
-                onClick={handleExport} 
-                disabled={exportStatus.loading}
-                className="btn-export d-flex align-items-center gap-2"
-              >
-                {exportStatus.loading ? (
-                  <>
-                    <Spinner as="span" size="sm" animation="border" className="spinner-border-sm" />
-                    <span>Préparation de l'export...</span>
-                  </>
-                ) : (
-                  <>
-                    <FiDownload size={18} /> Générer l'export
-                  </>
-                )}
-              </Button>
+            
+            {/* Badge d'institution */}
+            <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
+              <FiShield size={14} style={{ color: 'white' }} />
+              <span className="small fw-semibold" style={{ color: 'white' }}>BCC — Exercice {new Date().getFullYear()}</span>
             </div>
-          </Card.Body>
-        </Card>
+          </div>
 
-        {/* Footer info */}
-        <div className="text-center mt-4">
-          <small className="text-muted d-flex align-items-center justify-content-center gap-2">
-            <FiActivity size={12} />
-            Données en temps réel — Dernière mise à jour: {new Date().toLocaleString('fr-FR')}
-          </small>
-        </div>
-      </Container>
+          {/* Messages de statut stylisés */}
+          {exportStatus.success && (
+            <Alert 
+              variant="success" 
+              dismissible 
+              onClose={() => setExportStatus({ ...exportStatus, success: false })} 
+              className="mb-4 rounded-3 border-0 shadow-sm"
+              style={{ background: '#F0FDF4', borderLeft: '4px solid #10b981' }}
+            >
+              <div className="d-flex align-items-center gap-2">
+                <FiCheckCircle size={18} className="text-success" />
+                <span className="small fw-medium" style={{ color: '#000000' }}>Export réalisé avec succès ! Le fichier a été téléchargé.</span>
+              </div>
+            </Alert>
+          )}
+          
+          {exportStatus.error && (
+            <Alert 
+              variant="danger" 
+              dismissible 
+              onClose={() => setExportStatus({ ...exportStatus, error: null })} 
+              className="mb-4 rounded-3 border-0 shadow-sm"
+              style={{ background: '#FEF2F2', borderLeft: '4px solid #ef4444' }}
+            >
+              <div className="d-flex align-items-center gap-2">
+                <FiXCircle size={18} className="text-danger" />
+                <span className="small fw-medium" style={{ color: '#000000' }}>{exportStatus.error}</span>
+              </div>
+            </Alert>
+          )}
+
+          {/* Carte principale */}
+          <Card className="export-card">
+            <Card.Body className="p-4 p-md-5">
+              
+              {/* Type de données - Design moderne en cartes */}
+              <div className="mb-5">
+                <div className="section-title">
+                  <FiDatabase size={14} />
+                  <span style={{ color: '#000000' }}>Catégorie de données</span>
+                </div>
+                <div className="d-flex flex-wrap gap-3">
+                  {typeOptions.map(option => {
+                    const Icon = option.icon;
+                    const isChecked = exportConfig.type === option.id;
+                    return (
+                      <label key={option.id} className="type-option">
+                        <input
+                          type="radio"
+                          name="type"
+                          value={option.id}
+                          checked={isChecked}
+                          onChange={(e) => setExportConfig({ ...exportConfig, type: e.target.value })}
+                        />
+                        <div className="type-option-content">
+                          <div className="rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ background: option.bg, width: '36px', height: '36px' }}>
+                            <Icon size={18} color={option.color} />
+                          </div>
+                          <span className="fw-medium" style={{ fontSize: '0.9rem', color: '#000000' }}>{option.label}</span>
+                          {isChecked && <FiCheckCircle size={14} color="#0D9488" className="ms-auto" />}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Format d'export - Design en grille */}
+              <div className="mb-5">
+                <div className="section-title">
+                  <FiFileText size={14} />
+                  <span style={{ color: '#000000' }}>Format d'export</span>
+                </div>
+                <div className="d-flex flex-wrap gap-3">
+                  {formatOptions.map(option => {
+                    const isChecked = exportConfig.format === option.id;
+                    return (
+                      <label key={option.id} className="format-option">
+                        <input
+                          type="radio"
+                          name="format"
+                          value={option.id}
+                          checked={isChecked}
+                          onChange={(e) => setExportConfig({ ...exportConfig, format: e.target.value })}
+                        />
+                        <div className="format-content">
+                          <span style={{ fontSize: '1.5rem' }}>{option.icon}</span>
+                          <span className="small fw-semibold" style={{ color: '#000000' }}>{option.label}</span>
+                          <span className="text-muted" style={{ fontSize: '0.65rem' }}>{option.extension}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Période comptable */}
+              <div className="mb-5">
+                <div className="section-title">
+                  <FiCalendar size={14} />
+                  <span style={{ color: '#000000' }}>Période comptable</span>
+                </div>
+                <div className="d-flex flex-wrap gap-4 mb-4">
+                  <Form.Check
+                    type="radio"
+                    id="periode-tout"
+                    label={<span style={{ color: '#000000' }}>📆 Toutes les données historiques</span>}
+                    value="tout"
+                    checked={exportConfig.periode === 'tout'}
+                    onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
+                    className="me-4"
+                  />
+                  <Form.Check
+                    type="radio"
+                    id="periode-personnalisee"
+                    label={<span style={{ color: '#000000' }}>📅 Période personnalisée</span>}
+                    value="personnalisee"
+                    checked={exportConfig.periode === 'personnalisee'}
+                    onChange={(e) => setExportConfig({ ...exportConfig, periode: e.target.value })}
+                  />
+                </div>
+
+                {exportConfig.periode === 'personnalisee' && (
+                  <div className="p-4 rounded-4" style={{ background: '#F8FAFC' }}>
+                    <Row className="g-3 align-items-center">
+                      <Col md={5}>
+                        <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-2 border">
+                          <FiCalendar size={16} className="text-muted ms-2" />
+                          <Form.Control
+                            type="date"
+                            value={exportConfig.dateDebut}
+                            onChange={(e) => setExportConfig({ ...exportConfig, dateDebut: e.target.value })}
+                            className="border-0 bg-transparent"
+                            placeholder="Date de début"
+                            style={{ color: '#000000' }}
+                          />
+                        </div>
+                      </Col>
+                      <Col md={2} className="text-center">
+                        <span className="text-muted small">→</span>
+                      </Col>
+                      <Col md={5}>
+                        <div className="d-flex align-items-center gap-2 bg-white rounded-3 p-2 border">
+                          <FiCalendar size={16} className="text-muted ms-2" />
+                          <Form.Control
+                            type="date"
+                            value={exportConfig.dateFin}
+                            onChange={(e) => setExportConfig({ ...exportConfig, dateFin: e.target.value })}
+                            className="border-0 bg-transparent"
+                            placeholder="Date de fin"
+                            style={{ color: '#000000' }}
+                          />
+                        </div>
+                      </Col>
+                    </Row>
+                  </div>
+                )}
+              </div>
+
+              {/* Options spécifiques - Design moderne */}
+              <div className="mb-5">
+                <div className="section-title">
+                  <FiZap size={14} />
+                  <span style={{ color: '#000000' }}>Options avancées</span>
+                </div>
+                <div className="row g-2">
+                  <div className="col-md-6">
+                    <label className="checkbox-custom w-100">
+                      <input
+                        type="checkbox"
+                        checked={exportConfig.inclureArchives}
+                        onChange={(e) => setExportConfig({ ...exportConfig, inclureArchives: e.target.checked })}
+                      />
+                      <span className="small" style={{ color: '#000000' }}>📦 Inclure les données archivées</span>
+                    </label>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="checkbox-custom w-100">
+                      <input
+                        type="checkbox"
+                        checked={exportConfig.inclureReservesChange}
+                        onChange={(e) => setExportConfig({ ...exportConfig, inclureReservesChange: e.target.checked })}
+                      />
+                      <span className="small" style={{ color: '#000000' }}>🌍 Inclure les réserves de change</span>
+                    </label>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="checkbox-custom w-100">
+                      <input
+                        type="checkbox"
+                        checked={exportConfig.inclureOperationsMonetaires}
+                        onChange={(e) => setExportConfig({ ...exportConfig, inclureOperationsMonetaires: e.target.checked })}
+                      />
+                      <span className="small" style={{ color: '#000000' }}>💹 Inclure les opérations monétaires</span>
+                    </label>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="checkbox-custom w-100">
+                      <input
+                        type="checkbox"
+                        checked={exportConfig.inclureRapportsPolitique}
+                        onChange={(e) => setExportConfig({ ...exportConfig, inclureRapportsPolitique: e.target.checked })}
+                      />
+                      <span className="small" style={{ color: '#000000' }}>📋 Inclure les rapports de politique monétaire</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Note d'information élégante */}
+              <div className="info-note mb-4">
+                <div className="d-flex align-items-start gap-3">
+                  <FiInfo size={18} className="text-info flex-shrink-0 mt-0.5" />
+                  <div>
+                    <small className="fw-semibold d-block text-info mb-1">Conformité BCC</small>
+                    <small className="text-secondary-emphasis" style={{ color: '#000000' }}>
+                      Les données exportées sont conformes aux normes comptables de la Banque Centrale du Congo (BCC) 
+                      et au plan comptable GCEC. Montants exprimés en Francs Congolais (CDF).
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="d-flex gap-3 justify-content-end pt-2">
+                <button 
+                  onClick={() => navigate('/parametres')}
+                  className="btn-secondary-custom"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={handleExport} 
+                  disabled={exportStatus.loading}
+                  className="btn-export d-flex align-items-center gap-2"
+                >
+                  {exportStatus.loading ? (
+                    <>
+                      <div className="spinner-border spinner-border-sm" role="status" style={{ color: 'white' }}>
+                        <span className="visually-hidden">Chargement...</span>
+                      </div>
+                      <span>Préparation de l'export...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiDownload size={18} /> Générer l'export
+                    </>
+                  )}
+                </button>
+              </div>
+            </Card.Body>
+          </Card>
+
+          {/* Footer info */}
+          <div className="text-center mt-4">
+            <small className="d-flex align-items-center justify-content-center gap-2" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+              <FiActivity size={12} />
+              Données en temps réel — Dernière mise à jour: {new Date().toLocaleString('fr-FR')}
+            </small>
+          </div>
+        </Container>
+      </div>
     </>
   );
 };

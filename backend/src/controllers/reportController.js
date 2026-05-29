@@ -459,33 +459,97 @@ exports.planAmortissement = async (req, res) => {
  */
 exports.suiviInvestissements = async (req, res) => {
   try {
-    const { annee } = req.query;
-    const anneeRef = annee || new Date().getFullYear();
-
-    console.log('📊 suiviInvestissements appelé pour année:', anneeRef);
-
+    // ✅ Récupérer les paramètres de période
+    const { annee_debut, annee_fin, type } = req.query;
+    
+    // Définir la période par défaut si non fournie
+    const debut = annee_debut ? parseInt(annee_debut) : new Date().getFullYear() - 4;
+    const fin = annee_fin ? parseInt(annee_fin) : new Date().getFullYear();
+    
+    console.log('📊 suiviInvestissements appelé avec:', { debut, fin, type });
+    
+    // ✅ Construire la condition WHERE avec la période
+    let whereCondition = {};
+    
+    // Filtrer par période d'acquisition
+    if (debut && fin) {
+      whereCondition.date_acquisition = {
+        [Op.between]: [`${debut}-01-01`, `${fin}-12-31`]
+      };
+    }
+    
+    // Filtrer par type d'investissement si spécifié
+    if (type && type !== 'tous') {
+      const typeMapping = {
+        'equipement': ['materiel', 'vehicule'],
+        'infrastructure': ['bâtiment', 'terrain'],
+        'technologie': ['logiciel', 'licence', 'brevet'],
+        'formation': ['autres'],
+        'recherche': ['brevet']
+      };
+      const actifTypes = typeMapping[type] || [type];
+      whereCondition.type = { [Op.in]: actifTypes };
+    }
+    
+    // ✅ Récupérer les actifs sur la période
     const actifs = await Actif.findAll({
-      where: sequelize.where(sequelize.fn('EXTRACT', sequelize.literal('YEAR FROM date_acquisition')), anneeRef)
+      where: whereCondition,
+      attributes: ['id', 'code', 'nom', 'type', 'cout_acquisition', 'date_acquisition'],
+      order: [['date_acquisition', 'ASC']]
     });
-
-    const totalRealise = actifs.reduce((sum, a) => sum + parseFloat(a.cout_acquisition), 0);
-    const budgetPrevisionnel = 100000000; // Valeur fictive à remplacer par un champ réel
-
+    
+    console.log(`📊 ${actifs.length} actif(s) trouvé(s) pour la période ${debut}-${fin}`);
+    
+    // Grouper par année
+    const investissementsParAnnee = {};
+    for (let an = debut; an <= fin; an++) {
+      investissementsParAnnee[an] = {
+        annee: an,
+        budget: 0,
+        realise: 0,
+        actifs: []
+      };
+    }
+    
+    for (const actif of actifs) {
+      const annee = new Date(actif.date_acquisition).getFullYear();
+      if (annee >= debut && annee <= fin) {
+        const cout = parseFloat(actif.cout_acquisition) || 0;
+        investissementsParAnnee[annee].budget += cout;
+        investissementsParAnnee[annee].realise += cout;
+        investissementsParAnnee[annee].actifs.push({
+          id: actif.id,
+          code: actif.code,
+          nom: actif.nom,
+          type: actif.type,
+          cout: cout
+        });
+      }
+    }
+    
+    // Convertir en tableau et filtrer les années avec données
+    const result = Object.values(investissementsParAnnee).filter(item => item.budget > 0 || item.actifs.length > 0);
+    
+    // Retourner les résultats au format attendu par le frontend
     res.json({
-      annee: anneeRef,
-      budget: budgetPrevisionnel,
-      realise: totalRealise,
-      ecart: budgetPrevisionnel - totalRealise,
-      actifs: actifs.map(a => ({
-        code: a.code,
-        nom: a.nom,
-        cout: parseFloat(a.cout_acquisition),
-        date: a.date_acquisition
-      }))
+      success: true,
+      periode: { debut, fin },
+      investissements: result,
+      totaux: {
+        budget_total: result.reduce((sum, r) => sum + r.budget, 0),
+        realise_total: result.reduce((sum, r) => sum + r.realise, 0),
+        nombre_annees: result.length,
+        nombre_investissements: result.reduce((sum, r) => sum + r.actifs.length, 0)
+      }
     });
+    
   } catch (error) {
-    console.error('Erreur suiviInvestissements:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error('❌ Erreur suiviInvestissements:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erreur lors de la récupération des investissements',
+      error: error.message 
+    });
   }
 };
 

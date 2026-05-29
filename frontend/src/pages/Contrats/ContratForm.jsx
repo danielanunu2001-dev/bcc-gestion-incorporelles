@@ -1,14 +1,17 @@
 // frontend/src/pages/Contrats/ContratForm.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import usePermissions from '../../hooks/usePermissions';
+import AIAssistantContrat from '../../components/IA/AIAssistantContrat';
 import {
   FiSave, FiX, FiArrowLeft, FiFileText,
   FiUser, FiCalendar, FiDollarSign, FiInfo,
-  FiAlertCircle, FiCheckCircle, FiTag
+  FiAlertCircle, FiCheckCircle, FiTag, FiPackage,
+  FiCpu, FiStar
 } from 'react-icons/fi';
+import { GiArtificialIntelligence } from 'react-icons/gi';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ContratForm = () => {
@@ -19,10 +22,17 @@ const ContratForm = () => {
   const isEditMode = !!contratId;
   const canModify = can(['admin', 'comptable', 'juridique']);
   
+  // États pour l'assistant IA
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [aiGeneratedDraft, setAiGeneratedDraft] = useState(null);
+  
+  // Référence pour le formulaire
+  const formRef = useRef(null);
+  
   const [formData, setFormData] = useState({
     numero_contrat: '',
     fournisseur: '',
-    type: 'licence',  // ✅ AJOUTÉ : type de contrat
+    type: 'licence',
     date_debut: new Date().toISOString().split('T')[0],
     date_fin: '',
     montant: '',
@@ -30,13 +40,15 @@ const ContratForm = () => {
     actif_id: id || ''
   });
   
+  // État pour stocker l'actif courant (contexte)
+  const [currentActif, setCurrentActif] = useState(null);
   const [actifs, setActifs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
 
-  // ✅ Types de contrat disponibles
+  // Types de contrat disponibles
   const typesContrat = [
     { value: 'licence', label: '📜 Licence logicielle', description: 'Licence d\'utilisation de logiciel' },
     { value: 'maintenance', label: '🔧 Maintenance', description: 'Contrat de maintenance' },
@@ -54,6 +66,13 @@ const ContratForm = () => {
     }
   }, [canModify]);
 
+  // Charger l'actif courant si un ID est présent (contexte pour l'IA)
+  useEffect(() => {
+    if (id && id !== 'undefined') {
+      chargerActifCourant();
+    }
+  }, [id]);
+
   useEffect(() => {
     if (!id || id === 'undefined') {
       chargerActifs();
@@ -65,6 +84,17 @@ const ContratForm = () => {
       chargerContrat();
     }
   }, [contratId]);
+
+  // Charger l'actif courant pour donner du contexte à l'IA
+  const chargerActifCourant = async () => {
+    try {
+      const res = await api.get(`/actifs/${id}`);
+      setCurrentActif(res.data);
+      console.log('📦 Actif courant chargé pour contexte IA:', res.data.code, '-', res.data.nom);
+    } catch (err) {
+      console.error('Erreur chargement actif courant:', err);
+    }
+  };
 
   const chargerActifs = async () => {
     try {
@@ -89,13 +119,21 @@ const ContratForm = () => {
       setFormData({
         numero_contrat: res.data.numero_contrat || '',
         fournisseur: res.data.fournisseur || '',
-        type: res.data.type || 'licence',  // ✅ AJOUTÉ
+        type: res.data.type || 'licence',
         date_debut: res.data.date_debut?.split('T')[0] || '',
         date_fin: res.data.date_fin?.split('T')[0] || '',
         montant: res.data.montant || '',
         description: res.data.description || '',
         actif_id: res.data.actif_id || id || ''
       });
+      
+      // Si l'actif_id est différent, charger cet actif pour contexte
+      if (res.data.actif_id && res.data.actif_id !== id) {
+        try {
+          const actifRes = await api.get(`/actifs/${res.data.actif_id}`);
+          setCurrentActif(actifRes.data);
+        } catch (err) {}
+      }
     } catch (err) {
       console.error('❌ Erreur chargement contrat:', err);
       setError('Erreur lors du chargement du contrat');
@@ -141,6 +179,29 @@ const ContratForm = () => {
     if (validationErrors[name]) {
       setValidationErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  // ✅ Recevoir les données de l'IA et remplir automatiquement le formulaire
+  const handleAIFillForm = (draft) => {
+    setAiGeneratedDraft(draft);
+    setFormData(prev => ({
+      ...prev,
+      numero_contrat: draft.numero_contrat || prev.numero_contrat,
+      fournisseur: draft.fournisseur || prev.fournisseur,
+      type: draft.type || prev.type,
+      date_debut: draft.date_debut || prev.date_debut,
+      date_fin: draft.date_fin || prev.date_fin,
+      montant: draft.montant_cdf || draft.montant || prev.montant,
+      description: draft.description || prev.description,
+      actif_id: draft.actif_id || prev.actif_id
+    }));
+    
+    setSuccess('✅ Formulaire rempli automatiquement par l\'IA ! Vérifiez les champs avant création.');
+    
+    // Fermer l'assistant après application
+    setTimeout(() => {
+      setShowAIAssistant(false);
+    }, 2000);
   };
 
   const handleSubmit = async (e) => {
@@ -224,11 +285,19 @@ const ContratForm = () => {
       from { opacity: 0; transform: translateX(-20px); }
       to { opacity: 1; transform: translateX(0); }
     }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
     .contrat-form-fade-in {
       animation: fadeIn 0.3s ease-out;
     }
     .contrat-form-slide-in {
       animation: slideIn 0.3s ease-out;
+    }
+    .ia-pulse {
+      animation: pulse 2s infinite;
     }
   `;
 
@@ -308,17 +377,85 @@ const ContratForm = () => {
     <>
       <style>{animationStyles}</style>
       <style>{customStyles}</style>
+      
+      {/* ✅ Assistant IA Flottant - avec contexte de l'actif et auto-remplissage */}
+      {showAIAssistant && (
+        <AIAssistantContrat 
+          actifId={id && id !== 'undefined' ? id : formData.actif_id}
+          actifContext={currentActif}
+          existingNumbers={[]}
+          onContratCreated={(contrat) => {
+            console.log('Contrat créé par IA:', contrat);
+            if (contrat && contrat.id) {
+              navigate(`/contrats/${contrat.id}`);
+            } else if (id && id !== 'undefined') {
+              navigate(`/actifs/${id}`);
+            } else {
+              navigate('/contrats');
+            }
+          }}
+          onFillForm={handleAIFillForm}
+          onClose={() => setShowAIAssistant(false)}
+        />
+      )}
+      
       <div className="container py-4 px-3 px-md-4 contrat-form-fade-in" style={{ maxWidth: '700px' }}>
         
-        {/* Header */}
-        <div className="d-flex align-items-center gap-3 mb-4">
-          <button onClick={handleGoBack} className="btn btn-outline-secondary d-flex align-items-center gap-2">
-            <FiArrowLeft size={16} /> Retour
-          </button>
-          <h1 className="h3 fw-bold mb-0" style={{ background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            {isEditMode ? 'Modifier le contrat' : 'Nouveau contrat'}
-          </h1>
+        {/* Affichage du contexte actif pour l'utilisateur */}
+        {currentActif && (
+          <div className="alert alert-info mb-3 py-2" style={{ backgroundColor: 'rgba(0, 255, 247, 0.1)', borderColor: '#00fff7' }}>
+            <small className="d-flex align-items-center gap-2">
+              <FiPackage size={14} />
+              <strong>Contexte :</strong> Contrat pour l'actif <strong>{currentActif.code}</strong> - {currentActif.nom}
+              {currentActif.fournisseur && <span className="text-muted">(Fournisseur: {currentActif.fournisseur})</span>}
+            </small>
+          </div>
+        )}
+        
+        {/* Header avec bouton IA */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex align-items-center gap-3">
+            <button onClick={handleGoBack} className="btn btn-outline-secondary d-flex align-items-center gap-2">
+              <FiArrowLeft size={16} /> Retour
+            </button>
+            <h1 className="h3 fw-bold mb-0" style={{ background: 'linear-gradient(135deg, #00fff7 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              {isEditMode ? 'Modifier le contrat' : 'Nouveau contrat'}
+            </h1>
+          </div>
+          
+          {/* Bouton pour ouvrir l'assistant IA (uniquement en création) */}
+          {!isEditMode && !showAIAssistant && (
+            <button
+              onClick={() => setShowAIAssistant(true)}
+              className="btn btn-outline-primary d-flex align-items-center gap-2 ia-pulse"
+              style={{ borderRadius: '50px' }}
+            >
+              <GiArtificialIntelligence size={18} />
+              Créer avec l'IA
+            </button>
+          )}
         </div>
+
+        {/* Bannière IA contextualisée (si assistant fermé) */}
+        {!isEditMode && !showAIAssistant && (
+          <div className="alert alert-info alert-dismissible fade show mb-3 d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center gap-3">
+              <FiStar size={24} className="text-primary" />
+              <div>
+                <strong className="text-primary">✨ Création assistée par IA</strong>
+                <p className="mb-0 small">
+                  Décrivez votre contrat en langage naturel. 
+                  {currentActif && ` L'IA connaît déjà l'actif "${currentActif.code} - ${currentActif.nom}".`}
+                  <br />
+                  <span className="text-success">✅ Le formulaire sera rempli automatiquement !</span>
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setShowAIAssistant(true)} className="btn btn-primary btn-sm">
+              <GiArtificialIntelligence className="me-1" /> Essayer l'IA
+            </button>
+          </div>
+        )}
 
         {/* Messages */}
         {error && (
@@ -341,10 +478,23 @@ const ContratForm = () => {
         )}
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="contrat-form-slide-in">
+        <form onSubmit={handleSubmit} className="contrat-form-slide-in" ref={formRef}>
           <div className="card shadow-sm border-0 rounded-3">
             <div className="card-body p-4">
               
+              {/* Affichage de l'actif sélectionné (si déjà connu) */}
+              {(id && id !== 'undefined') && (
+                <div className="mb-3">
+                  <label className="form-label fw-semibold d-flex align-items-center gap-2">
+                    <FiPackage size={14} /> Actif associé
+                  </label>
+                  <div className="form-control bg-dark text-white" style={{ cursor: 'default' }}>
+                    {currentActif ? `${currentActif.code} - ${currentActif.nom}` : 'Chargement...'}
+                  </div>
+                  <small className="text-muted">Contrat lié à cet actif</small>
+                </div>
+              )}
+
               {/* Sélection de l'actif (si pas d'ID dans l'URL) */}
               {(!id || id === 'undefined') && !isEditMode && (
                 <div className="mb-3">
@@ -409,7 +559,7 @@ const ContratForm = () => {
                 )}
               </div>
 
-              {/* ✅ Type de contrat (NOUVEAU) */}
+              {/* Type de contrat */}
               <div className="mb-3">
                 <label className="form-label fw-semibold d-flex align-items-center gap-2">
                   <FiTag size={14} /> Type de contrat <span className="text-danger">*</span>

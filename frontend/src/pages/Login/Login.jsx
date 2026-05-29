@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { login } from '../../store/authSlice';
 import { 
-  FiLock, FiMail, FiLogIn, FiShield, FiEye, FiEyeOff,
-  FiAlertCircle, FiCheckCircle, FiBriefcase
+  FiLock, FiMail, FiLogIn, FiEye, FiEyeOff,
+  FiAlertCircle
 } from 'react-icons/fi';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -84,23 +84,32 @@ const Login = () => {
     <>
       <style>{animationStyles}</style>
       <div className="min-vh-100 d-flex align-items-center justify-content-center p-3" style={{ 
-        backgroundColor: '#f0f2f5',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        backgroundImage: 'url("/images/ecran-bcc.png")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
       }}>
         <div className="login-fade-in" style={{ width: '100%', maxWidth: '450px' }}>
           
-          {/* Carte principale */}
-          <div className="card border-0 shadow-lg rounded-4 overflow-hidden">
+          {/* Carte principale - Fond légèrement transparent pour meilleur contraste */}
+          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(10px)' }}>
             
             {/* En-tête avec logo BCC */}
-            <div className="text-center pt-4 pb-2" style={{ backgroundColor: '#ffffff' }}>
+            <div className="text-center pt-4 pb-2" style={{ backgroundColor: 'transparent' }}>
               <div className="mx-auto mb-3 d-flex align-items-center justify-content-center">
-                <div className="rounded-circle bg-primary bg-opacity-10 p-3 d-flex align-items-center justify-content-center" style={{ width: '70px', height: '70px' }}>
-                  <FiShield size={36} className="text-primary" />
+                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ 
+                  width: '70px', 
+                  height: '70px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  backgroundImage: 'url("/images/R.png")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
+                }}>
                 </div>
               </div>
-              <h2 className="h3 fw-bold text-primary mb-1">Banque Centrale du Congo</h2>
-              <p className="text-muted small mb-0">Gestion des Incorporelles</p>
+              <h2 className="h3 fw-bold mb-1" style={{ color: '#ffffff' }}>Banque Centrale du Congo</h2>
+              <p className="small mb-0" style={{ color: 'rgba(255,255,255,0.7)' }}>Gestion des Incorporelles</p>
               <div className="position-relative mt-2 mx-auto" style={{ width: '50px', height: '3px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
             </div>
 
@@ -119,52 +128,54 @@ const Login = () => {
               {/* Formulaire */}
               <form onSubmit={handleSubmit}>
                 
-                {/* Champ Email */}
+                {/* Champ Email - LABEL EN BLANC */}
                 <div className="mb-3">
-                  <label className="form-label fw-semibold small text-secondary d-flex align-items-center gap-1">
-                    <FiMail size={14} /> Adresse email
+                  <label className="form-label fw-semibold small d-flex align-items-center gap-1" style={{ color: '#ffffff' }}>
+                    <FiMail size={14} style={{ color: '#ffffff' }} /> Adresse email
                   </label>
                   <div className="input-group">
-                    <span className="input-group-text bg-white border-end-0">
-                      <FiMail size={16} className="text-muted" />
+                    <span className="input-group-text" style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: 'none' }}>
+                      <FiMail size={16} className="text-primary" />
                     </span>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="form-control border-start-0"
+                      className="form-control"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: 'none' }}
                       placeholder="exemple@bcc.cd"
                       autoComplete="email"
                     />
                   </div>
                 </div>
 
-                {/* Champ Mot de passe */}
+                {/* Champ Mot de passe - LABEL EN BLANC */}
                 <div className="mb-4">
-                  <label className="form-label fw-semibold small text-secondary d-flex align-items-center gap-1">
-                    <FiLock size={14} /> Mot de passe
+                  <label className="form-label fw-semibold small d-flex align-items-center gap-1" style={{ color: '#ffffff' }}>
+                    <FiLock size={14} style={{ color: '#ffffff' }} /> Mot de passe
                   </label>
                   <div className="input-group">
-                    <span className="input-group-text bg-white border-end-0">
-                      <FiLock size={16} className="text-muted" />
+                    <span className="input-group-text" style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: 'none' }}>
+                      <FiLock size={16} className="text-primary" />
                     </span>
                     <input
                       type={showPassword ? "text" : "password"}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="form-control border-start-0"
+                      className="form-control"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: 'none' }}
                       placeholder="********"
                       autoComplete="current-password"
                     />
                     <button
                       type="button"
-                      className="btn btn-outline-secondary border-start-0"
+                      className="btn"
                       onClick={() => setShowPassword(!showPassword)}
-                      style={{ borderLeft: 'none' }}
+                      style={{ backgroundColor: 'rgba(255,255,255,0.9)', border: 'none' }}
                     >
-                      {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                      {showPassword ? <FiEyeOff size={16} className="text-secondary" /> : <FiEye size={16} className="text-secondary" />}
                     </button>
                   </div>
                 </div>
@@ -191,21 +202,21 @@ const Login = () => {
             </div>
 
             {/* Pied de page */}
-            <div className="card-footer bg-white border-top-0 text-center pb-4">
-              <small className="text-muted">
+            <div className="card-footer border-top-0 text-center pb-4" style={{ backgroundColor: 'transparent' }}>
+              <small style={{ color: 'rgba(255,255,255,0.6)' }}>
                 &copy; {new Date().getFullYear()} Banque Centrale du Congo
               </small>
               <div className="mt-1">
-                <small className="text-muted">Système de Gestion des Immobilisations</small>
+                <small style={{ color: 'rgba(255,255,255,0.5)' }}>Système de Gestion des Immobilisations</small>
               </div>
             </div>
           </div>
 
           {/* Version et statut */}
           <div className="text-center mt-3">
-            <small className="text-white-50 d-flex align-items-center justify-content-center gap-2">
-              <span className="badge bg-light text-dark opacity-75">v2.0.0</span>
-              <span className="badge bg-success bg-opacity-50 text-white">● Système opérationnel</span>
+            <small className="d-flex align-items-center justify-content-center gap-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <span className="badge" style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff' }}>v2.0.0</span>
+              <span className="badge bg-success bg-opacity-75 text-white">● Système opérationnel</span>
             </small>
           </div>
         </div>

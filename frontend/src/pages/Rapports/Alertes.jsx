@@ -3,12 +3,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import aiService from '../../services/aiService';
 import { 
   FiAlertCircle, FiClock, FiPackage, FiFileText,
   FiTrendingUp, FiTrendingDown, FiRefreshCw,
   FiEye, FiCalendar, FiMapPin, FiTag, FiFilter,
-  FiChevronRight, FiChevronDown, FiBell, FiX
+  FiChevronRight, FiChevronDown, FiBell, FiX,
+  FiCpu, FiStar, FiCheckCircle, FiInfo, FiShield
 } from 'react-icons/fi';
+import { GiArtificialIntelligence } from 'react-icons/gi';
+import { Modal, Spinner, Button, Badge, ProgressBar } from 'react-bootstrap';
 
 const Alertes = () => {
   const navigate = useNavigate();
@@ -32,6 +36,11 @@ const Alertes = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // États IA
+  const [showAIAnalyse, setShowAIAnalyse] = useState(false);
+  const [aiAnalyse, setAiAnalyse] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
   const fetchAlertes = useCallback(async () => {
     try {
       setLoading(true);
@@ -49,6 +58,65 @@ const Alertes = () => {
       setRefreshing(false);
     }
   }, []);
+
+  // Analyse IA des alertes
+  const handleAIAnalyse = async () => {
+    setAiLoading(true);
+    setShowAIAnalyse(true);
+    try {
+      const response = await api.post('/ai/analyser-alertes', {
+        alertes: alertes,
+        total_alertes: totalAlertes
+      });
+      setAiAnalyse(response.data);
+    } catch (error) {
+      console.error('Erreur analyse IA:', error);
+      
+      // Analyse locale fallback
+      const alertesCritiques = totalAlertesCritiques;
+      const alertesParType = {
+        finLicence: alertes.finLicence?.length || 0,
+        contrats: alertes.echeancesContrats?.length || 0,
+        maintenance: alertes.actifsEnMaintenance?.length || 0,
+        anomalies: alertes.anomalies?.length || 0
+      };
+      
+      const anomalies = [];
+      const recommandations = [];
+      
+      if (alertesCritiques > 0) {
+        anomalies.push(`${alertesCritiques} alerte(s) critique(s) nécessitent une action immédiate`);
+        recommandations.push("Traiter en priorité les alertes critiques");
+      }
+      
+      if (alertesParType.finLicence > 3) {
+        anomalies.push(`${alertesParType.finLicence} licences vont expirer prochainement`);
+        recommandations.push("Planifier le renouvellement des licences");
+      }
+      
+      if (alertesParType.contrats > 5) {
+        anomalies.push(`${alertesParType.contrats} contrats arrivent à échéance`);
+        recommandations.push("Revoir les conditions de renouvellement des contrats");
+      }
+      
+      const scoreUrgence = Math.max(0, 100 - (alertesCritiques * 15) - (totalAlertes * 2));
+      
+      setAiAnalyse({
+        score_urgence: Math.min(100, scoreUrgence),
+        niveau_urgence: scoreUrgence >= 80 ? "faible" : scoreUrgence >= 50 ? "modéré" : "élevé",
+        resume: `Analyse des ${totalAlertes} alertes actives. ${alertesCritiques} alerte(s) critique(s) nécessitent une attention immédiate.`,
+        anomalies: anomalies,
+        recommandations: recommandations,
+        metriques: {
+          total_alertes: totalAlertes,
+          alertes_critiques: alertesCritiques,
+          alertes_par_type: alertesParType
+        }
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -93,7 +161,17 @@ const Alertes = () => {
       case 'haute': return '#f97316';
       case 'moyenne': return '#f59e0b';
       case 'basse': return '#10b981';
-      default: return 'var(--text-secondary)';
+      default: return '#64748b';
+    }
+  };
+
+  const getPrioriteBgColor = (priorite) => {
+    switch(priorite) {
+      case 'critique': return 'rgba(239, 68, 68, 0.1)';
+      case 'haute': return 'rgba(249, 115, 22, 0.1)';
+      case 'moyenne': return 'rgba(245, 158, 11, 0.1)';
+      case 'basse': return 'rgba(16, 185, 129, 0.1)';
+      default: return 'rgba(100, 116, 139, 0.1)';
     }
   };
 
@@ -119,15 +197,15 @@ const Alertes = () => {
   const getDaysBadge = (days) => {
     if (days === null) return null;
     if (days < 0) {
-      return <span style={styles.daysBadgeExpired}>Expiré depuis {Math.abs(days)}j</span>;
+      return <Badge bg="secondary" className="px-2 py-1">Expiré depuis {Math.abs(days)}j</Badge>;
     }
     if (days <= 7) {
-      return <span style={styles.daysBadgeUrgent}>Urgent! {days}j</span>;
+      return <Badge bg="danger" className="px-2 py-1">Urgent! {days}j</Badge>;
     }
     if (days <= 30) {
-      return <span style={styles.daysBadgeWarning}>{days}j restants</span>;
+      return <Badge bg="warning" className="px-2 py-1">{days}j restants</Badge>;
     }
-    return <span style={styles.daysBadgeNormal}>{days}j</span>;
+    return <Badge bg="info" className="px-2 py-1 text-dark">{days}j</Badge>;
   };
 
   const filterAlerte = (alerte) => {
@@ -151,6 +229,12 @@ const Alertes = () => {
     (alertes.actifsEnMaintenance?.length || 0) +
     (alertes.anomalies?.length || 0);
 
+  const totalAlertesCritiques = 
+    (alertes.finLicence?.filter(a => a.priorite === 'critique' || a.priorite === 'haute').length || 0) +
+    (alertes.echeancesContrats?.filter(a => a.priorite === 'critique' || a.priorite === 'haute').length || 0) +
+    (alertes.actifsEnMaintenance?.filter(a => a.priorite === 'critique' || a.priorite === 'haute').length || 0) +
+    (alertes.anomalies?.filter(a => a.priorite === 'critique' || a.priorite === 'haute').length || 0);
+
   const filteredTotal = 
     (alertes.finLicence?.filter(filterAlerte).length || 0) + 
     (alertes.maintenance?.filter(filterAlerte).length || 0) + 
@@ -160,838 +244,488 @@ const Alertes = () => {
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p>Chargement des alertes...</p>
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+        <div className="text-center">
+          <Spinner animation="border" variant="light" className="mb-3" style={{ width: '3rem', height: '3rem' }}>
+            <span className="visually-hidden">Chargement...</span>
+          </Spinner>
+          <p className="text-white">Chargement des alertes...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={styles.errorContainer}>
-        <FiAlertCircle size={48} color="#ef4444" />
-        <p>{error}</p>
-        <button onClick={fetchAlertes} style={styles.retryButton}>
-          <FiRefreshCw /> Réessayer
-        </button>
+      <div className="py-5 text-center" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '100vh' }}>
+        <div className="card border-0 shadow-sm mx-auto" style={{ maxWidth: '500px' }}>
+          <div className="card-body py-5">
+            <FiAlertCircle size={48} className="text-danger mb-3" />
+            <p className="text-danger">{error}</p>
+            <button onClick={fetchAlertes} className="btn btn-danger mt-3">
+              <FiRefreshCw className="me-2" /> Réessayer
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>
-            <FiBell style={styles.titleIcon} />
-            Alertes et échéances
-          </h1>
-          <p style={styles.subtitle}>
-            {filteredTotal} alerte(s) active(s) • Dernière mise à jour: {new Date().toLocaleTimeString('fr-FR')}
-          </p>
-        </div>
-        <button onClick={handleRefresh} style={styles.refreshButton} disabled={refreshing}>
-          <FiRefreshCw className={refreshing ? 'spin' : ''} />
-          {refreshing ? 'Actualisation...' : 'Actualiser'}
-        </button>
-      </div>
-
-      {/* Filtres et recherche */}
-      <div style={styles.filtersContainer}>
-        <div style={styles.filterBar}>
-          <FiFilter size={18} style={styles.filterIcon} />
-          <button 
-            onClick={() => setFilter('all')} 
-            style={filter === 'all' ? styles.filterActive : styles.filterButton}
-          >
-            Toutes
-          </button>
-          <button 
-            onClick={() => setFilter('critique')} 
-            style={filter === 'critique' ? styles.filterActive : styles.filterButton}
-          >
-            <span style={styles.critiqueDot}></span>
-            Critique
-          </button>
-          <button 
-            onClick={() => setFilter('haute')} 
-            style={filter === 'haute' ? styles.filterActive : styles.filterButton}
-          >
-            <span style={styles.hauteDot}></span>
-            Haute
-          </button>
-          <button 
-            onClick={() => setFilter('moyenne')} 
-            style={filter === 'moyenne' ? styles.filterActive : styles.filterButton}
-          >
-            <span style={styles.moyenneDot}></span>
-            Moyenne
-          </button>
-          <button 
-            onClick={() => setFilter('basse')} 
-            style={filter === 'basse' ? styles.filterActive : styles.filterButton}
-          >
-            <span style={styles.basseDot}></span>
-            Basse
-          </button>
-        </div>
+    <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+      <div className="container py-4 px-3 px-md-4" style={{ maxWidth: '1400px' }}>
         
-        <div style={styles.searchWrapper}>
-          <input
-            type="text"
-            placeholder="Rechercher par code ou nom..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={styles.searchInput}
-          />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} style={styles.clearSearch}>
-              <FiX size={14} />
+        {/* Modal Analyse IA */}
+        <Modal show={showAIAnalyse} onHide={() => setShowAIAnalyse(false)} size="lg" centered>
+          <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', color: 'white', borderBottom: 'none' }}>
+            <Modal.Title className="d-flex align-items-center gap-2">
+              <GiArtificialIntelligence size={24} /> Analyse IA des alertes
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)' }}>
+            {aiLoading ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" variant="primary" />
+                <p className="mt-3 text-white">Analyse en cours...</p>
+              </div>
+            ) : aiAnalyse ? (
+              <div>
+                <div className="text-center mb-4">
+                  <div className="display-4 fw-bold" style={{ color: aiAnalyse.score_urgence >= 80 ? '#10b981' : aiAnalyse.score_urgence >= 50 ? '#f59e0b' : '#ef4444' }}>
+                    {aiAnalyse.score_urgence || 75}/100
+                  </div>
+                  <Badge bg={aiAnalyse.score_urgence >= 80 ? 'success' : aiAnalyse.score_urgence >= 50 ? 'warning' : 'danger'}>
+                    Niveau d'urgence
+                  </Badge>
+                </div>
+                
+                <div className="mb-3 p-3 rounded" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderLeft: '4px solid #06b6d4' }}>
+                  <strong className="text-info">📋 Résumé</strong>
+                  <p className="mt-2 text-white-50">{aiAnalyse.resume}</p>
+                </div>
+                
+                {aiAnalyse.metriques && (
+                  <div className="mb-3 p-3 rounded" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' }}>
+                    <strong className="text-warning">📊 Métriques clés</strong>
+                    <div className="row mt-2">
+                      <div className="col-6">
+                        <small className="text-muted">Total alertes</small>
+                        <div className="fw-bold text-white">{aiAnalyse.metriques.total_alertes}</div>
+                      </div>
+                      <div className="col-6">
+                        <small className="text-muted">Alertes critiques</small>
+                        <div className="fw-bold text-danger">{aiAnalyse.metriques.alertes_critiques}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {aiAnalyse.anomalies && aiAnalyse.anomalies.length > 0 && (
+                  <div className="mb-3 p-3 rounded" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderLeft: '4px solid #ef4444' }}>
+                    <strong className="text-danger">⚠️ Points d'attention</strong>
+                    <ul className="mt-2 mb-0">
+                      {aiAnalyse.anomalies.map((a, i) => (
+                        <li key={i} className="text-white-50 small">{a}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {aiAnalyse.recommandations && aiAnalyse.recommandations.length > 0 && (
+                  <div className="mb-3 p-3 rounded" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', borderLeft: '4px solid #10b981' }}>
+                    <strong className="text-success">💡 Recommandations</strong>
+                    <ul className="mt-2 mb-0">
+                      {aiAnalyse.recommandations.map((r, i) => (
+                        <li key={i} className="text-white-50 small">{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-center text-white-50">Cliquez sur "Analyser" pour générer un rapport IA</p>
+            )}
+          </Modal.Body>
+          <Modal.Footer style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%)', borderTop: '1px solid #333' }}>
+            <Button variant="secondary" onClick={() => setShowAIAnalyse(false)}>Fermer</Button>
+            <Button variant="primary" onClick={handleAIAnalyse} disabled={aiLoading} className="d-flex align-items-center gap-2">
+              {aiLoading ? <Spinner size="sm" animation="border" /> : <><GiArtificialIntelligence className="me-1" /> Analyser avec l'IA</>}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+        
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <div>
+            <h1 className="display-6 fw-bold text-white mb-1 d-flex align-items-center gap-2">
+              <FiBell size={32} /> Alertes et échéances
+            </h1>
+            <p className="text-white-50 small mb-0">
+              {filteredTotal} alerte(s) active(s) • Dernière mise à jour: {new Date().toLocaleTimeString('fr-FR')}
+            </p>
+          </div>
+          <div className="d-flex gap-2 flex-wrap">
+            <Button variant="outline-light" onClick={handleAIAnalyse} className="d-flex align-items-center gap-2">
+              <GiArtificialIntelligence size={16} /> Analyse IA
+            </Button>
+            <Button variant="light" onClick={handleRefresh} disabled={refreshing} className="d-flex align-items-center gap-2">
+              <FiRefreshCw size={16} className={refreshing ? 'spin' : ''} />
+              {refreshing ? 'Actualisation...' : 'Actualiser'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Filtres et recherche */}
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <div className="d-flex align-items-center gap-2 flex-wrap p-1 rounded" style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '12px' }}>
+            <FiFilter size={18} className="text-primary mx-2" />
+            <button 
+              onClick={() => setFilter('all')} 
+              className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
+            >
+              Toutes
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Résumé */}
-      <div style={styles.summaryGrid}>
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryIconWrapper}>
-            <FiBell size={20} color="#3b82f6" />
+            <button 
+              onClick={() => setFilter('critique')} 
+              className={`btn btn-sm d-flex align-items-center gap-1 ${filter === 'critique' ? 'btn-danger' : 'btn-outline-danger'}`}
+            >
+              <span className="bg-danger rounded-circle" style={{ width: '8px', height: '8px' }}></span>
+              Critique
+            </button>
+            <button 
+              onClick={() => setFilter('haute')} 
+              className={`btn btn-sm d-flex align-items-center gap-1 ${filter === 'haute' ? 'btn-warning' : 'btn-outline-warning'}`}
+            >
+              <span className="bg-warning rounded-circle" style={{ width: '8px', height: '8px' }}></span>
+              Haute
+            </button>
+            <button 
+              onClick={() => setFilter('moyenne')} 
+              className={`btn btn-sm d-flex align-items-center gap-1 ${filter === 'moyenne' ? 'btn-info' : 'btn-outline-info'}`}
+            >
+              <span className="bg-info rounded-circle" style={{ width: '8px', height: '8px' }}></span>
+              Moyenne
+            </button>
+            <button 
+              onClick={() => setFilter('basse')} 
+              className={`btn btn-sm d-flex align-items-center gap-1 ${filter === 'basse' ? 'btn-success' : 'btn-outline-success'}`}
+            >
+              <span className="bg-success rounded-circle" style={{ width: '8px', height: '8px' }}></span>
+              Basse
+            </button>
           </div>
-          <div>
-            <div style={styles.summaryNumber}>{filteredTotal}</div>
-            <div style={styles.summaryLabel}>Alertes totales</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#fef3c7' }}>
-            <FiTrendingUp size={20} color="#f59e0b" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{getSectionCount('finLicence')}</div>
-            <div style={styles.summaryLabel}>Fin de licence</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#dbeafe' }}>
-            <FiFileText size={20} color="#2563eb" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{getSectionCount('echeancesContrats')}</div>
-            <div style={styles.summaryLabel}>Échéances contrats</div>
-          </div>
-        </div>
-        <div style={styles.summaryCard}>
-          <div style={{ ...styles.summaryIconWrapper, backgroundColor: '#fee2e2' }}>
-            <FiTrendingDown size={20} color="#ef4444" />
-          </div>
-          <div>
-            <div style={styles.summaryNumber}>{getSectionCount('actifsEnMaintenance')}</div>
-            <div style={styles.summaryLabel}>Actifs en maintenance</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Liste des alertes */}
-      <div style={styles.alertesList}>
-        {/* Alertes fin de licence */}
-        {alertes.finLicence?.length > 0 && getSectionCount('finLicence') > 0 && (
-          <div style={styles.section}>
-            <div style={styles.sectionHeader} onClick={() => toggleSection('finLicence')}>
-              <div style={styles.sectionTitle}>
-                <FiTrendingUp style={{ color: '#f59e0b' }} />
-                <span>Fins de licence imminentes</span>
-                <span style={styles.sectionCount}>{getSectionCount('finLicence')}</span>
-              </div>
-              <div style={styles.sectionToggle}>
-                {expandedSections.finLicence ? <FiChevronDown /> : <FiChevronRight />}
-              </div>
-            </div>
-            {expandedSections.finLicence && (
-              <div style={styles.sectionContent}>
-                {alertes.finLicence.filter(filterAlerte).map((alerte, index) => {
-                  const daysRemaining = getDaysRemaining(alerte.date);
-                  const actifId = alerte.id || alerte.actif_id;
-                  return (
-                    <div 
-                      key={index} 
-                      style={styles.alerteCard} 
-                      onClick={() => handleViewActif(actifId)}
-                    >
-                      <div style={styles.alerteIcon}>
-                        <FiClock size={20} color="#f59e0b" />
-                      </div>
-                      <div style={styles.alerteContent}>
-                        <div style={styles.alerteTitle}>
-                          <span style={styles.alerteCode}>{alerte.code}</span>
-                          <span style={styles.alerteNom}>{alerte.nom}</span>
-                        </div>
-                        <div style={styles.alerteDate}>
-                          <FiCalendar size={12} /> Expire le {formatDate(alerte.date)}
-                        </div>
-                      </div>
-                      <div style={styles.alerteRight}>
-                        {getDaysBadge(daysRemaining)}
-                        <div style={{ ...styles.prioriteBadge, backgroundColor: getPrioriteColor(alerte.priorite) }}>
-                          {getPrioriteLabel(alerte.priorite)}
-                        </div>
-                        <FiEye size={16} style={styles.viewIcon} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Alertes échéances contrats */}
-        {alertes.echeancesContrats?.length > 0 && getSectionCount('echeancesContrats') > 0 && (
-          <div style={styles.section}>
-            <div style={styles.sectionHeader} onClick={() => toggleSection('echeancesContrats')}>
-              <div style={styles.sectionTitle}>
-                <FiFileText style={{ color: '#2563eb' }} />
-                <span>Échéances de contrats</span>
-                <span style={styles.sectionCount}>{getSectionCount('echeancesContrats')}</span>
-              </div>
-              <div style={styles.sectionToggle}>
-                {expandedSections.echeancesContrats ? <FiChevronDown /> : <FiChevronRight />}
-              </div>
-            </div>
-            {expandedSections.echeancesContrats && (
-              <div style={styles.sectionContent}>
-                {alertes.echeancesContrats.filter(filterAlerte).map((alerte, index) => {
-                  const daysRemaining = getDaysRemaining(alerte.date);
-                  const actifId = alerte.id || alerte.actif_id;
-                  return (
-                    <div 
-                      key={index} 
-                      style={styles.alerteCard} 
-                      onClick={() => handleViewActif(actifId)}
-                    >
-                      <div style={styles.alerteIcon}>
-                        <FiFileText size={20} color="#2563eb" />
-                      </div>
-                      <div style={styles.alerteContent}>
-                        <div style={styles.alerteTitle}>
-                          <span style={styles.alerteCode}>{alerte.code}</span>
-                          <span style={styles.alerteNom}>{alerte.nom}</span>
-                        </div>
-                        <div style={styles.alerteDate}>
-                          <FiCalendar size={12} /> Contrat expire le {formatDate(alerte.date)}
-                        </div>
-                      </div>
-                      <div style={styles.alerteRight}>
-                        {getDaysBadge(daysRemaining)}
-                        <div style={{ ...styles.prioriteBadge, backgroundColor: getPrioriteColor(alerte.priorite) }}>
-                          {getPrioriteLabel(alerte.priorite)}
-                        </div>
-                        <FiEye size={16} style={styles.viewIcon} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Alertes maintenance */}
-        {alertes.maintenance?.length > 0 && getSectionCount('maintenance') > 0 && (
-          <div style={styles.section}>
-            <div style={styles.sectionHeader} onClick={() => toggleSection('maintenance')}>
-              <div style={styles.sectionTitle}>
-                <FiPackage style={{ color: '#10b981' }} />
-                <span>Maintenances à prévoir</span>
-                <span style={styles.sectionCount}>{getSectionCount('maintenance')}</span>
-              </div>
-              <div style={styles.sectionToggle}>
-                {expandedSections.maintenance ? <FiChevronDown /> : <FiChevronRight />}
-              </div>
-            </div>
-            {expandedSections.maintenance && (
-              <div style={styles.sectionContent}>
-                {alertes.maintenance.filter(filterAlerte).map((alerte, index) => {
-                  const daysRemaining = getDaysRemaining(alerte.date);
-                  const actifId = alerte.id || alerte.actif_id;
-                  return (
-                    <div 
-                      key={index} 
-                      style={styles.alerteCard} 
-                      onClick={() => handleViewActif(actifId)}
-                    >
-                      <div style={styles.alerteIcon}>
-                        <FiPackage size={20} color="#10b981" />
-                      </div>
-                      <div style={styles.alerteContent}>
-                        <div style={styles.alerteTitle}>
-                          <span style={styles.alerteCode}>{alerte.code}</span>
-                          <span style={styles.alerteNom}>{alerte.nom}</span>
-                        </div>
-                        <div style={styles.alerteDate}>
-                          <FiCalendar size={12} /> Maintenance due le {formatDate(alerte.date)}
-                        </div>
-                      </div>
-                      <div style={styles.alerteRight}>
-                        {getDaysBadge(daysRemaining)}
-                        <div style={{ ...styles.prioriteBadge, backgroundColor: getPrioriteColor(alerte.priorite) }}>
-                          {getPrioriteLabel(alerte.priorite)}
-                        </div>
-                        <FiEye size={16} style={styles.viewIcon} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Alertes actifs en maintenance */}
-        {alertes.actifsEnMaintenance?.length > 0 && getSectionCount('actifsEnMaintenance') > 0 && (
-          <div style={styles.section}>
-            <div style={styles.sectionHeader} onClick={() => toggleSection('actifsEnMaintenance')}>
-              <div style={styles.sectionTitle}>
-                <FiTrendingDown style={{ color: '#ef4444' }} />
-                <span>Actifs en maintenance/réparation</span>
-                <span style={styles.sectionCount}>{getSectionCount('actifsEnMaintenance')}</span>
-              </div>
-              <div style={styles.sectionToggle}>
-                {expandedSections.actifsEnMaintenance ? <FiChevronDown /> : <FiChevronRight />}
-              </div>
-            </div>
-            {expandedSections.actifsEnMaintenance && (
-              <div style={styles.sectionContent}>
-                {alertes.actifsEnMaintenance.filter(filterAlerte).map((alerte, index) => {
-                  const actifId = alerte.id || alerte.actif_id;
-                  return (
-                    <div 
-                      key={index} 
-                      style={styles.alerteCard} 
-                      onClick={() => handleViewActif(actifId)}
-                    >
-                      <div style={styles.alerteIcon}>
-                        <FiTrendingDown size={20} color="#ef4444" />
-                      </div>
-                      <div style={styles.alerteContent}>
-                        <div style={styles.alerteTitle}>
-                          <span style={styles.alerteCode}>{alerte.code}</span>
-                          <span style={styles.alerteNom}>{alerte.nom}</span>
-                        </div>
-                        <div style={styles.alerteDate}>
-                          <FiTag size={12} /> État: <span style={{ color: getPrioriteColor(alerte.priorite) }}>{alerte.etat}</span>
-                          {alerte.localisation && <span><FiMapPin size={12} style={{ marginLeft: '0.75rem' }} /> {alerte.localisation}</span>}
-                        </div>
-                      </div>
-                      <div style={styles.alerteRight}>
-                        <div style={{ ...styles.prioriteBadge, backgroundColor: getPrioriteColor(alerte.priorite) }}>
-                          {getPrioriteLabel(alerte.priorite)}
-                        </div>
-                        <FiEye size={16} style={styles.viewIcon} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Alertes anomalies */}
-        {alertes.anomalies?.length > 0 && getSectionCount('anomalies') > 0 && (
-          <div style={styles.section}>
-            <div style={styles.sectionHeader} onClick={() => toggleSection('anomalies')}>
-              <div style={styles.sectionTitle}>
-                <FiAlertCircle style={{ color: '#ef4444' }} />
-                <span>Anomalies non résolues</span>
-                <span style={styles.sectionCount}>{getSectionCount('anomalies')}</span>
-              </div>
-              <div style={styles.sectionToggle}>
-                {expandedSections.anomalies ? <FiChevronDown /> : <FiChevronRight />}
-              </div>
-            </div>
-            {expandedSections.anomalies && (
-              <div style={styles.sectionContent}>
-                {alertes.anomalies.filter(filterAlerte).map((alerte, index) => {
-                  const actifId = alerte.id || alerte.actif_id;
-                  return (
-                    <div 
-                      key={index} 
-                      style={styles.alerteCard} 
-                      onClick={() => handleViewActif(actifId)}
-                    >
-                      <div style={styles.alerteIcon}>
-                        <FiAlertCircle size={20} color="#ef4444" />
-                      </div>
-                      <div style={styles.alerteContent}>
-                        <div style={styles.alerteTitle}>
-                          <span style={styles.alerteCode}>{alerte.code}</span>
-                          <span style={styles.alerteNom}>{alerte.nom}</span>
-                        </div>
-                        <div style={styles.alerteDate}>
-                          <FiCalendar size={12} /> Signalé le {formatDate(alerte.date)}
-                        </div>
-                      </div>
-                      <div style={styles.alerteRight}>
-                        <div style={{ ...styles.prioriteBadge, backgroundColor: getPrioriteColor(alerte.priorite) }}>
-                          {getPrioriteLabel(alerte.priorite)}
-                        </div>
-                        <FiEye size={16} style={styles.viewIcon} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {filteredTotal === 0 && (
-          <div style={styles.emptyState}>
-            <FiAlertCircle size={48} color="#cbd5e1" />
-            <p>Aucune alerte trouvée</p>
-            {(filter !== 'all' || searchTerm) && (
-              <button onClick={() => { setFilter('all'); setSearchTerm(''); }} style={styles.resetButton}>
-                Réinitialiser les filtres
+          
+          <div className="position-relative" style={{ minWidth: '250px' }}>
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="Rechercher par code ou nom..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingRight: '2rem', background: 'rgba(255,255,255,0.95)' }}
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="btn btn-link position-absolute p-0 text-muted"
+                style={{ right: '8px', top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <FiX size={14} />
               </button>
             )}
           </div>
-        )}
+        </div>
+
+        {/* Résumé avec cartes colorées */}
+        <div className="row g-3 mb-4">
+          <div className="col-12 col-sm-6 col-md-3">
+            <div className="card border-0 shadow-lg text-center h-100" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)', color: 'white' }}>
+              <div className="card-body">
+                <FiBell size={28} className="mb-2 opacity-75" />
+                <div className="display-4 fw-bold mb-0">{filteredTotal}</div>
+                <small className="opacity-75">Alertes totales</small>
+              </div>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-md-3">
+            <div className="card border-0 shadow-lg text-center h-100" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white' }}>
+              <div className="card-body">
+                <FiTrendingUp size={28} className="mb-2 opacity-75" />
+                <div className="display-4 fw-bold mb-0">{getSectionCount('finLicence')}</div>
+                <small className="opacity-75">Fin de licence</small>
+              </div>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-md-3">
+            <div className="card border-0 shadow-lg text-center h-100" style={{ background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)', color: 'white' }}>
+              <div className="card-body">
+                <FiFileText size={28} className="mb-2 opacity-75" />
+                <div className="display-4 fw-bold mb-0">{getSectionCount('echeancesContrats')}</div>
+                <small className="opacity-75">Échéances contrats</small>
+              </div>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-md-3">
+            <div className="card border-0 shadow-lg text-center h-100" style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'white' }}>
+              <div className="card-body">
+                <FiTrendingDown size={28} className="mb-2 opacity-75" />
+                <div className="display-4 fw-bold mb-0">{getSectionCount('actifsEnMaintenance')}</div>
+                <small className="opacity-75">En maintenance</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Liste des alertes */}
+        <div className="d-flex flex-column gap-3">
+          {/* Alertes fin de licence */}
+          {alertes.finLicence?.length > 0 && getSectionCount('finLicence') > 0 && (
+            <div className="card border-0 shadow-lg rounded-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.95)' }}>
+              <div 
+                className="card-header d-flex justify-content-between align-items-center cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: 'white', cursor: 'pointer' }}
+                onClick={() => toggleSection('finLicence')}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <FiTrendingUp size={18} />
+                  <strong>Fins de licence imminentes</strong>
+                  <Badge bg="light" text="dark" className="ms-2">{getSectionCount('finLicence')}</Badge>
+                </div>
+                {expandedSections.finLicence ? <FiChevronDown /> : <FiChevronRight />}
+              </div>
+              {expandedSections.finLicence && (
+                <div className="list-group list-group-flush">
+                  {alertes.finLicence.filter(filterAlerte).map((alerte, index) => {
+                    const daysRemaining = getDaysRemaining(alerte.date);
+                    const actifId = alerte.id || alerte.actif_id;
+                    return (
+                      <div 
+                        key={index} 
+                        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleViewActif(actifId)}
+                      >
+                        <div className="bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                          <FiClock size={20} color="#f59e0b" />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <code className="bg-light px-2 py-1 rounded small">{alerte.code}</code>
+                            <span className="fw-semibold">{alerte.nom}</span>
+                          </div>
+                          <div className="small text-muted d-flex align-items-center gap-2 mt-1">
+                            <FiCalendar size={12} /> Expire le {formatDate(alerte.date)}
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          {getDaysBadge(daysRemaining)}
+                          <Badge style={{ backgroundColor: getPrioriteColor(alerte.priorite) }}>
+                            {getPrioriteLabel(alerte.priorite)}
+                          </Badge>
+                          <FiEye size={16} className="text-muted" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Alertes échéances contrats */}
+          {alertes.echeancesContrats?.length > 0 && getSectionCount('echeancesContrats') > 0 && (
+            <div className="card border-0 shadow-lg rounded-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.95)' }}>
+              <div 
+                className="card-header d-flex justify-content-between align-items-center cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)', color: 'white', cursor: 'pointer' }}
+                onClick={() => toggleSection('echeancesContrats')}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <FiFileText size={18} />
+                  <strong>Échéances de contrats</strong>
+                  <Badge bg="light" text="dark" className="ms-2">{getSectionCount('echeancesContrats')}</Badge>
+                </div>
+                {expandedSections.echeancesContrats ? <FiChevronDown /> : <FiChevronRight />}
+              </div>
+              {expandedSections.echeancesContrats && (
+                <div className="list-group list-group-flush">
+                  {alertes.echeancesContrats.filter(filterAlerte).map((alerte, index) => {
+                    const daysRemaining = getDaysRemaining(alerte.date);
+                    const actifId = alerte.id || alerte.actif_id;
+                    return (
+                      <div 
+                        key={index} 
+                        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleViewActif(actifId)}
+                      >
+                        <div className="bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                          <FiFileText size={20} color="#3b82f6" />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <code className="bg-light px-2 py-1 rounded small">{alerte.code}</code>
+                            <span className="fw-semibold">{alerte.nom}</span>
+                          </div>
+                          <div className="small text-muted d-flex align-items-center gap-2 mt-1">
+                            <FiCalendar size={12} /> Contrat expire le {formatDate(alerte.date)}
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          {getDaysBadge(daysRemaining)}
+                          <Badge style={{ backgroundColor: getPrioriteColor(alerte.priorite) }}>
+                            {getPrioriteLabel(alerte.priorite)}
+                          </Badge>
+                          <FiEye size={16} className="text-muted" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Alertes actifs en maintenance */}
+          {alertes.actifsEnMaintenance?.length > 0 && getSectionCount('actifsEnMaintenance') > 0 && (
+            <div className="card border-0 shadow-lg rounded-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.95)' }}>
+              <div 
+                className="card-header d-flex justify-content-between align-items-center cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'white', cursor: 'pointer' }}
+                onClick={() => toggleSection('actifsEnMaintenance')}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <FiTrendingDown size={18} />
+                  <strong>Actifs en maintenance/réparation</strong>
+                  <Badge bg="light" text="dark" className="ms-2">{getSectionCount('actifsEnMaintenance')}</Badge>
+                </div>
+                {expandedSections.actifsEnMaintenance ? <FiChevronDown /> : <FiChevronRight />}
+              </div>
+              {expandedSections.actifsEnMaintenance && (
+                <div className="list-group list-group-flush">
+                  {alertes.actifsEnMaintenance.filter(filterAlerte).map((alerte, index) => {
+                    const actifId = alerte.id || alerte.actif_id;
+                    return (
+                      <div 
+                        key={index} 
+                        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleViewActif(actifId)}
+                      >
+                        <div className="bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                          <FiTrendingDown size={20} color="#ef4444" />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <code className="bg-light px-2 py-1 rounded small">{alerte.code}</code>
+                            <span className="fw-semibold">{alerte.nom}</span>
+                          </div>
+                          <div className="small text-muted d-flex align-items-center gap-2 mt-1">
+                            <FiTag size={12} /> État: <span style={{ color: getPrioriteColor(alerte.priorite) }}>{alerte.etat}</span>
+                            {alerte.localisation && <span><FiMapPin size={12} className="ms-2" /> {alerte.localisation}</span>}
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          <Badge style={{ backgroundColor: getPrioriteColor(alerte.priorite) }}>
+                            {getPrioriteLabel(alerte.priorite)}
+                          </Badge>
+                          <FiEye size={16} className="text-muted" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Alertes anomalies */}
+          {alertes.anomalies?.length > 0 && getSectionCount('anomalies') > 0 && (
+            <div className="card border-0 shadow-lg rounded-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.95)' }}>
+              <div 
+                className="card-header d-flex justify-content-between align-items-center cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: 'white', cursor: 'pointer' }}
+                onClick={() => toggleSection('anomalies')}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <FiAlertCircle size={18} />
+                  <strong>Anomalies non résolues</strong>
+                  <Badge bg="light" text="dark" className="ms-2">{getSectionCount('anomalies')}</Badge>
+                </div>
+                {expandedSections.anomalies ? <FiChevronDown /> : <FiChevronRight />}
+              </div>
+              {expandedSections.anomalies && (
+                <div className="list-group list-group-flush">
+                  {alertes.anomalies.filter(filterAlerte).map((alerte, index) => {
+                    const actifId = alerte.id || alerte.actif_id;
+                    return (
+                      <div 
+                        key={index} 
+                        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleViewActif(actifId)}
+                      >
+                        <div className="bg-light rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                          <FiAlertCircle size={20} color="#8b5cf6" />
+                        </div>
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <code className="bg-light px-2 py-1 rounded small">{alerte.code}</code>
+                            <span className="fw-semibold">{alerte.nom}</span>
+                          </div>
+                          <div className="small text-muted d-flex align-items-center gap-2 mt-1">
+                            <FiCalendar size={12} /> Signalé le {formatDate(alerte.date)}
+                          </div>
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          <Badge style={{ backgroundColor: getPrioriteColor(alerte.priorite) }}>
+                            {getPrioriteLabel(alerte.priorite)}
+                          </Badge>
+                          <FiEye size={16} className="text-muted" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {filteredTotal === 0 && (
+            <div className="text-center py-5" style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '16px' }}>
+              <FiAlertCircle size={48} className="text-muted opacity-50 mb-3" />
+              <p className="text-muted">Aucune alerte trouvée</p>
+              {(filter !== 'all' || searchTerm) && (
+                <button 
+                  onClick={() => { setFilter('all'); setSearchTerm(''); }} 
+                  className="btn btn-primary btn-sm mt-2"
+                >
+                  Réinitialiser les filtres
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center mt-4">
+          <small className="text-white-50 d-flex align-items-center justify-content-center gap-2 flex-wrap">
+            <FiShield size={12} /> Données en temps réel — Alertes générées automatiquement
+          </small>
+        </div>
+
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .spin { animation: spin 1s linear infinite; }
+          .cursor-pointer { cursor: pointer; }
+          .list-group-item-action:hover { background-color: rgba(37, 99, 235, 0.05) !important; }
+        `}</style>
       </div>
     </div>
   );
 };
-
-// ============ STYLES ============
-
-const styles = {
-  container: {
-    padding: '2rem',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    minHeight: 'calc(100vh - 64px)',
-    backgroundColor: 'var(--bg-primary)'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  title: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    fontSize: '1.8rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    margin: 0
-  },
-  titleIcon: {
-    color: '#3b82f6'
-  },
-  subtitle: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    marginTop: '0.5rem'
-  },
-  refreshButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f8fafc',
-      borderColor: '#cbd5e1'
-    },
-    ':disabled': {
-      opacity: 0.5,
-      cursor: 'not-allowed'
-    }
-  },
-  filtersContainer: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  filterBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-    padding: '0.25rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0'
-  },
-  filterIcon: {
-    color: '#94a3b8',
-    margin: '0 0.5rem'
-  },
-  filterButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    ':hover': {
-      backgroundColor: 'var(--bg-primary)'
-    }
-  },
-  filterActive: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#3b82f6',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: 'var(--bg-card)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  critiqueDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    backgroundColor: '#ef4444',
-    display: 'inline-block'
-  },
-  hauteDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    backgroundColor: '#f97316',
-    display: 'inline-block'
-  },
-  moyenneDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    backgroundColor: '#f59e0b',
-    display: 'inline-block'
-  },
-  basseDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    backgroundColor: '#10b981',
-    display: 'inline-block'
-  },
-  searchWrapper: {
-    position: 'relative',
-    minWidth: '250px'
-  },
-  searchInput: {
-    width: '100%',
-    padding: '0.5rem 2rem 0.5rem 1rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-card)',
-    transition: 'all 0.2s',
-    ':focus': {
-      outline: 'none',
-      borderColor: '#3b82f6',
-      boxShadow: '0 0 0 2px rgba(59,130,246,0.1)'
-    }
-  },
-  clearSearch: {
-    position: 'absolute',
-    right: '8px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#94a3b8',
-    padding: '4px',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  summaryGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1rem',
-    marginBottom: '2rem'
-  },
-  summaryCard: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    padding: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-    border: '1px solid #e2e8f0',
-    transition: 'all 0.2s',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-    }
-  },
-  summaryIconWrapper: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    backgroundColor: '#eff6ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  summaryNumber: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: 'var(--text-primary)'
-  },
-  summaryLabel: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  alertesList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
-  section: {
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden'
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem 1.25rem',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    ':hover': {
-      backgroundColor: '#f8fafc'
-    }
-  },
-  sectionTitle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: 'var(--text-primary)'
-  },
-  sectionCount: {
-    backgroundColor: 'var(--bg-primary)',
-    padding: '0.125rem 0.5rem',
-    borderRadius: '20px',
-    fontSize: '0.7rem',
-    fontWeight: '500',
-    color: '#475569',
-    marginLeft: '0.5rem'
-  },
-  sectionToggle: {
-    color: '#94a3b8'
-  },
-  sectionContent: {
-    borderTop: '1px solid #e2e8f0'
-  },
-  alerteCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1rem 1.25rem',
-    borderBottom: '1px solid #f1f5f9',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    ':hover': {
-      backgroundColor: '#f8fafc'
-    },
-    ':last-child': {
-      borderBottom: 'none'
-    }
-  },
-  alerteIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '10px',
-    backgroundColor: '#f8fafc',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0
-  },
-  alerteContent: {
-    flex: 1,
-    minWidth: 0
-  },
-  alerteTitle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-    marginBottom: '0.25rem'
-  },
-  alerteCode: {
-    fontFamily: 'monospace',
-    backgroundColor: 'var(--bg-primary)',
-    padding: '0.125rem 0.375rem',
-    borderRadius: '4px',
-    fontSize: '0.7rem',
-    color: '#1e293b'
-  },
-  alerteNom: {
-    fontWeight: '500',
-    color: 'var(--text-primary)'
-  },
-  alerteDate: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.25rem'
-  },
-  alerteRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    flexShrink: 0
-  },
-  prioriteBadge: {
-    padding: '0.125rem 0.5rem',
-    borderRadius: '6px',
-    fontSize: '0.7rem',
-    fontWeight: '600',
-    color: 'var(--bg-card)',
-    textTransform: 'uppercase'
-  },
-  daysBadgeUrgent: {
-    backgroundColor: '#ef4444',
-    color: 'var(--bg-card)',
-    padding: '0.125rem 0.5rem',
-    borderRadius: '6px',
-    fontSize: '0.7rem',
-    fontWeight: '500'
-  },
-  daysBadgeWarning: {
-    backgroundColor: '#f59e0b',
-    color: 'var(--bg-card)',
-    padding: '0.125rem 0.5rem',
-    borderRadius: '6px',
-    fontSize: '0.7rem',
-    fontWeight: '500'
-  },
-  daysBadgeNormal: {
-    backgroundColor: 'var(--border-color)',
-    color: '#475569',
-    padding: '0.125rem 0.5rem',
-    borderRadius: '6px',
-    fontSize: '0.7rem',
-    fontWeight: '500'
-  },
-  daysBadgeExpired: {
-    backgroundColor: '#94a3b8',
-    color: 'var(--bg-card)',
-    padding: '0.125rem 0.5rem',
-    borderRadius: '6px',
-    fontSize: '0.7rem',
-    fontWeight: '500'
-  },
-  viewIcon: {
-    color: '#94a3b8',
-    transition: 'color 0.2s',
-    ':hover': {
-      color: '#3b82f6'
-    }
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    color: '#94a3b8'
-  },
-  resetButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-primary)',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    color: '#475569',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: 'var(--border-color)'
-    }
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-    gap: '1rem',
-    color: 'var(--text-secondary)'
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid #e2e8f0',
-    borderTop: '3px solid #3b82f6',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  },
-  errorContainer: {
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'var(--bg-card)',
-    borderRadius: '12px',
-    border: '1px solid #fee2e2',
-    color: '#ef4444'
-  },
-  retryButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#ef4444',
-    color: 'var(--bg-card)',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  }
-};
-
-// Ajouter l'animation spin
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default Alertes;

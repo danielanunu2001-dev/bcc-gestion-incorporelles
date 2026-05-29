@@ -5,75 +5,76 @@ const { DataTypes } = require('sequelize');
 module.exports = (sequelize) => {
   const Devise = sequelize.define('Devise', {
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.INTEGER,  // ← Changé de UUID à INTEGER
+      autoIncrement: true,
       primaryKey: true
     },
     code: {
       type: DataTypes.STRING(3),
       allowNull: false,
       unique: true,
-      comment: 'USD, EUR, GBP, etc.'
+      validate: {
+        len: [3, 3]
+      }
     },
     nom: {
       type: DataTypes.STRING(50),
-      allowNull: false,
-      comment: 'Dollar US, Euro, etc.'
+      allowNull: false
     },
     symbole: {
       type: DataTypes.STRING(5),
-      allowNull: false,
-      comment: '$, €, £, etc.'
+      allowNull: false
     },
     taux_achat: {
       type: DataTypes.DECIMAL(15, 6),
       allowNull: false,
       defaultValue: 1,
-      comment: "Taux d'achat (BCC vend des devises)"
+      field: 'taux_achat'
     },
     taux_vente: {
       type: DataTypes.DECIMAL(15, 6),
       allowNull: false,
       defaultValue: 1,
-      comment: "Taux de vente (BCC achète des devises)"
+      field: 'taux_vente'
     },
     taux_moyen: {
       type: DataTypes.DECIMAL(15, 6),
       allowNull: false,
       defaultValue: 1,
-      comment: 'Taux moyen (achat + vente) / 2'
+      field: 'taux_moyen'
     },
     est_principale: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
-      comment: 'Devise de référence (CDF)'
+      field: 'est_principale'
     },
     date_taux: {
       type: DataTypes.DATEONLY,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      comment: "Date d'application du taux"
+      field: 'date_taux'
     },
     source: {
       type: DataTypes.STRING(100),
       defaultValue: 'BCC',
-      comment: 'Source du taux (BCC, FMI, BCEAO)'
+      field: 'source'
     },
     variation: {
       type: DataTypes.DECIMAL(5, 2),
       defaultValue: 0,
-      comment: 'Variation en pourcentage par rapport à la veille'
+      field: 'variation'
     },
     actif: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
-      comment: 'Devise active ou non'
+      field: 'actif'
     }
   }, {
     tableName: 'devises',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    underscored: true
   });
 
   return Devise;

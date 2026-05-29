@@ -1,3 +1,5 @@
+// backend/src/models/document.js
+
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -9,34 +11,57 @@ module.exports = (sequelize) => {
     },
     actif_id: {
       type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: 'actifs',
-        key: 'id'
-      },
-      onDelete: 'CASCADE'
+      allowNull: true,
+      references: { model: 'actifs', key: 'id' }
     },
     nom_fichier: {
       type: DataTypes.STRING(255),
-      allowNull: false,
-      comment: 'Nom original du fichier'
+      allowNull: false
     },
     chemin_fichier: {
       type: DataTypes.STRING(500),
-      allowNull: false,
-      comment: 'Chemin de stockage du fichier'
+      allowNull: false
     },
     type_fichier: {
       type: DataTypes.STRING(100),
-      comment: 'Type MIME du fichier'
+      allowNull: false
     },
     taille_fichier: {
       type: DataTypes.INTEGER,
-      comment: 'Taille en octets'
+      allowNull: false,
+      defaultValue: 0
     },
     description: {
       type: DataTypes.TEXT,
-      comment: 'Description du document (facture, contrat, etc.)'
+      allowNull: true
+    },
+    categorie: {
+      type: DataTypes.STRING(50),
+      defaultValue: 'reglementation'
+    },
+    confidentialite: {
+      type: DataTypes.STRING(20),
+      defaultValue: 'public'
+    },
+    mots_cles: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    duree_conservation: {
+      type: DataTypes.INTEGER,
+      defaultValue: 10
+    },
+    date_expiration: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    nombre_consultations: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    nombre_telechargements: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
     },
     date_upload: {
       type: DataTypes.DATE,
@@ -44,17 +69,29 @@ module.exports = (sequelize) => {
     },
     created_by: {
       type: DataTypes.UUID,
-      references: {
-        model: 'users',
-        key: 'id'
-      }
+      references: { model: 'users', key: 'id' }
     }
   }, {
     tableName: 'documents',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: false,  // ✅ Désactiver updated_at
+    // ✅ Empêcher Sequelize de sélectionner updated_at
+    defaultScope: {
+      attributes: { exclude: ['updated_at'] }
+    },
+    scopes: {
+      withTimestamps: {
+        attributes: { include: ['created_at'] }
+      }
+    }
   });
+
+  Document.associate = (models) => {
+    Document.belongsTo(models.Actif, { as: 'documentActif', foreignKey: 'actif_id' });
+    Document.belongsTo(models.User, { as: 'documentCreateur', foreignKey: 'created_by' });
+    Document.hasMany(models.DocumentLog, { as: 'documentLogs', foreignKey: 'document_id' });
+  };
 
   return Document;
 };

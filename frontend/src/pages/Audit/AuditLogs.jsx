@@ -32,15 +32,16 @@ const AuditLogs = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedLog, setSelectedLog] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-
-  // État pour les logs triés
   const [sortedLogs, setSortedLogs] = useState([]);
+  
+  // ✅ Récupérer le rôle de l'utilisateur connecté
+  const { user } = useSelector((state) => state.auth);
+  const userRole = user?.role || '';
 
   useEffect(() => {
     dispatch(fetchAuditLogs({ ...filters, ...pagination }));
   }, [dispatch, filters, pagination]);
 
-  // Effet pour trier les logs quand ils arrivent du Redux
   useEffect(() => {
     if (logs && logs.length > 0) {
       const sorted = [...logs].sort((a, b) => {
@@ -82,15 +83,80 @@ const AuditLogs = () => {
     setShowDetailModal(true);
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+  // ✅ Fonction pour exporter les logs (si l'utilisateur a les droits)
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/audit-logs/export', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        
+        // Notification de succès
+        const successDiv = document.createElement('div');
+        successDiv.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+        successDiv.style.zIndex = 9999;
+        successDiv.innerHTML = 'Export réussi !';
+        document.body.appendChild(successDiv);
+        setTimeout(() => successDiv.remove(), 3000);
+      }
+    } catch (error) {
+      console.error('Erreur export:', error);
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'alert alert-danger position-fixed top-0 end-0 m-3';
+      errorDiv.style.zIndex = 9999;
+      errorDiv.innerHTML = 'Erreur lors de l\'export';
+      document.body.appendChild(errorDiv);
+      setTimeout(() => errorDiv.remove(), 3000);
+    }
+  };
+
+  // ✅ Formatage de l'heure locale
+  const formatLocalDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Date invalide';
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    } catch {
+      return 'Date invalide';
+    }
+  };
+
+  const formatLocalDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Date invalide';
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${day}/${month}/${year}`;
+    } catch {
+      return 'Date invalide';
+    }
   };
 
   const getOperationDate = (log) => {
@@ -157,7 +223,6 @@ const AuditLogs = () => {
     { value: 'DELETE', label: 'Suppression' }
   ];
 
-  // Filtrer par onglet
   const getFilteredLogs = () => {
     if (activeTab === 'all') return sortedLogs;
     return sortedLogs.filter(log => log.action === activeTab.toUpperCase());
@@ -171,7 +236,12 @@ const AuditLogs = () => {
     delete: logs.filter(l => l.action === 'DELETE').length
   };
 
-  // Animation styles
+  // ✅ Vérifier si l'utilisateur peut exporter (admin ou gestionnaire)
+  const canExport = ['admin', 'gestionnaire'].includes(userRole);
+  
+  // ✅ Vérifier si l'utilisateur peut voir les logs (admin, auditeur, gestionnaire)
+  const canViewLogs = ['admin', 'auditeur', 'gestionnaire'].includes(userRole);
+
   const animationStyles = `
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
@@ -194,6 +264,34 @@ const AuditLogs = () => {
       background-color: rgba(13, 110, 253, 0.05);
     }
   `;
+
+  // ✅ Message d'accès non autorisé
+  if (!canViewLogs) {
+    return (
+      <>
+        <style>{animationStyles}</style>
+        <div className="container-fluid py-5 text-center" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+          <div className="card shadow-sm mx-auto" style={{ maxWidth: '500px' }}>
+            <div className="card-body py-5">
+              <FiShield size={64} className="text-danger mb-3" />
+              <h3 className="text-danger mb-3">Accès non autorisé</h3>
+              <p className="text-muted mb-4">
+                Vous n'avez pas les droits nécessaires pour consulter le journal d'audit.
+                <br />
+                Cette section est réservée aux administrateurs, auditeurs et gestionnaires.
+              </p>
+              <button 
+                onClick={() => window.history.back()} 
+                className="btn btn-primary"
+              >
+                Retour
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -231,8 +329,8 @@ const AuditLogs = () => {
                     </div>
                     <div className="row mb-3">
                       <div className="col-md-6">
-                        <small className="text-muted d-block">Date</small>
-                        <div><FiClock size={12} className="me-1" /> {formatDate(getOperationDate(selectedLog))}</div>
+                        <small className="text-muted d-block">Date et heure</small>
+                        <div><FiClock size={12} className="me-1" /> {formatLocalDateTime(getOperationDate(selectedLog))}</div>
                       </div>
                       <div className="col-md-6">
                         <small className="text-muted d-block">Utilisateur</small>
@@ -296,9 +394,15 @@ const AuditLogs = () => {
             >
               <FiFilter size={16} /> Filtres
             </button>
-            <button className="btn btn-success d-flex align-items-center gap-2">
-              <FiDownload size={16} /> Exporter
-            </button>
+            {/* ✅ Export visible uniquement pour admin et gestionnaire */}
+            {canExport && (
+              <button 
+                onClick={handleExport} 
+                className="btn btn-success d-flex align-items-center gap-2"
+              >
+                <FiDownload size={16} /> Exporter
+              </button>
+            )}
           </div>
         </div>
 
@@ -383,7 +487,7 @@ const AuditLogs = () => {
                     onChange={(e) => handleFilterChange('userId', e.target.value)}
                   >
                     <option value="">Tous les utilisateurs</option>
-                    {users.map(user => (
+                    {users?.map(user => (
                       <option key={user.id} value={user.id}>
                         {user.full_name} ({user.email})
                       </option>
@@ -484,7 +588,7 @@ const AuditLogs = () => {
                 <table className="table table-hover align-middle mb-0">
                   <thead className="table-light">
                     <tr>
-                      <th style={{ width: '160px' }}>Date/Heure</th>
+                      <th style={{ width: '180px' }}>Date / Heure</th>
                       <th style={{ width: '180px' }}>Utilisateur</th>
                       <th style={{ width: '100px' }}>Action</th>
                       <th style={{ width: '120px' }}>Table</th>
@@ -497,7 +601,9 @@ const AuditLogs = () => {
                     {filteredLogs.map((log) => (
                       <React.Fragment key={log.id}>
                         <tr className="table-row-hover">
-                          <td className="text-nowrap small">{formatDate(getOperationDate(log))}</td>
+                          <td className="text-nowrap">
+                            <span className="fw-semibold small">{formatLocalDateTime(getOperationDate(log))}</span>
+                          </td>
                           <td>
                             <div className="d-flex flex-column">
                               <span className="fw-semibold small">{log.user?.full_name || 'Système'}</span>
@@ -580,7 +686,7 @@ const AuditLogs = () => {
                                   </div>
                                 )}
                               </div>
-                             </td>
+                            </td>
                            </tr>
                         )}
                       </React.Fragment>
@@ -629,7 +735,7 @@ const AuditLogs = () => {
         <div className="alert alert-info mt-3 mb-0 py-2">
           <small className="d-flex align-items-center gap-2">
             <FiInfo size={14} />
-            Les logs d'audit sont conservés pour une durée de 12 mois. Les données sont triées du plus récent au plus ancien.
+            Les logs d'audit sont triés du plus récent au plus ancien. Les dates et heures affichées correspondent à l'heure locale de votre ordinateur.
           </small>
         </div>
       </div>

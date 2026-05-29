@@ -143,21 +143,43 @@ const PisteAuditBCC = () => {
   const allowedRoles = ['admin', 'super_admin', 'auditeur'];
   const hasAccess = allowedRoles.includes(userRole);
 
+  const animationStyles = `
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-slide-up {
+      animation: fadeSlideUp 0.4s ease-out;
+    }
+    .stat-card-hover {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stat-card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+  `;
+
   if (!hasAccess) {
     return (
-      <Container className="py-5 text-center">
-        <Card className="border-0 shadow-sm bg-danger bg-opacity-10">
-          <Card.Body className="py-5">
-            <FiShield size={48} className="text-danger mb-3" />
-            <h2 className="text-danger">Accès non autorisé</h2>
-            <p className="text-muted">Vous n'avez pas les droits nécessaires pour accéder à la piste d'audit.</p>
-            <p className="text-muted small">Cette fonctionnalité est réservée aux administrateurs et auditeurs.</p>
-            <Button variant="primary" onClick={() => navigate('/')} className="mt-3">
-              <FiArrowLeft /> Retour à l'accueil
-            </Button>
-          </Card.Body>
-        </Card>
-      </Container>
+      <>
+        <style>{animationStyles}</style>
+        <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+          <Container className="py-5 text-center fade-slide-up">
+            <Card className="border-0 shadow-sm" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+              <Card.Body className="py-5">
+                <FiShield size={48} className="text-danger mb-3" />
+                <h2 className="text-danger" style={{ color: '#000000' }}>Accès non autorisé</h2>
+                <p className="text-muted">Vous n'avez pas les droits nécessaires pour accéder à la piste d'audit.</p>
+                <p className="text-muted small">Cette fonctionnalité est réservée aux administrateurs et auditeurs.</p>
+                <Button variant="primary" onClick={() => navigate('/')} className="mt-3">
+                  <FiArrowLeft /> Retour à l'accueil
+                </Button>
+              </Card.Body>
+            </Card>
+          </Container>
+        </div>
+      </>
     );
   }
 
@@ -281,7 +303,7 @@ const PisteAuditBCC = () => {
         startY: 100,
         head: [['Date', 'Utilisateur', 'Module', 'Action', 'Niveau', 'Détails', 'IP']],
         body: tableData,
-        styles: { fontSize: 7, cellPadding: 2 },
+        styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0] },
         headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontSize: 8 },
         alternateRowStyles: { fillColor: [245, 245, 245] },
         columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 45 }, 2: { cellWidth: 35 }, 3: { cellWidth: 35 }, 4: { cellWidth: 20 }, 5: { cellWidth: 65 }, 6: { cellWidth: 30 } }
@@ -338,176 +360,190 @@ const PisteAuditBCC = () => {
       DOCUMENTS: 'purple', ACTIFS: 'success', CONTRATS: 'primary'
     };
     const variant = config[module] || 'secondary';
-    return <Badge bg={variant} className="bg-opacity-10 text-dark px-2 py-1">{module}</Badge>;
+    return <Badge bg={variant} className="bg-opacity-10 px-2 py-1" style={{ color: '#000000' }}>{module}</Badge>;
   };
 
   const getNiveauBadge = (niveau) => {
     const config = { INFO: 'success', WARNING: 'warning', ERROR: 'danger' };
     const variant = config[niveau] || 'secondary';
-    return <Badge bg={variant} className="bg-opacity-10 px-2 py-1">{niveau}</Badge>;
+    return <Badge bg={variant} className="bg-opacity-10 px-2 py-1" style={{ color: '#000000' }}>{niveau}</Badge>;
   };
 
   if (loading) {
     return (
-      <Container className="py-5 text-center">
-        <Spinner animation="border" variant="success" className="mb-3" style={{ width: '3rem', height: '3rem' }} />
-        <p className="text-muted">Chargement de la piste d'audit BCC...</p>
-      </Container>
+      <>
+        <style>{animationStyles}</style>
+        <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+          <Container className="py-5 text-center fade-slide-up">
+            <Spinner animation="border" variant="light" className="mb-3" style={{ width: '3rem', height: '3rem' }} />
+            <p style={{ color: 'white' }}>Chargement de la piste d'audit BCC...</p>
+          </Container>
+        </div>
+      </>
     );
   }
 
   return (
     <>
-      <Container fluid className="py-4 px-3 px-md-4" style={{ maxWidth: '1400px' }}>
-        
-        {/* Header */}
-        <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-          <div>
-            <Button variant="outline-secondary" onClick={() => navigate('/parametres')} className="mb-3 d-inline-flex align-items-center gap-2">
-              <FiArrowLeft size={16} /> Retour
-            </Button>
-            <div className="d-flex align-items-center gap-3">
-              <div className="rounded-circle bg-success bg-opacity-10 p-3 d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>
-                <FiShield size={28} className="text-success" />
-              </div>
-              <div>
-                <h1 className="h3 fw-bold mb-1">Piste d'audit - BCC</h1>
-                <p className="text-muted small mb-0">Traçabilité des actions et opérations - Banque Centrale du Congo</p>
-              </div>
-            </div>
-          </div>
-          <div className="d-flex gap-2">
-            <Button variant="danger" onClick={generatePDF} className="d-flex align-items-center gap-2"><FiPrinter size={14} /> PDF</Button>
-            <Button variant="success" onClick={handleExportJSON} className="d-flex align-items-center gap-2"><FiDownload size={14} /> JSON</Button>
-          </div>
-        </div>
-
-        {/* Messages d'erreur */}
-        {errorMsg && (
-          <Alert variant="danger" dismissible onClose={() => setErrorMsg('')} className="mb-3">
-            <div className="d-flex align-items-center gap-2"><FiAlertCircle size={18} /><span>{errorMsg}</span></div>
-          </Alert>
-        )}
-
-        {/* Cartes statistiques */}
-        <Row className="g-3 mb-4">
-          <Col xs={12} sm={6} md={3}>
-            <Card className="border-0 shadow-sm text-center h-100">
-              <Card.Body><div className="h2 mb-0 fw-bold text-success">{stats.total}</div><small className="text-muted">Total actions</small><FiActivity size={20} className="text-success mt-2 opacity-50" /></Card.Body>
-            </Card>
-          </Col>
-          <Col xs={12} sm={6} md={3}>
-            <Card className="border-0 shadow-sm text-center h-100">
-              <Card.Body><div className="h2 mb-0 fw-bold text-success">{stats.connexions}</div><small className="text-muted">Connexions</small><FiUnlock size={20} className="text-success mt-2 opacity-50" /></Card.Body>
-            </Card>
-          </Col>
-          <Col xs={12} sm={6} md={3}>
-            <Card className="border-0 shadow-sm text-center h-100">
-              <Card.Body><div className="h2 mb-0 fw-bold text-warning">{stats.operationsMonetaires}</div><small className="text-muted">Opérations monétaires</small><FiTrendingUp size={20} className="text-warning mt-2 opacity-50" /></Card.Body>
-            </Card>
-          </Col>
-          <Col xs={12} sm={6} md={3}>
-            <Card className="border-0 shadow-sm text-center h-100">
-              <Card.Body><div className="h2 mb-0 fw-bold text-primary">{stats.reservesChange}</div><small className="text-muted">Réserves de change</small><FiGlobe size={20} className="text-primary mt-2 opacity-50" /></Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Filtres */}
-        <Card className="border-0 shadow-sm rounded-3 mb-4">
-          <Card.Body>
-            <div className="d-flex gap-3 flex-wrap align-items-center mb-3">
-              <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border" style={{ backgroundColor: '#f8fafc' }}>
-                <FiCalendar size={14} className="text-muted" />
-                <input type="date" value={filters.dateDebut} onChange={(e) => setFilters({ ...filters, dateDebut: e.target.value })} className="border-0 bg-transparent" style={{ outline: 'none' }} placeholder="Date début" />
-              </div>
-              <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border" style={{ backgroundColor: '#f8fafc' }}>
-                <FiCalendar size={14} className="text-muted" />
-                <input type="date" value={filters.dateFin} onChange={(e) => setFilters({ ...filters, dateFin: e.target.value })} className="border-0 bg-transparent" style={{ outline: 'none' }} placeholder="Date fin" />
-              </div>
-              <Form.Select value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })} style={{ width: 'auto', minWidth: '160px' }}>
-                <option value="">Toutes actions</option>
-                <option value="CONNEXION">Connexion</option>
-                <option value="CONNEXION_ECHOUEE">Connexion échouée</option>
-                <option value="CREATION">Création</option>
-                <option value="MODIFICATION">Modification</option>
-                <option value="SUPPRESSION">Suppression</option>
-                <option value="CONSULTATION">Consultation</option>
-                <option value="DOCUMENT_UPLOAD">Upload document</option>
-                <option value="DOCUMENT_DOWNLOAD">Téléchargement</option>
-                <option value="DEPRECIATION">Dépréciation</option>
-                <option value="REEVALUATION">Réévaluation</option>
-              </Form.Select>
-              <Button variant="primary" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className="d-flex align-items-center gap-2"><FiFilter size={14} /> {showAdvancedFilters ? 'Filtres simples' : 'Filtres avancés'}</Button>
-              <Button variant="outline-secondary" onClick={resetFilters} className="d-flex align-items-center gap-2"><FiRefreshCw size={14} /> Réinitialiser</Button>
-            </div>
-
-            {showAdvancedFilters && (
-              <div className="d-flex gap-3 flex-wrap align-items-center pt-3 border-top">
-                <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border flex-grow-1" style={{ backgroundColor: '#f8fafc', maxWidth: '300px' }}>
-                  <FiUser size={14} className="text-muted" />
-                  <input type="text" value={filters.utilisateur} onChange={(e) => setFilters({ ...filters, utilisateur: e.target.value })} className="border-0 bg-transparent w-100" style={{ outline: 'none' }} placeholder="Utilisateur" />
+      <style>{animationStyles}</style>
+      
+      {/* Fond dégradé comme les autres pages */}
+      <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh' }}>
+        <Container fluid className="py-4 px-3 px-md-4 fade-slide-up" style={{ maxWidth: '1400px' }}>
+          
+          {/* Header */}
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <div>
+              <Button variant="light" onClick={() => navigate('/parametres')} className="mb-3 d-inline-flex align-items-center gap-2" style={{ backgroundColor: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}>
+                <FiArrowLeft size={16} /> Retour
+              </Button>
+              <div className="d-flex align-items-center gap-3">
+                <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px', backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                  <FiShield size={28} color="white" />
                 </div>
-                <Form.Select value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })} style={{ width: 'auto', minWidth: '180px' }}>
-                  <option value="">Tous les modules</option>
-                  <option value="AUTHENTIFICATION">Authentification</option>
-                  <option value="RESERVES_CHANGE">Réserves de change</option>
-                  <option value="OPERATIONS_MONETAIRES">Opérations monétaires</option>
-                  <option value="IMMOBILISATIONS">Immobilisations</option>
-                  <option value="RAPPORTS">Rapports</option>
-                  <option value="DOCUMENTS">Documents</option>
-                  <option value="ACTIFS">Actifs</option>
-                  <option value="CONTRATS">Contrats</option>
+                <div>
+                  <h1 className="h3 fw-bold mb-1" style={{ color: 'white' }}>Piste d'audit - BCC</h1>
+                  <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>Traçabilité des actions et opérations - Banque Centrale du Congo</p>
+                </div>
+              </div>
+            </div>
+            <div className="d-flex gap-2">
+              <Button variant="danger" onClick={generatePDF} className="d-flex align-items-center gap-2"><FiPrinter size={14} /> PDF</Button>
+              <Button variant="success" onClick={handleExportJSON} className="d-flex align-items-center gap-2"><FiDownload size={14} /> JSON</Button>
+            </div>
+          </div>
+
+          {/* Messages d'erreur */}
+          {errorMsg && (
+            <Alert variant="danger" dismissible onClose={() => setErrorMsg('')} className="mb-3" style={{ backgroundColor: '#fee2e2', borderColor: '#ef4444' }}>
+              <div className="d-flex align-items-center gap-2"><FiAlertCircle size={18} /><span style={{ color: '#991b1b' }}>{errorMsg}</span></div>
+            </Alert>
+          )}
+
+          {/* Cartes statistiques */}
+          <Row className="g-3 mb-4">
+            <Col xs={12} sm={6} md={3}>
+              <Card className="border-0 shadow-sm text-center h-100 stat-card-hover" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+                <Card.Body><div className="h2 mb-0 fw-bold text-success">{stats.total}</div><small className="text-muted">Total actions</small><FiActivity size={20} className="text-success mt-2 opacity-50" /></Card.Body>
+              </Card>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Card className="border-0 shadow-sm text-center h-100 stat-card-hover" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+                <Card.Body><div className="h2 mb-0 fw-bold text-success">{stats.connexions}</div><small className="text-muted">Connexions</small><FiUnlock size={20} className="text-success mt-2 opacity-50" /></Card.Body>
+              </Card>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Card className="border-0 shadow-sm text-center h-100 stat-card-hover" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+                <Card.Body><div className="h2 mb-0 fw-bold text-warning">{stats.operationsMonetaires}</div><small className="text-muted">Opérations monétaires</small><FiTrendingUp size={20} className="text-warning mt-2 opacity-50" /></Card.Body>
+              </Card>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Card className="border-0 shadow-sm text-center h-100 stat-card-hover" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+                <Card.Body><div className="h2 mb-0 fw-bold text-primary">{stats.reservesChange}</div><small className="text-muted">Réserves de change</small><FiGlobe size={20} className="text-primary mt-2 opacity-50" /></Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Filtres */}
+          <Card className="border-0 shadow-sm rounded-3 mb-4" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+            <Card.Body>
+              <div className="d-flex gap-3 flex-wrap align-items-center mb-3">
+                <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border" style={{ backgroundColor: '#f8fafc' }}>
+                  <FiCalendar size={14} className="text-muted" />
+                  <input type="date" value={filters.dateDebut} onChange={(e) => setFilters({ ...filters, dateDebut: e.target.value })} className="border-0 bg-transparent" style={{ outline: 'none', color: '#000000' }} placeholder="Date début" />
+                </div>
+                <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border" style={{ backgroundColor: '#f8fafc' }}>
+                  <FiCalendar size={14} className="text-muted" />
+                  <input type="date" value={filters.dateFin} onChange={(e) => setFilters({ ...filters, dateFin: e.target.value })} className="border-0 bg-transparent" style={{ outline: 'none', color: '#000000' }} placeholder="Date fin" />
+                </div>
+                <Form.Select value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })} style={{ width: 'auto', minWidth: '160px', color: '#000000' }}>
+                  <option value="">Toutes actions</option>
+                  <option value="CONNEXION">Connexion</option>
+                  <option value="CONNEXION_ECHOUEE">Connexion échouée</option>
+                  <option value="CREATION">Création</option>
+                  <option value="MODIFICATION">Modification</option>
+                  <option value="SUPPRESSION">Suppression</option>
+                  <option value="CONSULTATION">Consultation</option>
+                  <option value="DOCUMENT_UPLOAD">Upload document</option>
+                  <option value="DOCUMENT_DOWNLOAD">Téléchargement</option>
+                  <option value="DEPRECIATION">Dépréciation</option>
+                  <option value="REEVALUATION">Réévaluation</option>
                 </Form.Select>
-                <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 bg-light"><FiSearch size={14} className="text-muted" /><span className="small">{filteredLogs.length} résultat(s)</span></div>
+                <Button variant="primary" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className="d-flex align-items-center gap-2"><FiFilter size={14} /> {showAdvancedFilters ? 'Filtres simples' : 'Filtres avancés'}</Button>
+                <Button variant="outline-secondary" onClick={resetFilters} className="d-flex align-items-center gap-2"><FiRefreshCw size={14} /> Réinitialiser</Button>
+              </div>
+
+              {showAdvancedFilters && (
+                <div className="d-flex gap-3 flex-wrap align-items-center pt-3 border-top">
+                  <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border flex-grow-1" style={{ backgroundColor: '#f8fafc', maxWidth: '300px' }}>
+                    <FiUser size={14} className="text-muted" />
+                    <input type="text" value={filters.utilisateur} onChange={(e) => setFilters({ ...filters, utilisateur: e.target.value })} className="border-0 bg-transparent w-100" style={{ outline: 'none', color: '#000000' }} placeholder="Utilisateur" />
+                  </div>
+                  <Form.Select value={filters.module} onChange={(e) => setFilters({ ...filters, module: e.target.value })} style={{ width: 'auto', minWidth: '180px', color: '#000000' }}>
+                    <option value="">Tous les modules</option>
+                    <option value="AUTHENTIFICATION">Authentification</option>
+                    <option value="RESERVES_CHANGE">Réserves de change</option>
+                    <option value="OPERATIONS_MONETAIRES">Opérations monétaires</option>
+                    <option value="IMMOBILISATIONS">Immobilisations</option>
+                    <option value="RAPPORTS">Rapports</option>
+                    <option value="DOCUMENTS">Documents</option>
+                    <option value="ACTIFS">Actifs</option>
+                    <option value="CONTRATS">Contrats</option>
+                  </Form.Select>
+                  <div className="d-flex align-items-center gap-2 px-3 py-2 rounded-3 bg-light"><FiSearch size={14} className="text-muted" /><span className="small" style={{ color: '#000000' }}>{filteredLogs.length} résultat(s)</span></div>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Tableau des logs */}
+          <Card className="border-0 shadow-sm rounded-3 overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+            <div className="table-responsive">
+              <Table hover className="align-middle mb-0">
+                <thead className="table-light">
+                  <tr><th>Date et heure</th><th>Utilisateur</th><th>Module</th><th>Action</th><th>Niveau</th><th>Détails</th><th>IP</th></tr>
+                </thead>
+                <tbody>
+                  {filteredLogs.length === 0 ? (
+                    <tr><td colSpan="7" className="text-center py-5 text-muted"><FiEye size={32} className="mb-2 opacity-50" /><p>Aucune trace d'audit trouvée</p></td></tr>
+                  ) : (
+                    filteredLogs.map(log => (
+                      <tr key={log.id}>
+                        <td className="text-nowrap"><div className="d-flex align-items-center gap-1"><FiClock size={12} className="text-muted" /><span className="small" style={{ color: '#000000' }}>{log.date}</span></div></td>
+                        <td><div className="d-flex align-items-center gap-1"><FiUser size={12} className="text-muted" /><span style={{ color: '#000000' }}>{log.utilisateur}</span></div></td>
+                        <td>{getModuleBadge(log.module)}</td>
+                        <td>{getActionBadge(log.action, log.niveau)}</td>
+                        <td>{getNiveauBadge(log.niveau)}</td>
+                        <td><span className="small text-secondary" style={{ color: '#000000' }}>{log.details}</span></td>
+                        <td><code className="small bg-light px-2 py-1 rounded" style={{ color: '#000000' }}>{log.ip}</code></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </div>
+            
+            {pagination.pages > 1 && (
+              <div className="card-footer bg-white border-top-0 pt-3" style={{ backgroundColor: 'transparent !important' }}>
+                <Pagination className="justify-content-center mb-0">
+                  <Pagination.Prev onClick={() => pagination.page > 1 && setPagination(prev => ({ ...prev, page: prev.page - 1 }))} disabled={pagination.page === 1} />
+                  <Pagination.Item active>{pagination.page}</Pagination.Item>
+                  <Pagination.Ellipsis />
+                  <Pagination.Item>{pagination.pages}</Pagination.Item>
+                  <Pagination.Next onClick={() => pagination.page < pagination.pages && setPagination(prev => ({ ...prev, page: prev.page + 1 }))} disabled={pagination.page === pagination.pages} />
+                </Pagination>
               </div>
             )}
-          </Card.Body>
-        </Card>
+          </Card>
 
-        {/* Tableau des logs */}
-        <Card className="border-0 shadow-sm rounded-3 overflow-hidden">
-          <div className="table-responsive">
-            <Table hover className="align-middle mb-0">
-              <thead className="table-light">
-                <tr><th>Date et heure</th><th>Utilisateur</th><th>Module</th><th>Action</th><th>Niveau</th><th>Détails</th><th>IP</th></tr>
-              </thead>
-              <tbody>
-                {filteredLogs.length === 0 ? (
-                  <tr><td colSpan="7" className="text-center py-5 text-muted"><FiEye size={32} className="mb-2 opacity-50" /><p>Aucune trace d'audit trouvée</p></td></tr>
-                ) : (
-                  filteredLogs.map(log => (
-                    <tr key={log.id}>
-                      <td className="text-nowrap"><div className="d-flex align-items-center gap-1"><FiClock size={12} className="text-muted" /><span className="small">{log.date}</span></div></td>
-                      <td><div className="d-flex align-items-center gap-1"><FiUser size={12} className="text-muted" /><span>{log.utilisateur}</span></div></td>
-                      <td>{getModuleBadge(log.module)}</td>
-                      <td>{getActionBadge(log.action, log.niveau)}</td>
-                      <td>{getNiveauBadge(log.niveau)}</td>
-                      <td><span className="small text-secondary">{log.details}</span></td>
-                      <td><code className="small bg-light px-2 py-1 rounded">{log.ip}</code></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
+          {/* Footer info */}
+          <div className="text-center mt-4">
+            <small className="d-flex align-items-center justify-content-center gap-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <FiShield size={12} /> Piste d'audit conforme aux normes BCC — Document officiel
+            </small>
           </div>
-          
-          {pagination.pages > 1 && (
-            <div className="card-footer bg-white border-top-0 pt-3">
-              <Pagination className="justify-content-center mb-0">
-                <Pagination.Prev onClick={() => pagination.page > 1 && setPagination(prev => ({ ...prev, page: prev.page - 1 }))} disabled={pagination.page === 1} />
-                <Pagination.Item active>{pagination.page}</Pagination.Item>
-                <Pagination.Ellipsis />
-                <Pagination.Item>{pagination.pages}</Pagination.Item>
-                <Pagination.Next onClick={() => pagination.page < pagination.pages && setPagination(prev => ({ ...prev, page: prev.page + 1 }))} disabled={pagination.page === pagination.pages} />
-              </Pagination>
-            </div>
-          )}
-        </Card>
-
-        {/* Footer info */}
-        <div className="text-center mt-3"><small className="text-muted d-flex align-items-center justify-content-center gap-2"><FiShield size={12} /> Piste d'audit conforme aux normes BCC — Document officiel</small></div>
-      </Container>
+        </Container>
+      </div>
 
       <PDFDialog isOpen={pdfDialog.open} onClose={closePDFDialog} pdfBlob={pdfDialog.blob} filename={pdfDialog.filename} />
     </>

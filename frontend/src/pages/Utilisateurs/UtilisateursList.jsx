@@ -1,3 +1,5 @@
+// frontend/src/pages/Utilisateurs/UtilisateursList.jsx
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -78,6 +80,19 @@ const UtilisateursList = () => {
       'gestionnaire': 'secondary'
     };
     return variants[role] || 'secondary';
+  };
+
+  const getRoleStyle = (role) => {
+    const styles = {
+      'admin': { backgroundColor: '#dc2626', color: '#ffffff', border: 'none' },
+      'comptable': { backgroundColor: '#3b82f6', color: '#ffffff', border: 'none' },
+      'auditeur': { backgroundColor: '#f59e0b', color: '#ffffff', border: 'none' },
+      'juridique': { backgroundColor: '#10b981', color: '#ffffff', border: 'none' },
+      'informatique': { backgroundColor: '#06b6d4', color: '#ffffff', border: 'none' },
+      'inventoriste': { backgroundColor: '#8b5cf6', color: '#ffffff', border: 'none' },
+      'gestionnaire': { backgroundColor: '#6b7280', color: '#ffffff', border: 'none' }
+    };
+    return styles[role] || { backgroundColor: '#6b7280', color: '#ffffff', border: 'none' };
   };
 
   const getRoleIcon = (role) => {
@@ -263,42 +278,44 @@ const UtilisateursList = () => {
           </Card.Body>
         </Card>
 
-        {/* Vue Grille */}
+        {/* Vue Grille - TEXTES EN BLANC (sur fond dégradé) */}
         {viewMode === 'grid' && (
           <Row className="g-4">
             {filteredUsers.map((user) => (
               <Col key={user.id} xs={12} md={6} lg={4}>
-                <Card className="border-0 shadow-sm rounded-3 h-100 card-hover">
+                <Card className="border-0 shadow-sm rounded-3 h-100 card-hover" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
                   <Card.Body className="p-3">
                     <div className="d-flex justify-content-between align-items-start mb-3">
-                      <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold" style={{ width: '48px', height: '48px', fontSize: '1.2rem' }}>
+                      <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style={{ width: '48px', height: '48px', fontSize: '1.2rem', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
                         {user.full_name?.charAt(0).toUpperCase() || 'U'}
                       </div>
                       <div className="btn-group">
-                        <Button variant="outline-warning" size="sm" onClick={() => navigate(`/utilisateurs/modifier/${user.id}`)} title="Modifier">
+                        <Button variant="light" size="sm" onClick={() => navigate(`/utilisateurs/modifier/${user.id}`)} title="Modifier" style={{ backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
                           <FiEdit2 size={14} />
                         </Button>
-                        <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(user)} title="Supprimer">
+                        <Button variant="light" size="sm" onClick={() => handleDeleteClick(user)} title="Supprimer" style={{ backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
                           <FiTrash2 size={14} />
                         </Button>
-                        <Button variant="outline-primary" size="sm" onClick={() => navigate(`/utilisateurs/${user.id}`)} title="Voir détails">
+                        <Button variant="light" size="sm" onClick={() => navigate(`/utilisateurs/${user.id}`)} title="Voir détails" style={{ backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
                           <FiEye size={14} />
                         </Button>
                       </div>
                     </div>
-                    <h5 className="h6 fw-semibold mb-1" style={{ color: '#ffffff' }}>{user.full_name}</h5>
-                    <div className="d-flex align-items-center gap-1 small mb-2" style={{ color: '#ffffff' }}>
-                      <FiMail size={12} style={{ color: '#ffffff' }} /> <span style={{ color: '#ffffff' }}>{user.email}</span>
+                    <h5 className="h6 fw-semibold mb-1 text-white">{user.full_name}</h5>
+                    <div className="d-flex align-items-center gap-1 small mb-2 text-white-50">
+                      <FiMail size={12} className="text-white-50" /> <span className="text-white-50">{user.email}</span>
                     </div>
-                    <Badge bg={getRoleVariant(user.role)} className="bg-opacity-10 d-inline-flex align-items-center gap-1 px-2 py-1 mb-3" style={{ color: `var(--bs-${getRoleVariant(user.role)})` }}>
-                      {getRoleIcon(user.role)} {user.role}
-                    </Badge>
-                    <div className="border-top pt-2 mt-2">
-                      <div className="d-flex align-items-center gap-2 small mb-1" style={{ color: '#ffffff' }}>
-                        <FiCalendar size={12} style={{ color: '#ffffff' }} /> Créé le <span style={{ color: '#ffffff' }}>{formatDate(user.created_at)}</span>
+                    <div>
+                      <Badge style={getRoleStyle(user.role)} className="d-inline-flex align-items-center gap-1 px-2 py-1 mb-3">
+                        {getRoleIcon(user.role)} {user.role}
+                      </Badge>
+                    </div>
+                    <div className="border-top pt-2 mt-2" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
+                      <div className="d-flex align-items-center gap-2 small mb-1 text-white-50">
+                        <FiCalendar size={12} className="text-white-50" /> Créé le <span className="text-white-50">{formatDate(user.created_at)}</span>
                       </div>
-                      <div className="d-flex align-items-center gap-2 small" style={{ color: '#ffffff' }}>
-                        <FiClock size={12} style={{ color: '#ffffff' }} /> Modifié le <span style={{ color: '#ffffff' }}>{formatDate(user.updated_at)}</span>
+                      <div className="d-flex align-items-center gap-2 small text-white-50">
+                        <FiClock size={12} className="text-white-50" /> Modifié le <span className="text-white-50">{formatDate(user.updated_at)}</span>
                       </div>
                     </div>
                   </Card.Body>
@@ -308,18 +325,18 @@ const UtilisateursList = () => {
           </Row>
         )}
 
-        {/* Vue Liste */}
+        {/* Vue Liste - TEXTES EN NOIR + BADGES DE RÔLE ULTRA VISIBLES */}
         {viewMode === 'list' && (
-          <Card className="border-0 shadow-sm rounded-3 overflow-hidden">
+          <Card className="border-0 shadow-sm rounded-3 overflow-hidden bg-white">
             <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
+              <table className="table table-hover align-middle mb-0 bg-white">
                 <thead className="table-light">
                   <tr>
-                    <th>Utilisateur</th>
-                    <th>Email</th>
-                    <th>Rôle</th>
-                    <th>Date création</th>
-                    <th>Actions</th>
+                    <th style={{ color: '#000000' }}>Utilisateur</th>
+                    <th style={{ color: '#000000' }}>Email</th>
+                    <th style={{ color: '#000000' }}>Rôle</th>
+                    <th style={{ color: '#000000' }}>Date création</th>
+                    <th style={{ color: '#000000' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -330,16 +347,16 @@ const UtilisateursList = () => {
                           <div className="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style={{ width: '32px', height: '32px', fontSize: '0.8rem' }}>
                             {user.full_name?.charAt(0).toUpperCase() || 'U'}
                           </div>
-                          <span className="fw-semibold" style={{ color: '#ffffff' }}>{user.full_name}</span>
+                          <span className="fw-semibold" style={{ color: '#000000' }}>{user.full_name}</span>
                         </div>
                       </td>
-                      <td style={{ color: '#ffffff' }}>{user.email}</td>
+                      <td style={{ color: '#4b5563' }}>{user.email}</td>
                       <td>
-                        <Badge bg={getRoleVariant(user.role)} className="bg-opacity-10 d-inline-flex align-items-center gap-1 px-2 py-1" style={{ color: `var(--bs-${getRoleVariant(user.role)})` }}>
-                          {getRoleIcon(user.role)} {user.role}
+                        <Badge style={getRoleStyle(user.role)} className="d-inline-flex align-items-center gap-1 px-3 py-1" style={{ fontSize: '0.75rem', fontWeight: '500' }}>
+                          {getRoleIcon(user.role)} {user.role === 'admin' ? 'Administrateur' : user.role === 'comptable' ? 'Comptable' : user.role === 'auditeur' ? 'Auditeur' : user.role === 'juridique' ? 'Juridique' : user.role === 'informatique' ? 'Informatique' : user.role === 'inventoriste' ? 'Inventoriste' : 'Gestionnaire'}
                         </Badge>
                       </td>
-                      <td style={{ color: '#ffffff' }}>{formatDate(user.created_at)}</td>
+                      <td style={{ color: '#4b5563' }}>{formatDate(user.created_at)}</td>
                       <td>
                         <div className="btn-group btn-group-sm">
                           <Button variant="outline-warning" onClick={() => navigate(`/utilisateurs/modifier/${user.id}`)} title="Modifier">

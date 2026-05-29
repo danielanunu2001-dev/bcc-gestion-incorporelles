@@ -69,7 +69,7 @@ module.exports = (sequelize) => {
 
     // ===== DEVISE (GESTION MULTI-DEVISES) =====
     devise_id: {
-      type: DataTypes.UUID,
+      type: DataTypes.INTEGER,
       references: {
         model: 'devises',
         key: 'id'
@@ -102,19 +102,16 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     
-    // Taux d'amortissement (peut être calculé automatiquement)
     taux_amortissement: {
       type: DataTypes.DECIMAL(5, 2),
       comment: 'Taux d\'amortissement en pourcentage (calculé automatiquement si non spécifié)'
     },
     
-    // Numéro de facture pour le suivi comptable
     numero_facture: {
       type: DataTypes.STRING(50),
       comment: 'Numéro de facture d\'acquisition'
     },
     
-    // ✅ Catégorie d'amortissement (selon GCEC)
     categorie_id: {
       type: DataTypes.UUID,
       references: {
@@ -217,7 +214,6 @@ module.exports = (sequelize) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     
-    // Index pour optimiser les recherches
     indexes: [
       { fields: ['code'] },
       { fields: ['numero_inventaire'] },
@@ -232,108 +228,123 @@ module.exports = (sequelize) => {
       { fields: ['numero_facture'] }
     ],
     
-    // Hooks pour calculer automatiquement le taux d'amortissement
+    // ===== HOOKS CORRIGÉS POUR LE TAUX D'AMORTISSEMENT =====
     hooks: {
       beforeCreate: async (actif, options) => {
-        // Calculer le taux d'amortissement si non fourni
+        // ✅ CORRECTION: Nettoyer le taux (convertir 3333 -> 33.33)
+        if (actif.taux_amortissement) {
+          let taux = parseFloat(actif.taux_amortissement);
+          if (!isNaN(taux) && taux > 100 && taux <= 10000) {
+            actif.taux_amortissement = parseFloat((taux / 100).toFixed(2));
+            console.log(`🔧 Hook beforeCreate: ${taux} -> ${actif.taux_amortissement}`);
+          }
+        }
+        
         if (!actif.taux_amortissement && actif.duree_utile_ans > 0) {
           if (actif.mode_amortissement === 'lineaire') {
-            actif.taux_amortissement = 100 / actif.duree_utile_ans;
+            actif.taux_amortissement = parseFloat((100 / actif.duree_utile_ans).toFixed(2));
           } else if (actif.mode_amortissement === 'degressif') {
-            // Taux dégressif = taux linéaire × coefficient
             const tauxLineaire = 100 / actif.duree_utile_ans;
             let coefficient = 1.5;
             if (actif.duree_utile_ans <= 4) coefficient = 1.5;
             else if (actif.duree_utile_ans <= 6) coefficient = 2;
             else coefficient = 2.5;
-            actif.taux_amortissement = tauxLineaire * coefficient;
+            actif.taux_amortissement = parseFloat((tauxLineaire * coefficient).toFixed(2));
           }
         }
       },
       beforeUpdate: async (actif, options) => {
-        // Recalculer le taux si la durée ou le mode change
-        if (actif.changed('duree_utile_ans') || actif.changed('mode_amortissement')) {
+        // ✅ CORRECTION: Nettoyer le taux (convertir 3333 -> 33.33)
+        if (actif.changed('taux_amortissement') && actif.taux_amortissement) {
+          let taux = parseFloat(actif.taux_amortissement);
+          if (!isNaN(taux) && taux > 100 && taux <= 10000) {
+            actif.taux_amortissement = parseFloat((taux / 100).toFixed(2));
+            console.log(`🔧 Hook beforeUpdate: ${taux} -> ${actif.taux_amortissement}`);
+          }
+        }
+        
+        if ((actif.changed('duree_utile_ans') || actif.changed('mode_amortissement')) && !actif.changed('taux_amortissement')) {
           if (actif.mode_amortissement === 'lineaire') {
-            actif.taux_amortissement = 100 / actif.duree_utile_ans;
+            actif.taux_amortissement = parseFloat((100 / actif.duree_utile_ans).toFixed(2));
           } else if (actif.mode_amortissement === 'degressif') {
             const tauxLineaire = 100 / actif.duree_utile_ans;
             let coefficient = 1.5;
             if (actif.duree_utile_ans <= 4) coefficient = 1.5;
             else if (actif.duree_utile_ans <= 6) coefficient = 2;
             else coefficient = 2.5;
-            actif.taux_amortissement = tauxLineaire * coefficient;
+            actif.taux_amortissement = parseFloat((tauxLineaire * coefficient).toFixed(2));
           }
         }
       }
     }
   });
 
-  // ===== ASSOCIATIONS =====
+  // ===== ASSOCIATIONS AVEC ALIAS UNIQUES =====
   Actif.associate = (models) => {
     // Un actif peut avoir plusieurs amortissements
     Actif.hasMany(models.Amortissement, {
       foreignKey: 'actif_id',
-      as: 'Amortissements'
+      as: 'actifAmortissements'
     });
     
     // Un actif peut avoir plusieurs contrats
     Actif.hasMany(models.Contrat, {
       foreignKey: 'actif_id',
-      as: 'Contrats'
+      as: 'actifContrats'
     });
     
     // Un actif peut avoir plusieurs dépréciations
     Actif.hasMany(models.Depreciation, {
       foreignKey: 'actif_id',
-      as: 'Depreciations'
+      as: 'actifDepreciations'
     });
     
     // Un actif peut avoir plusieurs mouvements
     Actif.hasMany(models.Mouvement, {
       foreignKey: 'actif_id',
-      as: 'Mouvements'
+      as: 'actifMouvements'
     });
     
     // Un actif peut avoir plusieurs documents
     Actif.hasMany(models.Document, {
       foreignKey: 'actif_id',
-      as: 'Documents'
+      as: 'actifDocuments'
     });
     
     // Un actif peut avoir plusieurs réévaluations
     Actif.hasMany(models.Reevaluation, {
       foreignKey: 'actif_id',
-      as: 'Reevaluations'
+      as: 'actifReevaluations'
     });
     
     // Un actif peut avoir plusieurs anomalies
     Actif.hasMany(models.Anomalie, {
       foreignKey: 'actif_id',
-      as: 'Anomalies'
+      as: 'actifAnomalies'
     });
     
     // Un actif appartient à une catégorie d'amortissement
     Actif.belongsTo(models.CategorieAmortissement, {
       foreignKey: 'categorie_id',
-      as: 'categorie'
+      as: 'actifCategorie'
     });
     
-    // ✅ Un actif appartient à une devise
+    // Un actif appartient à une devise
     Actif.belongsTo(models.Devise, {
       foreignKey: 'devise_id',
-      as: 'devise'
+      as: 'actifDevise'
     });
     
     // Un actif est créé par un utilisateur
     Actif.belongsTo(models.User, {
       foreignKey: 'created_by',
-      as: 'createur'
+      as: 'actifCreateur'
     });
     
     // Un actif est modifié par un utilisateur
     Actif.belongsTo(models.User, {
       foreignKey: 'updated_by',
-      as: 'modificateur'
+      as: 'actifModificateur'
     });
   };
 

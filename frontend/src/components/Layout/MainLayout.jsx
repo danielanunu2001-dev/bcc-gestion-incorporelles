@@ -10,6 +10,7 @@ import RoutePersister from './RoutePersister';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import Chatbot from '../Chatbot/Chatbot';
 import {
   FiHome, FiPackage, FiTrendingDown, FiActivity,
   FiUsers, FiFileText, FiSettings, FiLogOut,
@@ -48,85 +49,93 @@ const MainLayout = () => {
   
   const searchInputRef = useRef(null);
 
-  // Menu items avec icônes améliorées et couleurs
+  // Menu items avec icônes améliorées et couleurs - AJOUT DE CONFORMITÉ
   const menuItems = [
-    { 
-      path: '/dashboard', 
-      label: 'Tableau de bord', 
-      icon: <FiHome />, 
-      roles: ['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'inventoriste'],
-      color: '#3b82f6',
-      shortcut: '⌘D'
-    },
-    { 
-      path: '/actifs', 
-      label: 'Actifs', 
-      icon: <FiPackage />, 
-      roles: ['admin', 'comptable', 'juridique', 'informatique'],
-      color: '#10b981',
-      shortcut: '⌘A'
-    },
-    { 
-      path: '/inventaire', 
-      label: 'Inventaire', 
-      icon: <FiCamera />, 
-      roles: ['admin', 'inventoriste'],
-      color: '#f59e0b',
-      shortcut: '⌘I'
-    },
-    { 
-      path: '/audit', 
-      label: 'Audit', 
-      icon: <FiActivity />, 
-      roles: ['admin', 'auditeur'],
-      color: '#8b5cf6',
-      shortcut: '⌘U'
-    },
-    { 
-      path: '/utilisateurs', 
-      label: 'Utilisateurs', 
-      icon: <FiUsers />, 
-      roles: ['admin'],
-      color: '#ec4899',
-      shortcut: '⌘E'
-    },
-    { 
-      path: '/contrats', 
-      label: 'Contrats', 
-      icon: <FiFileText />, 
-      roles: ['admin', 'juridique'],
-      color: '#14b8a6',
-      shortcut: '⌘C'
-    },
-    { 
-      path: '/categories-amortissement', 
-      label: 'Catégories', 
-      icon: <FiGrid />, 
-      roles: ['admin', 'comptable'],
-      color: '#a855f7'
-    },
-    { 
-      path: '/parametres/taux-change', 
-      label: 'Taux de change', 
-      icon: <FiDollarSign />, 
-      roles: ['admin', 'comptable'],
-      color: '#eab308'
-    },
-    { 
-      path: '/parametres', 
-      label: 'Paramètres', 
-      icon: <FiSettings />, 
-      roles: ['admin', 'comptable'],
-      color: 'var(--text-secondary)'
-    },
-    { 
-      path: '/rapports', 
-      label: 'Rapports', 
-      icon: <FiBarChart2 />, 
-      roles: ['admin', 'comptable', 'auditeur'],
-      color: '#ef4444'
-    }
-  ];
+  { 
+    path: '/dashboard', 
+    label: 'Tableau de bord', 
+    icon: <FiHome />, 
+    roles: ['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'inventoriste', 'gestionnaire'],
+    color: '#3b82f6',
+    shortcut: '⌘D'
+  },
+  { 
+    path: '/actifs', 
+    label: 'Actifs', 
+    icon: <FiPackage />, 
+    roles: ['admin', 'comptable', 'juridique', 'informatique', 'gestionnaire'],
+    color: '#10b981',
+    shortcut: '⌘A'
+  },
+  { 
+    path: '/inventaire', 
+    label: 'Inventaire', 
+    icon: <FiCamera />, 
+    roles: ['admin', 'inventoriste', 'gestionnaire'],
+    color: '#f59e0b',
+    shortcut: '⌘I'
+  },
+  { 
+    path: '/audit', 
+    label: 'Audit', 
+    icon: <FiActivity />, 
+    roles: ['admin', 'auditeur', 'gestionnaire'], // ✅ gestionnaire ajouté
+    color: '#8b5cf6',
+    shortcut: '⌘U'
+  },
+  { 
+    path: '/conformite', 
+    label: 'Conformité BCC', 
+    icon: <FiShield />, 
+    roles: ['admin', 'auditeur', 'comptable', 'juridique', 'informatique', 'gestionnaire'], // ✅ tous
+    color: '#00fff7',
+    shortcut: '⌘C'
+  },
+  { 
+    path: '/utilisateurs', 
+    label: 'Utilisateurs', 
+    icon: <FiUsers />, 
+    roles: ['admin', 'informatique', 'gestionnaire'], // ✅ admin + informatique + gestionnaire
+    color: '#ec4899',
+    shortcut: '⌘E'
+  },
+  { 
+    path: '/contrats', 
+    label: 'Contrats', 
+    icon: <FiFileText />, 
+    roles: ['admin', 'juridique', 'gestionnaire'],
+    color: '#14b8a6',
+    shortcut: '⌘C'
+  },
+  { 
+    path: '/categories-amortissement', 
+    label: 'Catégories', 
+    icon: <FiGrid />, 
+    roles: ['admin', 'comptable', 'gestionnaire'],
+    color: '#a855f7'
+  },
+  { 
+    path: '/parametres/taux-change', 
+    label: 'Taux de change', 
+    icon: <FiDollarSign />, 
+    roles: ['admin', 'comptable', 'gestionnaire'],
+    color: '#eab308'
+  },
+  { 
+    path: '/parametres', 
+    label: 'Paramètres', 
+    icon: <FiSettings />, 
+    roles: ['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'inventoriste', 'gestionnaire'], // ✅ TOUS les rôles
+    color: 'var(--text-secondary)'
+  },
+  { 
+    path: '/rapports', 
+    label: 'Rapports', 
+    icon: <FiBarChart2 />, 
+    roles: ['admin', 'comptable', 'auditeur', 'gestionnaire'],
+    color: '#ef4444'
+  }
+];
 
   // Filtrer les items selon les permissions
   const filteredMenu = menuItems.filter(item => 
@@ -143,6 +152,7 @@ const MainLayout = () => {
     { keys: ['⌘', '/'], action: 'Aide et raccourcis', icon: <FiHelpCircle size={14} /> },
     { keys: ['⌘', 'L'], action: 'Se déconnecter', icon: <FiLogOut size={14} /> },
     { keys: ['⌘', 'B'], action: 'Basculer la sidebar', icon: <FiMenu size={14} /> },
+    { keys: ['⌘', 'S'], action: 'Conformité BCC', icon: <FiShield size={14} /> },
     { keys: ['ESC'], action: 'Fermer les modals', icon: <FiX size={14} /> }
   ];
 
@@ -207,6 +217,10 @@ const MainLayout = () => {
       if (modKey && e.key === '/') {
         e.preventDefault();
         setShowShortcuts(true);
+      }
+      if (modKey && e.key === 's') {
+        e.preventDefault();
+        navigate('/conformite');
       }
       if (e.key === 'Escape') {
         setCommandPaletteOpen(false);
@@ -346,37 +360,27 @@ const MainLayout = () => {
   // Compter les notifications non lues
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // ==================== FONCTION HANDLELOGOUT CORRIGÉE ====================
+  // Fonction handleLogout
   const handleLogout = () => {
-    // 1. Afficher une confirmation avant de déconnecter
     const confirmLogout = window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?');
     
     if (confirmLogout) {
-      // 2. Dispatch l'action de logout du Redux store
       dispatch(logout());
-      
-      // 3. Supprimer le token du localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
-      // 4. Supprimer tous les headers d'authentification
       delete api.defaults.headers.common['Authorization'];
-      
-      // 5. Afficher un message de confirmation
       toast.success('Déconnexion réussie', {
         icon: '👋',
         description: 'À bientôt !'
       });
-      
-      // 6. Rediriger vers la page de connexion
       navigate('/login');
     }
   };
-  // ==================== FIN DE LA MODIFICATION ====================
 
   const isActive = (path) => {
     if (path === '/rapports' && location.pathname.startsWith('/rapports')) return true;
     if (path === '/parametres' && location.pathname.startsWith('/parametres')) return true;
+    if (path === '/conformite' && location.pathname.startsWith('/conformite')) return true;
     return location.pathname === path;
   };
 
@@ -384,6 +388,7 @@ const MainLayout = () => {
     const activeItem = menuItems.find(item => isActive(item.path));
     if (activeItem) return activeItem.label;
     if (location.pathname === '/parametres/taux-change') return 'Taux de change';
+    if (location.pathname === '/conformite') return 'Conformité BCC';
     return 'Accueil';
   };
 
@@ -430,21 +435,21 @@ const MainLayout = () => {
             >
               {sidebarOpen ? (
                 <>
-                  <span style={styles.logoIcon}>🇨🇩</span>
+                  <img 
+                    src="/images/R.png" 
+                    alt="Logo BCC" 
+                    style={styles.logoImage}
+                  />
                   <h1 style={styles.logo}>BCC Gestion</h1>
                 </>
               ) : (
-                <h1 style={styles.logoMini}>🇨🇩</h1>
+                <img 
+                  src="/images/R.png" 
+                  alt="Logo BCC" 
+                  style={styles.logoImageMini}
+                />
               )}
             </motion.div>
-            <motion.button 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={styles.menuToggle}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              {sidebarOpen ? <FiX size={20} /> : <FiMenu size={20} />}
-            </motion.button>
           </div>
 
           <nav style={styles.nav}>
@@ -719,7 +724,7 @@ const MainLayout = () => {
                         style={styles.userMenuItem} 
                         onClick={() => {
                           setUserMenuOpen(false);
-                          navigate('/parametres/profil');
+                          navigate('/mon-profil');
                         }}
                         whileHover={{ x: 4 }}
                       >
@@ -773,7 +778,7 @@ const MainLayout = () => {
           </main>
         </div>
 
-        {/* Command Palette améliorée */}
+        {/* Command Palette améliorée - TEXTES EN NOIR */}
         <AnimatePresence>
           {commandPaletteOpen && (
             <motion.div
@@ -791,7 +796,7 @@ const MainLayout = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div style={styles.commandSearch}>
-                  <FiSearch size={20} color="#666" />
+                  <FiSearch size={20} color="#000" />
                   <input
                     type="text"
                     placeholder="Rechercher une action..."
@@ -801,7 +806,7 @@ const MainLayout = () => {
                     autoFocus
                     ref={searchInputRef}
                   />
-                  <FiX size={20} color="#666" onClick={() => setCommandPaletteOpen(false)} style={{ cursor: 'pointer' }} />
+                  <FiX size={20} color="#000" onClick={() => setCommandPaletteOpen(false)} style={{ cursor: 'pointer' }} />
                 </div>
                 <div style={styles.commandList}>
                   {filteredCommands.map((item, index) => (
@@ -817,32 +822,32 @@ const MainLayout = () => {
                         setSearchQuery('');
                       }}
                     >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, color: '#000000' }}>
                         <span style={{ color: item.color }}>{item.icon}</span>
-                        {item.label}
+                        <span style={{ color: '#000000' }}>{item.label}</span>
                       </span>
-                      <span style={styles.commandShortcut}>{item.shortcut}</span>
+                      <span style={{ ...styles.commandShortcut, color: '#000000' }}>{item.shortcut}</span>
                     </motion.div>
                   ))}
                   {filteredCommands.length === 0 && (
                     <div style={styles.noResults}>
-                      <FiSearch size={32} color="#cbd5e1" />
-                      <p>Aucun résultat trouvé</p>
+                      <FiSearch size={32} color="#000" style={{ opacity: 0.5 }} />
+                      <p style={{ color: '#000000' }}>Aucun résultat trouvé</p>
                     </div>
                   )}
                 </div>
                 <div style={styles.commandFooter}>
-                  <span><FiCommand size={12} /> pour commander</span>
-                  <span><FiArrowUp size={12} /> <FiArrowDown size={12} /> naviguer</span>
-                  <span><FiCheck size={12} /> sélectionner</span>
-                  <span><FiX size={12} /> fermer</span>
+                  <span style={{ color: '#000000' }}><FiCommand size={12} style={{ color: '#000000' }} /> pour commander</span>
+                  <span style={{ color: '#000000' }}><FiArrowUp size={12} style={{ color: '#000000' }} /> <FiArrowDown size={12} style={{ color: '#000000' }} /> naviguer</span>
+                  <span style={{ color: '#000000' }}><FiCheck size={12} style={{ color: '#000000' }} /> sélectionner</span>
+                  <span style={{ color: '#000000' }}><FiX size={12} style={{ color: '#000000' }} /> fermer</span>
                 </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Modal des raccourcis clavier */}
+        {/* Modal des raccourcis clavier - TEXTES EN NOIR */}
         <AnimatePresence>
           {showShortcuts && (
             <motion.div
@@ -860,11 +865,11 @@ const MainLayout = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div style={styles.modalHeader}>
-                  <h3 style={styles.modalTitle}>
-                    <FiCommand size={18} /> Raccourcis clavier
+                  <h3 style={{ ...styles.modalTitle, color: '#000000' }}>
+                    <FiCommand size={18} style={{ color: '#000000' }} /> Raccourcis clavier
                   </h3>
                   <button onClick={() => setShowShortcuts(false)} style={styles.modalClose}>
-                    <FiX size={20} />
+                    <FiX size={20} color="#000" />
                   </button>
                 </div>
                 <div style={styles.shortcutsList}>
@@ -876,8 +881,8 @@ const MainLayout = () => {
                       transition={{ delay: index * 0.03 }}
                       style={styles.shortcutItem}
                     >
-                      <div style={styles.shortcutIcon}>{shortcut.icon}</div>
-                      <div style={styles.shortcutAction}>{shortcut.action}</div>
+                      <div style={{ ...styles.shortcutIcon, color: '#000000' }}>{shortcut.icon}</div>
+                      <div style={{ ...styles.shortcutAction, color: '#000000' }}>{shortcut.action}</div>
                       <div style={styles.shortcutKeys}>
                         {shortcut.keys.map((key, i) => (
                           <kbd key={i} style={styles.shortcutKey}>{key}</kbd>
@@ -897,11 +902,12 @@ const MainLayout = () => {
         </AnimatePresence>
       </div>
       </RoutePersister>
+      <Chatbot />
     </>
   );
 };
 
-// ============ STYLES CORRIGÉS ============
+// ============ STYLES OPTIMISÉS ============
 
 const styles = {
   container: {
@@ -946,8 +952,15 @@ const styles = {
     gap: '0.75rem',
     cursor: 'pointer'
   },
-  logoIcon: {
-    fontSize: '1.8rem'
+  logoImage: {
+    width: '32px',
+    height: '32px',
+    objectFit: 'contain'
+  },
+  logoImageMini: {
+    width: '40px',
+    height: '40px',
+    objectFit: 'contain'
   },
   logo: {
     fontSize: '1.2rem',
@@ -960,24 +973,6 @@ const styles = {
     letterSpacing: '2px',
     textShadow: '0 0 20px rgba(0,255,247,0.5)',
     filter: 'drop-shadow(0 0 10px rgba(0,255,247,0.4))'
-  },
-  logoMini: {
-    fontSize: '1.5rem',
-    margin: 0,
-    color: 'var(--bg-card)'
-  },
-  menuToggle: {
-    background: 'rgba(255,255,255,0.1)',
-    border: 'none',
-    color: '#94a3b8',
-    cursor: 'pointer',
-    width: '32px',
-    height: '32px',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s'
   },
   nav: {
     flex: 1,
@@ -1017,7 +1012,7 @@ const styles = {
   },
   badge: {
     backgroundColor: '#ef4444',
-    color: 'var(--bg-card)',
+    color: '#fff',
     fontSize: '0.7rem',
     padding: '0.125rem 0.375rem',
     borderRadius: '10px',
@@ -1057,7 +1052,7 @@ const styles = {
   userName: {
     fontSize: '0.9rem',
     fontWeight: '600',
-    color: 'var(--bg-card)'
+    color: '#fff'
   },
   userRole: {
     fontSize: '0.7rem',
@@ -1093,8 +1088,8 @@ const styles = {
     alignItems: 'center',
     gap: '0.25rem',
     fontSize: '0.7rem',
-    color: 'var(--text-secondary)',
-    backgroundColor: 'var(--bg-primary)',
+    color: '#94a3b8',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     padding: '0.25rem 0.5rem',
     borderRadius: '4px'
   },
@@ -1146,7 +1141,7 @@ const styles = {
   },
   timeText: {
     fontWeight: '500',
-    color: 'var(--text-primary)'
+    color: '#fff'
   },
   iconButton: {
     background: 'rgba(15,23,42,0.4)',
@@ -1169,10 +1164,10 @@ const styles = {
   },
   notificationBadge: {
     position: 'absolute',
-    top: '0',
-    right: '0',
+    top: '-5px',
+    right: '-5px',
     backgroundColor: '#ef4444',
-    color: 'var(--bg-card)',
+    color: '#fff',
     fontSize: '0.7rem',
     padding: '0.125rem 0.375rem',
     borderRadius: '10px',
@@ -1184,7 +1179,7 @@ const styles = {
     top: '100%',
     right: 0,
     width: '380px',
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#fff',
     borderRadius: '12px',
     boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
     marginTop: '0.5rem',
@@ -1193,7 +1188,7 @@ const styles = {
   },
   notificationHeader: {
     padding: '1rem',
-    borderBottom: `1px solid var(--border-color)`,
+    borderBottom: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1242,7 +1237,7 @@ const styles = {
     alignItems: 'flex-start',
     gap: '0.75rem',
     padding: '0.75rem 1rem',
-    borderBottom: `1px solid var(--border-color)`,
+    borderBottom: '1px solid #e2e8f0',
     cursor: 'pointer',
     transition: 'background-color 0.2s'
   },
@@ -1255,7 +1250,7 @@ const styles = {
   notificationMessage: {
     fontSize: '0.875rem',
     marginBottom: '0.25rem',
-    color: 'var(--text-primary)'
+    color: '#1e293b'
   },
   notificationTime: {
     fontSize: '0.7rem',
@@ -1275,7 +1270,7 @@ const styles = {
     padding: '0.75rem',
     background: 'none',
     border: 'none',
-    borderTop: `1px solid var(--border-color)`,
+    borderTop: '1px solid #e2e8f0',
     color: '#3b82f6',
     fontSize: '0.875rem',
     cursor: 'pointer'
@@ -1300,7 +1295,7 @@ const styles = {
     marginLeft: '0.25rem'
   },
   greetingName: {
-    color: 'var(--text-primary)',
+    color: '#00fff7',
     marginLeft: '0.25rem'
   },
   userMenu: {
@@ -1336,7 +1331,7 @@ const styles = {
     top: '100%',
     right: 0,
     width: '280px',
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#fff',
     borderRadius: '12px',
     boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
     marginTop: '0.5rem',
@@ -1345,7 +1340,7 @@ const styles = {
   },
   userMenuHeader: {
     padding: '1rem',
-    borderBottom: `1px solid var(--border-color)`,
+    borderBottom: '1px solid #e2e8f0',
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem'
@@ -1355,7 +1350,7 @@ const styles = {
     height: '48px',
     borderRadius: '50%',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'var(--bg-card)',
+    color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1372,7 +1367,7 @@ const styles = {
     alignItems: 'center',
     gap: '0.75rem',
     fontSize: '0.9rem',
-    color: 'var(--text-primary)',
+    color: '#1e293b',
     transition: 'background-color 0.2s',
     textAlign: 'left',
     position: 'relative'
@@ -1394,7 +1389,7 @@ const styles = {
   menuBadge: {
     marginLeft: 'auto',
     backgroundColor: '#ef4444',
-    color: 'var(--bg-card)',
+    color: '#fff',
     fontSize: '0.7rem',
     padding: '0.125rem 0.375rem',
     borderRadius: '10px'
@@ -1402,7 +1397,7 @@ const styles = {
   userMenuDivider: {
     margin: '0.5rem 0',
     border: 'none',
-    borderTop: `1px solid var(--border-color)`
+    borderTop: '1px solid #e2e8f0'
   },
   content: {
     padding: '2rem'
@@ -1410,7 +1405,6 @@ const styles = {
   contentWrapper: {
     animation: 'fadeIn 0.3s ease'
   },
-  // Command Palette
   commandOverlay: {
     position: 'fixed',
     top: 0,
@@ -1426,7 +1420,7 @@ const styles = {
     backdropFilter: 'blur(4px)'
   },
   commandPalette: {
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#fff',
     borderRadius: '12px',
     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
     width: '90%',
@@ -1438,14 +1432,18 @@ const styles = {
     alignItems: 'center',
     gap: '0.75rem',
     padding: '1rem 1.25rem',
-    borderBottom: `1px solid var(--border-color)`
+    borderBottom: '1px solid #e2e8f0'
   },
   commandInput: {
     flex: 1,
     border: 'none',
     outline: 'none',
     fontSize: '1rem',
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
+    color: '#000000'
+  },
+  commandInputPlaceholder: {
+    color: '#9ca3af'
   },
   commandList: {
     maxHeight: '400px',
@@ -1458,29 +1456,27 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     fontSize: '0.95rem',
-    borderBottom: `1px solid var(--border-color)`,
+    borderBottom: '1px solid #e2e8f0',
     justifyContent: 'space-between'
   },
   commandShortcut: {
     fontSize: '0.7rem',
-    color: '#94a3b8',
+    color: '#000000',
     fontFamily: 'monospace'
   },
   commandFooter: {
     padding: '0.75rem 1rem',
-    borderTop: `1px solid var(--border-color)`,
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'space-between',
     fontSize: '0.7rem',
-    color: '#94a3b8',
-    backgroundColor: 'var(--bg-secondary)'
+    backgroundColor: '#f8fafc'
   },
   noResults: {
     textAlign: 'center',
     padding: '2rem',
-    color: '#94a3b8'
+    color: '#000000'
   },
-  // Modals
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -1495,7 +1491,7 @@ const styles = {
     backdropFilter: 'blur(4px)'
   },
   modalContent: {
-    backgroundColor: 'var(--bg-card)',
+    backgroundColor: '#fff',
     borderRadius: '16px',
     width: '90%',
     maxWidth: '500px',
@@ -1509,7 +1505,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '1rem 1.5rem',
-    borderBottom: `1px solid var(--border-color)`
+    borderBottom: '1px solid #e2e8f0'
   },
   modalTitle: {
     fontSize: '1.2rem',
@@ -1542,16 +1538,17 @@ const styles = {
     alignItems: 'center',
     gap: '1rem',
     padding: '0.75rem',
-    backgroundColor: 'var(--bg-secondary)',
+    backgroundColor: '#f8fafc',
     borderRadius: '8px'
   },
   shortcutIcon: {
     width: '28px',
-    color: 'var(--text-secondary)'
+    color: '#000000'
   },
   shortcutAction: {
     flex: 1,
-    fontSize: '0.875rem'
+    fontSize: '0.875rem',
+    color: '#000000'
   },
   shortcutKeys: {
     display: 'flex',
@@ -1559,7 +1556,7 @@ const styles = {
   },
   shortcutKey: {
     padding: '0.125rem 0.375rem',
-    backgroundColor: 'var(--border-color)',
+    backgroundColor: '#e2e8f0',
     borderRadius: '4px',
     fontSize: '0.7rem',
     fontFamily: 'monospace',
@@ -1567,14 +1564,14 @@ const styles = {
   },
   modalFooter: {
     padding: '1rem 1.5rem',
-    borderTop: `1px solid var(--border-color)`,
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'flex-end'
   },
   modalButton: {
     padding: '0.5rem 1rem',
     backgroundColor: '#3b82f6',
-    color: 'var(--bg-card)',
+    color: '#fff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer'

@@ -18,7 +18,7 @@ if (config.use_env_variable) {
 
 // ============ IMPORTER TOUS LES MODÈLES ============
 // Importer les modèles existants
-const User = require('./user')(sequelize);
+const User = require('./User')(sequelize);
 const Actif = require('./Actif')(sequelize);
 const Amortissement = require('./amortissement')(sequelize);
 const AuditLog = require('./auditLog')(sequelize);
@@ -33,6 +33,7 @@ const Reevaluation = require('./reevaluation')(sequelize);
 // Modèles pour les anomalies et documents
 const Anomalie = require('./anomalie')(sequelize);
 const Document = require('./document')(sequelize);
+const DocumentLog = require('./DocumentLog')(sequelize); // ✅ NOUVEAU MODÈLE
 
 // ✅ MODÈLE POUR LES DEVISES (GESTION MULTI-DEVISES)
 const Devise = require('./Devise')(sequelize);
@@ -42,6 +43,9 @@ const ExerciceComptable = require('./ExerciceComptable')(sequelize);
 
 // ✅ MODÈLE POUR LES FACTURES
 const Facture = require('./Facture')(sequelize);
+
+// ✅ MODÈLE POUR LES TAUX DE CHANGE HISTORIQUES (AJOUTÉ)
+const TauxChange = require('./TauxChange')(sequelize);
 
 // ============ ASSOCIATIONS EXISTANTES ============
 
@@ -186,6 +190,29 @@ User.hasMany(Document, {
   as: 'documentsCrees'
 });
 
+// ============ ASSOCIATIONS POUR DOCUMENT LOG (NOUVEAU) ============
+
+// Associations Document ↔ DocumentLog
+Document.hasMany(DocumentLog, { 
+  foreignKey: 'document_id', 
+  as: 'logs',
+  onDelete: 'CASCADE' 
+});
+DocumentLog.belongsTo(Document, { 
+  foreignKey: 'document_id',
+  as: 'document' 
+});
+
+// Associations User ↔ DocumentLog
+User.hasMany(DocumentLog, { 
+  foreignKey: 'user_id',
+  as: 'documentLogs' 
+});
+DocumentLog.belongsTo(User, { 
+  foreignKey: 'user_id',
+  as: 'user' 
+});
+
 // ============ ASSOCIATIONS POUR DEVISES (MULTI-DEVISES) ============
 
 // ✅ Associations Actif ↔ Devise
@@ -196,6 +223,18 @@ Actif.belongsTo(Devise, {
 Devise.hasMany(Actif, { 
   foreignKey: 'devise_id',
   as: 'actifs'
+});
+
+// ============ ASSOCIATIONS POUR TAUX CHANGE HISTORIQUES ============
+
+// ✅ Associations TauxChange ↔ Devise
+TauxChange.belongsTo(Devise, { 
+  as: 'devise', 
+  foreignKey: 'devise_id' 
+});
+Devise.hasMany(TauxChange, { 
+  foreignKey: 'devise_id',
+  as: 'taux_historiques'
 });
 
 // ============ ASSOCIATIONS POUR FACTURES ============
@@ -221,59 +260,54 @@ User.hasMany(Facture, {
   as: 'facturesCrees'
 });
 
-// ============ ASSOCIATIONS POUR EXERCICES COMPTABLES ============
-
-// ✅ NOTE: La table exercices_comptables n'a pas les colonnes created_by et updated_by
-// Les associations avec User sont donc commentées jusqu'à ce que ces colonnes soient ajoutées
-// ExerciceComptable.belongsTo(User, { 
-//   as: 'createurExercice', 
-//   foreignKey: 'created_by' 
-// });
-// User.hasMany(ExerciceComptable, { 
-//   foreignKey: 'created_by',
-//   as: 'exercicesCrees'
-// });
-
-// Associations ExerciceComptable avec User (modificateur)
-// ExerciceComptable.belongsTo(User, { 
-//   as: 'modificateurExercice', 
-//   foreignKey: 'updated_by' 
-// });
-// User.hasMany(ExerciceComptable, { 
-//   foreignKey: 'updated_by',
-//   as: 'exercicesModifies'
-// });
-
-// ============ AUTRES ASSOCIATIONS ============
+// ============ ASSOCIATIONS POUR AUDIT LOG ============
 
 // Associations AuditLog
 User.hasMany(AuditLog, { as: 'logs', foreignKey: 'user_id' });
 AuditLog.belongsTo(User, { as: 'utilisateur', foreignKey: 'user_id' });
 
+// ============ ASSOCIATIONS POUR CONTRAT ============
+
 // Associations Contrat avec User
 Contrat.belongsTo(User, { as: 'createurContrat', foreignKey: 'created_by' });
 Contrat.belongsTo(User, { as: 'modificateurContrat', foreignKey: 'updated_by' });
 
+// ============ ASSOCIATIONS POUR DEPRECIATION ============
+
 // Associations Depreciation avec User
 Depreciation.belongsTo(User, { as: 'createurDepreciation', foreignKey: 'created_by' });
 
+// ============ ASSOCIATIONS POUR EXERCICES COMPTABLES ============
+
+// ✅ NOTE: La table exercices_comptables n'a pas les colonnes created_by et updated_by
+// Les associations avec User sont donc commentées jusqu'à ce que ces colonnes soient ajoutées
+
 // ============ EXPORT DES MODÈLES ============
 
-module.exports = {
-  sequelize,
-  Sequelize,
-  User,
-  Actif,
-  Amortissement,
-  AuditLog,
-  Contrat,
-  Depreciation,
-  Mouvement,
-  CategorieAmortissement,
-  Reevaluation,
-  Anomalie,
-  Document,
-  Devise,              // ✅ MODÈLE DEVISE
-  ExerciceComptable,   // ✅ MODÈLE EXERCICE COMPTABLE
-  Facture              // ✅ MODÈLE FACTURE
-};
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
+db.User = User;
+db.Actif = Actif;
+db.Amortissement = Amortissement;
+db.AuditLog = AuditLog;
+db.Contrat = Contrat;
+db.Depreciation = Depreciation;
+db.Mouvement = Mouvement;
+db.CategorieAmortissement = CategorieAmortissement;
+db.Reevaluation = Reevaluation;
+db.Anomalie = Anomalie;
+db.Document = Document;
+db.DocumentLog = DocumentLog;  // ✅ EXPORT DU NOUVEAU MODÈLE
+db.Devise = Devise;
+db.ExerciceComptable = ExerciceComptable;
+db.Facture = Facture;
+db.TauxChange = TauxChange;
+
+// Exécuter les associations définies dans chaque modèle
+Object.keys(db).forEach(modelName => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
+
+module.exports = db;

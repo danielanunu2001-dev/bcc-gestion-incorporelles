@@ -23,7 +23,9 @@ import {
   FiEye, FiEdit, FiTrash2, FiPlus,
   FiRefreshCw, FiGrid, FiList, FiDownload,
   FiCheckCircle, FiAlertCircle, FiInfo, FiPackage,
-  FiChevronLeft, FiChevronRight, FiX
+  FiChevronLeft, FiChevronRight, FiX, FiCalendar,
+  FiMapPin, FiTag, FiDollarSign, FiTrendingUp,
+  FiUser, FiBriefcase, FiCpu, FiAward, FiBarChart2
 } from 'react-icons/fi';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,12 +45,14 @@ const ActifList = () => {
   
   // États locaux
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('actifViewMode') || 'table');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('actifViewMode') || 'grid');
   const [selectedActifs, setSelectedActifs] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [actifToDelete, setActifToDelete] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [hoveredCard, setHoveredCard] = useState(null);
 
   // Sauvegarder le mode d'affichage
   useEffect(() => {
@@ -63,6 +67,18 @@ const ActifList = () => {
     state => selectSortedActifs(state, sortConfig.key, sortConfig.direction),
     shallowEqual
   );
+
+  // Filtrage par recherche
+  const filteredBySearch = useMemo(() => {
+    if (!searchTerm) return sortedActifs;
+    const term = searchTerm.toLowerCase();
+    return sortedActifs.filter(actif => 
+      actif.code?.toLowerCase().includes(term) ||
+      actif.nom?.toLowerCase().includes(term) ||
+      actif.fournisseur?.toLowerCase().includes(term) ||
+      actif.localisation?.toLowerCase().includes(term)
+    );
+  }, [sortedActifs, searchTerm]);
 
   // Effet pour charger les actifs
   useEffect(() => {
@@ -134,11 +150,11 @@ const ActifList = () => {
 
   const toggleSelectAll = useCallback((e) => {
     if (e.target.checked) {
-      setSelectedActifs(sortedActifs.map(a => a.id));
+      setSelectedActifs(filteredBySearch.map(a => a.id));
     } else {
       setSelectedActifs([]);
     }
-  }, [sortedActifs]);
+  }, [filteredBySearch]);
 
   const toggleSelectActif = useCallback((id) => {
     setSelectedActifs(prev => 
@@ -206,38 +222,37 @@ const ActifList = () => {
 
   const getEtatColor = (etat) => {
     const colors = {
-      'neuf': '#22c55e',
+      'neuf': '#10b981',
       'bon': '#3b82f6',
-      'moyen': '#eab308',
+      'moyen': '#f59e0b',
       'mauvais': '#ef4444',
       'reforme': '#6b7280',
-      'reparation': '#eab308',
+      'reparation': '#f59e0b',
       'hors_service': '#ef4444'
     };
     return colors[etat] || '#6b7280';
   };
 
-  const getStatusColor = (actif) => {
-    if (!actif.actif) return '#ef4444';
-    const valeurNette = actif.valeur_nette || actif.cout_acquisition;
-    if (valeurNette <= (actif.valeur_residuelle || 0)) return '#eab308';
-    return '#22c55e';
-  };
-
-  const getStatusText = (actif) => {
-    if (!actif.actif) return 'Inactif';
-    const valeurNette = actif.valeur_nette || actif.cout_acquisition;
-    if (valeurNette <= (actif.valeur_residuelle || 0)) return 'Amorti';
-    return 'Actif';
+  const getEtatIcon = (etat) => {
+    const icons = {
+      'neuf': '✨',
+      'bon': '👍',
+      'moyen': '👌',
+      'mauvais': '⚠️',
+      'reforme': '📦',
+      'reparation': '🔧',
+      'hors_service': '❌'
+    };
+    return icons[etat] || '📋';
   };
 
   const getTypeIcon = (type) => {
     const icons = {
-      'logiciel': '💻',
-      'brevet': '📜',
-      'licence': '📄',
-      'fonds_commercial': '🏢',
-      'materiel': '🖥️',
+      'logiciel': <FiCpu size={14} />,
+      'brevet': <FiAward size={14} />,
+      'licence': <FiBriefcase size={14} />,
+      'fonds_commercial': <FiBriefcase size={14} />,
+      'materiel': <FiCpu size={14} />,
       'vehicule': '🚗',
       'bâtiment': '🏠',
       'terrain': '🌳',
@@ -246,17 +261,42 @@ const ActifList = () => {
     return icons[type] || '📋';
   };
 
-  // Styles dynamiques avec meilleur contraste
-  const bgColor = darkMode ? '#0a0a0f' : '#f0f2f5';
-  const cardBg = darkMode ? '#1a1a2e' : '#ffffff';
-  const textColor = darkMode ? '#ffffff' : '#111827';
-  const textMuted = darkMode ? '#cbd5e1' : '#4b5563';
-  const borderColor = darkMode ? '#334155' : '#e5e7eb';
+  const getValeurNette = (actif) => {
+    return actif.valeur_nette || actif.cout_acquisition;
+  };
+
+  const getTauxAmortissement = (actif) => {
+    if (actif.taux_amortissement) return `${actif.taux_amortissement}%`;
+    if (actif.duree_utile_ans) return `${(100 / actif.duree_utile_ans).toFixed(2)}%`;
+    return 'N/A';
+  };
+
+  // Statistiques améliorées
+  const enhancedStats = useMemo(() => {
+    const total = filteredBySearch.length;
+    const valeurTotale = filteredBySearch.reduce((sum, a) => sum + (a.cout_acquisition || 0), 0);
+    const valeurNetteTotale = filteredBySearch.reduce((sum, a) => sum + getValeurNette(a), 0);
+    const amortissementTotal = valeurTotale - valeurNetteTotale;
+    
+    return {
+      total,
+      valeurTotale,
+      valeurNetteTotale,
+      amortissementTotal,
+      tauxAmortissementGlobal: valeurTotale > 0 ? (amortissementTotal / valeurTotale * 100).toFixed(2) : 0
+    };
+  }, [filteredBySearch]);
+
+  const bgColor = darkMode ? '#0f172a' : '#f8fafc';
+  const cardBg = darkMode ? '#1e293b' : '#ffffff';
+  const textColor = darkMode ? '#f1f5f9' : '#0f172a';
+  const textMuted = darkMode ? '#94a3b8' : '#64748b';
+  const borderColor = darkMode ? '#334155' : '#e2e8f0';
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
       style={{...styles.container, backgroundColor: bgColor}}
     >
@@ -286,8 +326,12 @@ const ActifList = () => {
                 </button>
               </div>
               <div style={styles.modalBody}>
-                <p style={{ color: textColor, fontWeight: 'bold' }}>Êtes-vous sûr de vouloir supprimer l'actif <strong style={{ color: '#ef4444' }}>"{actifToDelete?.nom}"</strong> ?</p>
-                <p style={{...styles.modalNote, color: textMuted, fontWeight: 'bold'}}>Cette action est irréversible et supprimera toutes les données associées.</p>
+                <p style={{ color: textColor, fontSize: '1rem', marginBottom: '0.5rem' }}>
+                  Êtes-vous sûr de vouloir supprimer l'actif <strong style={{ color: '#ef4444' }}>"{actifToDelete?.nom}"</strong> ?
+                </p>
+                <p style={{...styles.modalNote, color: textMuted}}>
+                  Cette action est irréversible et supprimera toutes les données associées.
+                </p>
               </div>
               <div style={styles.modalFooter}>
                 <button onClick={() => setShowDeleteModal(false)} style={styles.cancelButton}>Annuler</button>
@@ -298,38 +342,33 @@ const ActifList = () => {
         )}
       </AnimatePresence>
 
-      {/* Header avec stats */}
+      {/* Header avec stats amélioré */}
       <div style={styles.header}>
-        <div>
+        <div style={styles.headerLeft}>
           <h1 style={styles.title}>
-            <FiPackage size={32} /> Gestion des Actifs
+            <FiPackage size={28} style={{ color: '#3b82f6' }} />
+            Gestion des Actifs
           </h1>
-          <p style={{...styles.subtitle, color: textMuted, fontWeight: 'bold'}}>
-            {stats.total} actif(s) trouvé(s)
-            {selectedActifs.length > 0 && <span style={styles.selectedBadge}>{selectedActifs.length} sélectionné(s)</span>}
+          <p style={{...styles.subtitle, color: textMuted}}>
+            {enhancedStats.total} actif(s) • Valeur totale: {formatCurrency(enhancedStats.valeurTotale)} • Amortissement: {enhancedStats.tauxAmortissementGlobal}%
           </p>
-          <div style={styles.statsBadges}>
-            <span style={{...styles.badge, backgroundColor: '#dbeafe', color: '#1e40af'}}>
-              🏭 Corporel: {stats.corporel}
-            </span>
-            <span style={{...styles.badge, backgroundColor: '#ede9fe', color: '#6d28d9'}}>
-              📄 Incorporel: {stats.incorporel}
-            </span>
-            <span style={{...styles.badge, backgroundColor: '#d1fae5', color: '#065f46'}}>
-              ✅ Actif: {stats.actifsActifs}
-            </span>
-            {stats.actifsInactifs > 0 && (
-              <span style={{...styles.badge, backgroundColor: '#fee2e2', color: '#991b1b'}}>
-                ❌ Inactif: {stats.actifsInactifs}
-              </span>
-            )}
-          </div>
         </div>
         
         <div style={styles.actions}>
+          {/* Barre de recherche */}
+          <div style={styles.searchBar}>
+            <input
+              type="text"
+              placeholder="Rechercher un actif..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={styles.searchInput}
+            />
+          </div>
+
           {/* Boutons d'export */}
           {can(['admin', 'comptable', 'auditeur', 'gestionnaire']) && (
-            <ExportButtons data={sortedActifs} filename="liste_actifs" type="actifs" />
+            <ExportButtons data={filteredBySearch} filename="liste_actifs" type="actifs" />
           )}
           
           {/* Toggle vue */}
@@ -360,7 +399,6 @@ const ActifList = () => {
             title="Rafraîchir"
           >
             <FiRefreshCw size={16} className={loading ? 'spin' : ''} />
-            <span className="d-none d-md-inline">Rafraîchir</span>
           </motion.button>
           
           {/* Suppression groupée */}
@@ -371,7 +409,7 @@ const ActifList = () => {
               onClick={handleBulkDelete} 
               style={styles.bulkDeleteButton}
             >
-              <FiTrash2 size={16} /> Supprimer ({selectedActifs.length})
+              <FiTrash2 size={16} /> {selectedActifs.length}
             </motion.button>
           )}
           
@@ -392,6 +430,38 @@ const ActifList = () => {
       {/* Filtres avancés */}
       <AdvancedFilters type="actifs" darkMode={darkMode} />
 
+      {/* Cartes statistiques */}
+      <div style={styles.statsGrid}>
+        <div style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}>
+          <div style={styles.statIcon}><FiPackage size={20} style={{ color: '#3b82f6' }} /></div>
+          <div>
+            <div style={styles.statValue}>{enhancedStats.total}</div>
+            <div style={styles.statLabel}>Total actifs</div>
+          </div>
+        </div>
+        <div style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}>
+          <div style={styles.statIcon}><FiDollarSign size={20} style={{ color: '#10b981' }} /></div>
+          <div>
+            <div style={styles.statValue}>{formatCurrency(enhancedStats.valeurTotale)}</div>
+            <div style={styles.statLabel}>Valeur brute</div>
+          </div>
+        </div>
+        <div style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}>
+          <div style={styles.statIcon}><FiTrendingUp size={20} style={{ color: '#8b5cf6' }} /></div>
+          <div>
+            <div style={styles.statValue}>{formatCurrency(enhancedStats.valeurNetteTotale)}</div>
+            <div style={styles.statLabel}>Valeur nette</div>
+          </div>
+        </div>
+        <div style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}>
+          <div style={styles.statIcon}><FiBarChart2 size={20} style={{ color: '#f59e0b' }} /></div>
+          <div>
+            <div style={styles.statValue}>{enhancedStats.tauxAmortissementGlobal}%</div>
+            <div style={styles.statLabel}>Amortissement global</div>
+          </div>
+        </div>
+      </div>
+
       {/* Vue Tableau */}
       {viewMode === 'table' && (
         <div style={{...styles.tableCard, backgroundColor: cardBg, borderColor: borderColor}}>
@@ -399,12 +469,12 @@ const ActifList = () => {
             {loading && !actifs.length ? (
               <div style={styles.loadingContainer}>
                 <div style={styles.spinner}></div>
-                <p style={{ color: textMuted, fontWeight: 'bold' }}>Chargement des actifs...</p>
+                <p style={{ color: textMuted }}>Chargement des actifs...</p>
               </div>
-            ) : sortedActifs.length === 0 ? (
+            ) : filteredBySearch.length === 0 ? (
               <div style={styles.emptyState}>
-                <FiPackage size={48} style={{ color: '#6b7280', marginBottom: '1rem' }} />
-                <p style={{ color: textMuted, fontWeight: 'bold' }}>Aucun actif trouvé</p>
+                <FiPackage size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
+                <p style={{ color: textMuted }}>Aucun actif trouvé</p>
                 {can(['admin', 'comptable']) && (
                   <motion.button 
                     whileHover={{ scale: 1.02 }}
@@ -421,147 +491,62 @@ const ActifList = () => {
                 <thead>
                   <tr>
                     {can(['admin', 'comptable']) && (
-                      <th style={{ width: '40px' }}>
+                      <th style={{ width: '40px', padding: '0.75rem 0.5rem' }}>
                         <input
                           type="checkbox"
                           style={styles.checkbox}
-                          checked={selectedActifs.length === sortedActifs.length && sortedActifs.length > 0}
+                          checked={selectedActifs.length === filteredBySearch.length && filteredBySearch.length > 0}
                           onChange={toggleSelectAll}
                         />
                       </th>
                     )}
-                    <th onClick={() => handleSort('code')} style={styles.sortableHeader}>
-                      Code {sortConfig.key === 'code' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th onClick={() => handleSort('nom')} style={styles.sortableHeader}>
-                      Nom {sortConfig.key === 'nom' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th onClick={() => handleSort('type')} style={styles.sortableHeader}>
-                      Type {sortConfig.key === 'type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th onClick={() => handleSort('type_immobilisation')} style={styles.sortableHeader}>
-                      Nature {sortConfig.key === 'type_immobilisation' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th>N° Inventaire</th>
+                    <th onClick={() => handleSort('code')} style={styles.sortableHeader}>Code</th>
+                    <th onClick={() => handleSort('nom')} style={styles.sortableHeader}>Nom</th>
+                    <th onClick={() => handleSort('type')} style={styles.sortableHeader}>Type</th>
+                    <th onClick={() => handleSort('type_immobilisation')} style={styles.sortableHeader}>Nature</th>
                     <th>État</th>
-                    <th onClick={() => handleSort('localisation')} style={styles.sortableHeader}>
-                      Localisation {sortConfig.key === 'localisation' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                    </th>
-                    <th onClick={() => handleSort('date_acquisition')} style={styles.sortableHeader}>
-                      Date acq.
-                    </th>
-                    <th onClick={() => handleSort('cout_acquisition')} style={{...styles.sortableHeader, textAlign: 'right'}}>
-                      Coût
-                    </th>
-                    <th style={{ width: '120px' }}>Actions</th>
+                    <th onClick={() => handleSort('localisation')} style={styles.sortableHeader}>Localisation</th>
+                    <th onClick={() => handleSort('date_acquisition')} style={styles.sortableHeader}>Date acq.</th>
+                    <th onClick={() => handleSort('cout_acquisition')} style={{...styles.sortableHeader, textAlign: 'right'}}>Coût</th>
+                    <th style={{ width: '100px', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedActifs.map((actif, index) => (
+                  {filteredBySearch.map((actif, index) => (
                     <motion.tr 
                       key={actif.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.02 }}
-                      style={styles.tableRow}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.01 }}
+                      style={{...styles.tableRow, borderBottomColor: borderColor}}
                     >
                       {can(['admin', 'comptable']) && (
-                        <td>
-                          <input
-                            type="checkbox"
-                            style={styles.checkbox}
-                            checked={selectedActifs.includes(actif.id)}
-                            onChange={() => toggleSelectActif(actif.id)}
-                          />
-                        </td>
+                        <td><input type="checkbox" style={styles.checkbox} checked={selectedActifs.includes(actif.id)} onChange={() => toggleSelectActif(actif.id)} /></td>
                       )}
-                      {/* Code */}
                       <td><code style={styles.code}>{actif.code}</code></td>
-                      
-                      {/* Nom */}
+                      <td><span style={{ fontWeight: '600', color: textColor }}>{actif.nom}</span></td>
+                      <td><span style={styles.typeText}>{getTypeIcon(actif.type)} {getTypeLabel(actif.type)}</span></td>
                       <td>
-                        <div style={{...styles.actifName, color: textColor, fontWeight: 'bold'}}>{actif.nom}</div>
-                        {actif.description && (
-                          <small style={{...styles.actifDesc, color: textMuted, fontWeight: 'bold'}}>
-                            {actif.description.substring(0, 50)}
-                            {actif.description.length > 50 && '...'}
-                          </small>
-                        )}
+                        <span style={{...styles.natureBadge, backgroundColor: actif.type_immobilisation === 'corporel' ? '#dbeafe' : '#ede9fe', color: actif.type_immobilisation === 'corporel' ? '#1e40af' : '#6d28d9'}}>
+                          {actif.type_immobilisation === 'corporel' ? '🏭 Corporel' : '📄 Incorporel'}
+                        </span>
                       </td>
-                      
-                      {/* TYPE - NOIR FONCÉ */}
                       <td>
-                        <span style={styles.typeIcon}>{getTypeIcon(actif.type)}</span>
-                        <span style={{ color: '#000000', fontWeight: 'bold' }}>{getTypeLabel(actif.type)}</span>
+                        <span style={{...styles.etatBadge, backgroundColor: `${getEtatColor(actif.etat)}15`, color: getEtatColor(actif.etat)}}>
+                          {getEtatIcon(actif.etat)} {getEtatLabel(actif.etat)}
+                        </span>
                       </td>
-                      
-                      {/* NATURE - BLEU FONCÉ / VIOLET FONCÉ */}
-                      <td>
-                        {actif.type_immobilisation === 'corporel' ? (
-                          <span style={{...styles.natureBadge, backgroundColor: '#dbeafe', color: '#1e40af', fontWeight: 'bold'}}>🏭 Corporel</span>
-                        ) : actif.type_immobilisation === 'incorporel' ? (
-                          <span style={{...styles.natureBadge, backgroundColor: '#ede9fe', color: '#6d28d9', fontWeight: 'bold'}}>📄 Incorporel</span>
-                        ) : (
-                          <span style={{...styles.natureBadge, backgroundColor: '#f3f4f6', color: '#4b5563', fontWeight: 'bold'}}>❓ Non défini</span>
-                        )}
-                      </td>
-                      
-                      {/* N° Inventaire */}
-                      <td><code style={styles.inventaireCode}>{actif.numero_inventaire || 'N/A'}</code></td>
-                      
-                      {/* ÉTAT - COULEUR VISIBLE */}
-                      <td>
-                        {actif.etat && (
-                          <span style={{...styles.etatBadge, backgroundColor: `${getEtatColor(actif.etat)}20`, color: getEtatColor(actif.etat), fontWeight: 'bold'}}>
-                            {getEtatLabel(actif.etat)}
-                          </span>
-                        )}
-                      </td>
-                      
-                      {/* LOCALISATION - NOIR FONCÉ */}
-                      <td><span style={{ color: '#000000', fontWeight: 'bold' }}>{actif.localisation || 'N/A'}</span></td>
-                      
-                      {/* DATE ACQUISITION - GRIS FONCÉ */}
-                      <td><span style={{ color: '#374151', fontWeight: 'bold' }}>{formatDate(actif.date_acquisition)}</span></td>
-                      
-                      {/* COÛT - BLEU FONCÉ */}
-                      <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#1e40af' }}>{formatCurrency(actif.cout_acquisition)}</td>
-                      
-                      {/* Actions */}
+                      <td><span style={{ color: textMuted }}>{actif.localisation || '-'}</span></td>
+                      <td><span style={{ color: textMuted }}>{formatDate(actif.date_acquisition)}</span></td>
+                      <td style={{ textAlign: 'right', fontWeight: '600', color: '#3b82f6' }}>{formatCurrency(actif.cout_acquisition)}</td>
                       <td>
                         <div style={styles.actionButtons}>
-                          {can(['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'gestionnaire']) && (
-                            <motion.button 
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => navigate(`/actifs/${actif.id}`)} 
-                              style={styles.viewButton}
-                              title="Voir détails"
-                            >
-                              <FiEye size={14} />
-                            </motion.button>
+                          <button onClick={() => navigate(`/actifs/${actif.id}`)} style={styles.viewButton} title="Voir"><FiEye size={14} /></button>
+                          {can(['admin', 'comptable']) && (
+                            <button onClick={() => navigate(`/actifs/modifier/${actif.id}`)} style={styles.editButton} title="Modifier"><FiEdit size={14} /></button>
                           )}
                           {can(['admin', 'comptable']) && (
-                            <motion.button 
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => navigate(`/actifs/modifier/${actif.id}`)} 
-                              style={styles.editButton}
-                              title="Modifier"
-                            >
-                              <FiEdit size={14} />
-                            </motion.button>
-                          )}
-                          {can(['admin', 'comptable']) && (
-                            <motion.button 
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => handleDeleteClick(actif.id, actif.nom)} 
-                              style={styles.deleteButton}
-                              title="Supprimer"
-                            >
-                              <FiTrash2 size={14} />
-                            </motion.button>
+                            <button onClick={() => handleDeleteClick(actif.id, actif.nom)} style={styles.deleteButton} title="Supprimer"><FiTrash2 size={14} /></button>
                           )}
                         </div>
                       </td>
@@ -571,176 +556,160 @@ const ActifList = () => {
               </table>
             )}
           </div>
-          
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div style={styles.paginationContainer}>
-              <button 
-                disabled={pagination.page === 1} 
-                onClick={() => {/* handlePageChange */}}
-                style={{...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1}}
-              >
-                <FiChevronLeft size={14} /> Précédent
-              </button>
-              <span style={{ color: textMuted, fontWeight: 'bold' }}>Page {pagination.page} sur {pagination.totalPages}</span>
-              <button 
-                disabled={pagination.page === pagination.totalPages} 
-                onClick={() => {/* handlePageChange */}}
-                style={{...styles.paginationButton, opacity: pagination.page === pagination.totalPages ? 0.5 : 1}}
-              >
-                Suivant <FiChevronRight size={14} />
-              </button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Vue Grille */}
+      {/* Vue Grille - ULTRA AMÉLIORÉE */}
       {viewMode === 'grid' && (
         <div>
           {loading && !actifs.length ? (
             <div style={styles.loadingContainer}>
               <div style={styles.spinner}></div>
-              <p style={{ color: textMuted, fontWeight: 'bold' }}>Chargement des actifs...</p>
+              <p style={{ color: textMuted }}>Chargement des actifs...</p>
             </div>
-          ) : sortedActifs.length === 0 ? (
+          ) : filteredBySearch.length === 0 ? (
             <div style={styles.emptyState}>
-              <FiPackage size={48} style={{ color: '#6b7280', marginBottom: '1rem' }} />
-              <p style={{ color: textMuted, fontWeight: 'bold' }}>Aucun actif trouvé</p>
+              <FiPackage size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
+              <p style={{ color: textMuted }}>Aucun actif trouvé</p>
             </div>
           ) : (
             <div style={styles.gridContainer}>
-              {sortedActifs.map((actif, index) => (
+              {filteredBySearch.map((actif, index) => (
                 <motion.div 
                   key={actif.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.02 }}
-                  whileHover={{ y: -4 }}
+                  whileHover={{ y: -4, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
+                  onHoverStart={() => setHoveredCard(actif.id)}
+                  onHoverEnd={() => setHoveredCard(null)}
                   style={{...styles.gridCard, backgroundColor: cardBg, borderColor: borderColor}}
                 >
-                  <div style={styles.gridCardBody}>
-                    {/* En-tête de la carte */}
-                    <div style={styles.gridCardHeader}>
+                  {/* Badge de sélection */}
+                  {can(['admin', 'comptable']) && (
+                    <div style={styles.gridSelectCheckbox}>
+                      <input
+                        type="checkbox"
+                        checked={selectedActifs.includes(actif.id)}
+                        onChange={() => toggleSelectActif(actif.id)}
+                        style={styles.gridCheckbox}
+                      />
+                    </div>
+                  )}
+
+                  {/* En-tête avec code et statut */}
+                  <div style={styles.gridCardHeader}>
+                    <div style={styles.gridCardCodeWrapper}>
+                      <FiTag size={12} style={{ color: '#3b82f6' }} />
                       <code style={styles.gridCardCode}>{actif.code}</code>
-                      <span style={{...styles.gridCardStatus, backgroundColor: `${getStatusColor(actif)}20`, color: getStatusColor(actif), fontWeight: 'bold'}}>
-                        {getStatusText(actif)}
-                      </span>
                     </div>
-                    
-                    {/* Titre */}
-                    <h5 style={{...styles.gridCardTitle, color: textColor, fontWeight: 'bold'}}>{actif.nom}</h5>
-                    <p style={{...styles.gridCardType, color: textMuted, fontWeight: 'bold'}}>
-                      <span>{getTypeIcon(actif.type)}</span> <span style={{ color: '#000000', fontWeight: 'bold' }}>{getTypeLabel(actif.type)}</span>
-                    </p>
-                    
-                    {/* Informations */}
-                    <div style={styles.gridCardInfo}>
-                      <div style={styles.gridInfoRow}>
-                        <span style={{ color: textMuted, fontWeight: 'bold' }}>Nature:</span>
-                        <span style={{ color: actif.type_immobilisation === 'corporel' ? '#1e40af' : '#6d28d9', fontWeight: 'bold'}}>
-                          {actif.type_immobilisation === 'corporel' ? '🏭 Corporel' : '📄 Incorporel'}
-                        </span>
-                      </div>
-                      {actif.numero_inventaire && (
-                        <div style={styles.gridInfoRow}>
-                          <span style={{ color: textMuted, fontWeight: 'bold' }}>N° Inventaire:</span>
-                          <code style={styles.gridInfoCode}>{actif.numero_inventaire}</code>
-                        </div>
-                      )}
-                      {actif.etat && (
-                        <div style={styles.gridInfoRow}>
-                          <span style={{ color: textMuted, fontWeight: 'bold' }}>État:</span>
-                          <span style={{ color: getEtatColor(actif.etat), fontWeight: 'bold' }}>{getEtatLabel(actif.etat)}</span>
-                        </div>
-                      )}
-                      {actif.localisation && (
-                        <div style={styles.gridInfoRow}>
-                          <span style={{ color: textMuted, fontWeight: 'bold' }}>Localisation:</span>
-                          <strong style={{ color: '#000000', fontWeight: 'bold' }}>{actif.localisation}</strong>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <hr style={styles.gridDivider} />
-                    
-                    {/* Valeurs financières */}
-                    <div style={styles.gridFinancial}>
-                      <div style={styles.gridFinancialRow}>
-                        <span style={{ color: textMuted, fontWeight: 'bold' }}>Acquisition:</span>
-                        <span style={{ color: '#374151', fontWeight: 'bold' }}>{formatDate(actif.date_acquisition)}</span>
-                      </div>
-                      <div style={styles.gridFinancialRow}>
-                        <span style={{ color: textMuted, fontWeight: 'bold' }}>Coût:</span>
-                        <span style={{ fontWeight: 'bold', color: '#1e40af' }}>{formatCurrency(actif.cout_acquisition)}</span>
-                      </div>
-                      <div style={styles.gridFinancialRow}>
-                        <span style={{ color: textMuted, fontWeight: 'bold' }}>Valeur nette:</span>
-                        <span style={{ fontWeight: 'bold', color: getStatusColor(actif) }}>
-                          {formatCurrency(actif.valeur_nette || actif.cout_acquisition)}
-                        </span>
-                      </div>
+                    <div style={{...styles.gridCardStatus, backgroundColor: `${getEtatColor(actif.etat)}15`, color: getEtatColor(actif.etat)}}>
+                      {getEtatIcon(actif.etat)} {getEtatLabel(actif.etat)}
                     </div>
                   </div>
-                  
-                  {/* Footer avec boutons d'action */}
-                  <div style={styles.gridCardFooter}>
-                    <div style={styles.gridActions}>
-                      {can(['admin', 'comptable', 'auditeur', 'juridique', 'informatique', 'gestionnaire']) && (
-                        <motion.button 
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => navigate(`/actifs/${actif.id}`)} 
-                          style={styles.gridViewButton}
-                        >
-                          <FiEye size={14} /> Voir
-                        </motion.button>
-                      )}
-                      {can(['admin', 'comptable']) && (
-                        <motion.button 
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => navigate(`/actifs/modifier/${actif.id}`)} 
-                          style={styles.gridEditButton}
-                          title="Modifier"
-                        >
-                          <FiEdit size={14} />
-                        </motion.button>
-                      )}
-                      {can(['admin', 'comptable']) && (
-                        <motion.button 
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => handleDeleteClick(actif.id, actif.nom)} 
-                          style={styles.gridDeleteButton}
-                          title="Supprimer"
-                        >
-                          <FiTrash2 size={14} />
-                        </motion.button>
-                      )}
+
+                  {/* Titre et icône */}
+                  <div style={styles.gridCardTitleRow}>
+                    <div style={styles.gridCardIcon}>
+                      {typeof getTypeIcon(actif.type) === 'string' ? 
+                        <span style={{ fontSize: '1.5rem' }}>{getTypeIcon(actif.type)}</span> : 
+                        getTypeIcon(actif.type)}
                     </div>
+                    <div>
+                      <h3 style={{...styles.gridCardTitle, color: textColor}}>{actif.nom}</h3>
+                      <p style={{...styles.gridCardSubtitle, color: textMuted}}>{getTypeLabel(actif.type)}</p>
+                    </div>
+                  </div>
+
+                  {/* Détails */}
+                  <div style={{...styles.gridCardDetails, backgroundColor: darkMode ? '#0f172a' : '#f8fafc'}}>
+                    <div style={styles.gridDetailRow}>
+                      <FiCalendar size={12} style={{ color: textMuted }} />
+                      <span style={{ color: textMuted }}>Acquisition:</span>
+                      <strong style={{ color: textColor }}>{formatDate(actif.date_acquisition)}</strong>
+                    </div>
+                    <div style={styles.gridDetailRow}>
+                      <FiMapPin size={12} style={{ color: textMuted }} />
+                      <span style={{ color: textMuted }}>Localisation:</span>
+                      <strong style={{ color: textColor }}>{actif.localisation || '-'}</strong>
+                    </div>
+                    <div style={styles.gridDetailRow}>
+                      <FiBriefcase size={12} style={{ color: textMuted }} />
+                      <span style={{ color: textMuted }}>Fournisseur:</span>
+                      <strong style={{ color: textColor }}>{actif.fournisseur || '-'}</strong>
+                    </div>
+                    <div style={styles.gridDetailRow}>
+                      <FiDollarSign size={12} style={{ color: '#3b82f6' }} />
+                      <span style={{ color: textMuted }}>Coût:</span>
+                      <strong style={{ color: '#3b82f6' }}>{formatCurrency(actif.cout_acquisition)}</strong>
+                    </div>
+                    <div style={styles.gridDetailRow}>
+                      <FiTrendingUp size={12} style={{ color: '#10b981' }} />
+                      <span style={{ color: textMuted }}>Taux amortissement:</span>
+                      <strong style={{ color: '#10b981' }}>{getTauxAmortissement(actif)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Nature et amortissement */}
+                  <div style={styles.gridCardTags}>
+                    <span style={{...styles.gridNatureTag, backgroundColor: actif.type_immobilisation === 'corporel' ? '#dbeafe15' : '#ede9fe15', color: actif.type_immobilisation === 'corporel' ? '#3b82f6' : '#8b5cf6'}}>
+                      {actif.type_immobilisation === 'corporel' ? '🏭 Corporel' : '📄 Incorporel'}
+                    </span>
+                    <span style={{...styles.gridAmortTag, backgroundColor: '#10b98115', color: '#10b981'}}>
+                      {getTauxAmortissement(actif)}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={styles.gridCardActions}>
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => navigate(`/actifs/${actif.id}`)} 
+                      style={styles.gridViewButton}
+                    >
+                      <FiEye size={14} /> Détails
+                    </motion.button>
+                    {can(['admin', 'comptable']) && (
+                      <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate(`/actifs/modifier/${actif.id}`)} 
+                        style={styles.gridEditButton}
+                      >
+                        <FiEdit size={14} />
+                      </motion.button>
+                    )}
+                    {can(['admin', 'comptable']) && (
+                      <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleDeleteClick(actif.id, actif.nom)} 
+                        style={styles.gridDeleteButton}
+                      >
+                        <FiTrash2 size={14} />
+                      </motion.button>
+                    )}
+                  </div>
+
+                  {/* Valeur nette en bas */}
+                  <div style={styles.gridCardFooterValue}>
+                    <span style={{ color: textMuted }}>Valeur nette:</span>
+                    <strong style={{ color: '#8b5cf6', fontSize: '1rem' }}>{formatCurrency(getValeurNette(actif))}</strong>
                   </div>
                 </motion.div>
               ))}
             </div>
           )}
           
-          {/* Pagination pour la vue grille */}
+          {/* Pagination */}
           {pagination.totalPages > 1 && (
             <div style={styles.paginationContainer}>
-              <button 
-                disabled={pagination.page === 1} 
-                onClick={() => {/* handlePageChange */}}
-                style={{...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1}}
-              >
+              <button disabled={pagination.page === 1} style={{...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1}}>
                 <FiChevronLeft size={14} /> Précédent
               </button>
-              <span style={{ color: textMuted, fontWeight: 'bold' }}>Page {pagination.page} sur {pagination.totalPages}</span>
-              <button 
-                disabled={pagination.page === pagination.totalPages} 
-                onClick={() => {/* handlePageChange */}}
-                style={{...styles.paginationButton, opacity: pagination.page === pagination.totalPages ? 0.5 : 1}}
-              >
+              <span style={{ color: textMuted }}>Page {pagination.page} sur {pagination.totalPages}</span>
+              <button disabled={pagination.page === pagination.totalPages} style={{...styles.paginationButton, opacity: pagination.page === pagination.totalPages ? 0.5 : 1}}>
                 Suivant <FiChevronRight size={14} />
               </button>
             </div>
@@ -753,477 +722,92 @@ const ActifList = () => {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
+        .spin { animation: spin 1s linear infinite; }
       `}</style>
     </motion.div>
   );
 };
 
-// ============ STYLES AVEC COULEURS TRÈS VISIBLES ============
+// ============ STYLES PROFESSIONNELS ============
 const styles = {
-  container: {
-    padding: '1.5rem',
-    minHeight: '100vh',
-    transition: 'background-color 0.3s ease'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    gap: '1rem',
-    marginBottom: '1.5rem'
-  },
-  title: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    marginBottom: '0.5rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    color: '#1e3a8a'
-  },
-  subtitle: {
-    fontSize: '0.85rem',
-    marginBottom: '0.5rem'
-  },
-  selectedBadge: {
-    marginLeft: '0.5rem',
-    padding: '0.125rem 0.5rem',
-    backgroundColor: '#2563eb',
-    borderRadius: '20px',
-    fontSize: '0.7rem',
-    color: '#ffffff',
-    fontWeight: 'bold'
-  },
-  statsBadges: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap'
-  },
-  badge: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '20px',
-    fontSize: '0.7rem',
-    fontWeight: 'bold'
-  },
-  actions: {
-    display: 'flex',
-    gap: '0.5rem',
-    alignItems: 'center',
-    flexWrap: 'wrap'
-  },
-  viewToggle: {
-    display: 'flex',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '10px',
-    overflow: 'hidden'
-  },
-  toggleBtn: {
-    padding: '0.4rem 0.6rem',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    fontWeight: 'bold'
-  },
-  toggleActive: {
-    background: 'linear-gradient(135deg, #2563eb, #1e40af)',
-    color: '#ffffff',
-    border: 'none'
-  },
-  toggleInactive: {
-    background: 'transparent',
-    color: '#4b5563',
-    border: 'none'
-  },
-  refreshButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.4rem 0.75rem',
-    background: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '10px',
-    color: '#4b5563',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 'bold'
-  },
-  bulkDeleteButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.4rem 0.75rem',
-    background: '#dc2626',
-    border: 'none',
-    borderRadius: '10px',
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 'bold'
-  },
-  addButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.4rem 0.75rem',
-    background: '#2563eb',
-    border: 'none',
-    borderRadius: '10px',
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 'bold'
-  },
-  tableCard: {
-    borderRadius: '12px',
-    border: '1px solid',
-    overflow: 'hidden'
-  },
-  tableWrapper: {
-    overflowX: 'auto'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
-  },
-  sortableHeader: {
-    padding: '0.75rem 1rem',
-    textAlign: 'left',
-    cursor: 'pointer',
-    userSelect: 'none',
-    borderBottom: '2px solid #e5e7eb',
-    color: '#4b5563',
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-    letterSpacing: '0.5px'
-  },
-  tableRow: {
-    borderBottom: '1px solid #f3f4f6'
-  },
-  checkbox: {
-    width: '16px',
-    height: '16px',
-    cursor: 'pointer',
-    accentColor: '#2563eb'
-  },
-  code: {
-    fontSize: '0.75rem',
-    fontFamily: 'monospace',
-    padding: '0.125rem 0.375rem',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '4px',
-    color: '#4b5563',
-    fontWeight: 'bold'
-  },
-  actifName: {
-    fontWeight: 'bold',
-    fontSize: '0.85rem'
-  },
-  actifDesc: {
-    fontSize: '0.7rem',
-    display: 'block'
-  },
-  typeIcon: {
-    marginRight: '0.25rem'
-  },
-  natureBadge: {
-    padding: '0.125rem 0.5rem',
-    borderRadius: '12px',
-    fontSize: '0.7rem',
-    fontWeight: 'bold'
-  },
-  inventaireCode: {
-    fontSize: '0.7rem',
-    fontFamily: 'monospace',
-    backgroundColor: '#f3f4f6',
-    padding: '0.125rem 0.25rem',
-    borderRadius: '4px',
-    color: '#4b5563'
-  },
-  etatBadge: {
-    padding: '0.125rem 0.5rem',
-    borderRadius: '12px',
-    fontSize: '0.7rem',
-    fontWeight: 'bold'
-  },
-  actionButtons: {
-    display: 'flex',
-    gap: '0.25rem'
-  },
-  viewButton: {
-    padding: '0.25rem 0.5rem',
-    backgroundColor: '#eff6ff',
-    border: '1px solid #bfdbfe',
-    borderRadius: '6px',
-    color: '#2563eb',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  editButton: {
-    padding: '0.25rem 0.5rem',
-    backgroundColor: '#fffbeb',
-    border: '1px solid #fde68a',
-    borderRadius: '6px',
-    color: '#d97706',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  deleteButton: {
-    padding: '0.25rem 0.5rem',
-    backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: '6px',
-    color: '#dc2626',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  paginationContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1rem',
-    borderTop: '1px solid #e5e7eb'
-  },
-  paginationButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.25rem',
-    padding: '0.25rem 0.75rem',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    color: '#4b5563',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  loadingContainer: {
-    textAlign: 'center',
-    padding: '3rem'
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid #e5e7eb',
-    borderTop: '3px solid #2563eb',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    margin: '0 auto 1rem'
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '3rem'
-  },
-  emptyAddButton: {
-    marginTop: '1rem',
-    padding: '0.5rem 1rem',
-    background: '#2563eb',
-    border: 'none',
-    borderRadius: '10px',
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  gridContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: '1rem'
-  },
-  gridCard: {
-    borderRadius: '12px',
-    border: '1px solid',
-    overflow: 'hidden',
-    transition: 'all 0.3s ease'
-  },
-  gridCardBody: {
-    padding: '1rem'
-  },
-  gridCardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.75rem'
-  },
-  gridCardCode: {
-    fontSize: '0.7rem',
-    fontFamily: 'monospace',
-    padding: '0.125rem 0.375rem',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '4px',
-    color: '#4b5563',
-    fontWeight: 'bold'
-  },
-  gridCardStatus: {
-    padding: '0.125rem 0.5rem',
-    borderRadius: '12px',
-    fontSize: '0.65rem',
-    fontWeight: 'bold'
-  },
-  gridCardTitle: {
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
-    marginBottom: '0.25rem'
-  },
-  gridCardType: {
-    fontSize: '0.7rem',
-    marginBottom: '0.75rem'
-  },
-  gridCardInfo: {
-    backgroundColor: '#f9fafb',
-    borderRadius: '12px',
-    padding: '0.5rem',
-    marginBottom: '0.75rem'
-  },
-  gridInfoRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.7rem',
-    padding: '0.25rem 0'
-  },
-  gridInfoCode: {
-    fontSize: '0.65rem',
-    fontFamily: 'monospace'
-  },
-  gridDivider: {
-    margin: '0.75rem 0',
-    borderColor: '#e5e7eb'
-  },
-  gridFinancial: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem'
-  },
-  gridFinancialRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.7rem'
-  },
-  gridCardFooter: {
-    padding: '0.75rem 1rem',
-    borderTop: '1px solid #e5e7eb'
-  },
-  gridActions: {
-    display: 'flex',
-    gap: '0.5rem'
-  },
-  gridViewButton: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.25rem',
-    padding: '0.4rem',
-    backgroundColor: '#eff6ff',
-    border: '1px solid #bfdbfe',
-    borderRadius: '8px',
-    color: '#2563eb',
-    cursor: 'pointer',
-    fontSize: '0.7rem',
-    fontWeight: 'bold'
-  },
-  gridEditButton: {
-    flex: 0.5,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.4rem',
-    backgroundColor: '#fffbeb',
-    border: '1px solid #fde68a',
-    borderRadius: '8px',
-    color: '#d97706',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  gridDeleteButton: {
-    flex: 0.5,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.4rem',
-    backgroundColor: '#fef2f2',
-    border: '1px solid #fecaca',
-    borderRadius: '8px',
-    color: '#dc2626',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1100
-  },
-  modalContent: {
-    borderRadius: '12px',
-    border: '1px solid',
-    width: '90%',
-    maxWidth: '500px',
-    overflow: 'hidden'
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem 1.5rem',
-    borderBottom: '1px solid #e5e7eb'
-  },
-  modalTitle: {
-    fontSize: '1rem',
-    fontWeight: 'bold',
-    margin: 0,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  },
-  modalClose: {
-    background: 'none',
-    border: 'none',
-    color: '#6b7280',
-    cursor: 'pointer',
-    padding: '0.25rem'
-  },
-  modalBody: {
-    padding: '1.5rem'
-  },
-  modalNote: {
-    fontSize: '0.75rem',
-    marginTop: '0.5rem'
-  },
-  modalFooter: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '1rem',
-    padding: '1rem 1.5rem',
-    borderTop: '1px solid #e5e7eb'
-  },
-  cancelButton: {
-    padding: '0.5rem 1rem',
-    background: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    color: '#4b5563',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  },
-  confirmButton: {
-    padding: '0.5rem 1rem',
-    background: '#dc2626',
-    border: 'none',
-    borderRadius: '8px',
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontWeight: 'bold'
-  }
+  container: { padding: '1.5rem', minHeight: '100vh', transition: 'background-color 0.3s ease' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' },
+  headerLeft: { flex: 1 },
+  title: { fontSize: '1.75rem', fontWeight: '700', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0f172a' },
+  subtitle: { fontSize: '0.85rem' },
+  actions: { display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' },
+  searchBar: { position: 'relative' },
+  searchInput: { padding: '0.5rem 1rem', borderRadius: '10px', border: '1px solid #e2e8f0', width: '220px', fontSize: '0.85rem', outline: 'none', transition: 'all 0.2s' },
+  viewToggle: { display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '10px', overflow: 'hidden' },
+  toggleBtn: { padding: '0.5rem 0.75rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem' },
+  toggleActive: { background: '#3b82f6', color: '#fff', border: 'none' },
+  toggleInactive: { background: 'transparent', color: '#64748b', border: 'none' },
+  refreshButton: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b', cursor: 'pointer' },
+  bulkDeleteButton: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: '#ef4444', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontWeight: '500' },
+  addButton: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer', fontWeight: '500' },
+  
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' },
+  statCard: { display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '16px', border: '1px solid', transition: 'all 0.2s' },
+  statIcon: { width: '40px', height: '40px', borderRadius: '12px', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' },
+  statLabel: { fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' },
+
+  tableCard: { borderRadius: '16px', border: '1px solid', overflow: 'hidden' },
+  tableWrapper: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  sortableHeader: { padding: '0.75rem 1rem', textAlign: 'left', cursor: 'pointer', userSelect: 'none', borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.5px' },
+  tableRow: { borderBottom: '1px solid', transition: 'background-color 0.2s' },
+  checkbox: { width: '16px', height: '16px', cursor: 'pointer', accentColor: '#3b82f6' },
+  code: { fontSize: '0.7rem', fontFamily: 'monospace', padding: '0.125rem 0.375rem', background: '#f1f5f9', borderRadius: '4px', color: '#475569' },
+  typeText: { fontSize: '0.8rem', color: '#334155' },
+  natureBadge: { padding: '0.125rem 0.5rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: '500' },
+  etatBadge: { padding: '0.125rem 0.5rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: '500' },
+  actionButtons: { display: 'flex', gap: '0.25rem', justifyContent: 'center' },
+  viewButton: { padding: '0.25rem 0.5rem', background: '#eef2ff', border: 'none', borderRadius: '6px', color: '#3b82f6', cursor: 'pointer' },
+  editButton: { padding: '0.25rem 0.5rem', background: '#fffbeb', border: 'none', borderRadius: '6px', color: '#f59e0b', cursor: 'pointer' },
+  deleteButton: { padding: '0.25rem 0.5rem', background: '#fef2f2', border: 'none', borderRadius: '6px', color: '#ef4444', cursor: 'pointer' },
+
+  gridContainer: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' },
+  gridCard: { position: 'relative', borderRadius: '20px', border: '1px solid', overflow: 'hidden', transition: 'all 0.3s ease' },
+  gridSelectCheckbox: { position: 'absolute', top: '12px', left: '12px', zIndex: 10 },
+  gridCheckbox: { width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' },
+  gridCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1rem 0.5rem 1rem' },
+  gridCardCodeWrapper: { display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '8px' },
+  gridCardCode: { fontSize: '0.7rem', fontFamily: 'monospace', color: '#475569' },
+  gridCardStatus: { padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.65rem', fontWeight: '500' },
+  gridCardTitleRow: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem' },
+  gridCardIcon: { width: '48px', height: '48px', borderRadius: '16px', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  gridCardTitle: { fontSize: '1rem', fontWeight: '700', margin: 0 },
+  gridCardSubtitle: { fontSize: '0.7rem', margin: 0 },
+  gridCardDetails: { margin: '0.5rem 1rem', padding: '0.75rem', borderRadius: '12px' },
+  gridDetailRow: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', padding: '0.25rem 0' },
+  gridCardTags: { display: 'flex', gap: '0.5rem', padding: '0.5rem 1rem' },
+  gridNatureTag: { padding: '0.25rem 0.5rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' },
+  gridAmortTag: { padding: '0.25rem 0.5rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' },
+  gridCardActions: { display: 'flex', gap: '0.5rem', padding: '0.75rem 1rem', borderTop: '1px solid #e2e8f0' },
+  gridViewButton: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.5rem', background: '#eef2ff', border: 'none', borderRadius: '10px', color: '#3b82f6', cursor: 'pointer', fontSize: '0.7rem', fontWeight: '500' },
+  gridEditButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', background: '#fffbeb', border: 'none', borderRadius: '10px', color: '#f59e0b', cursor: 'pointer' },
+  gridDeleteButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', background: '#fef2f2', border: 'none', borderRadius: '10px', color: '#ef4444', cursor: 'pointer' },
+  gridCardFooterValue: { display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', borderTop: '1px solid #e2e8f0', background: '#f8fafc' },
+
+  paginationContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', padding: '1rem', marginTop: '1rem' },
+  paginationButton: { display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.75rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#64748b', cursor: 'pointer' },
+  
+  loadingContainer: { textAlign: 'center', padding: '3rem' },
+  spinner: { width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTop: '3px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' },
+  emptyState: { textAlign: 'center', padding: '3rem' },
+  emptyAddButton: { marginTop: '1rem', padding: '0.5rem 1rem', background: '#3b82f6', border: 'none', borderRadius: '10px', color: '#fff', cursor: 'pointer' },
+
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 },
+  modalContent: { borderRadius: '16px', border: '1px solid', width: '90%', maxWidth: '500px', overflow: 'hidden' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0' },
+  modalTitle: { fontSize: '1rem', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' },
+  modalClose: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' },
+  modalBody: { padding: '1.5rem' },
+  modalNote: { fontSize: '0.75rem', marginTop: '0.5rem' },
+  modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '1rem 1.5rem', borderTop: '1px solid #e2e8f0' },
+  cancelButton: { padding: '0.5rem 1rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#64748b', cursor: 'pointer' },
+  confirmButton: { padding: '0.5rem 1rem', background: '#ef4444', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer' }
 };
 
 export default React.memo(ActifList);

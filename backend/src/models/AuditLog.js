@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
       primaryKey: true
     },
     action: {
-      type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE'),
+      type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE', 'RECALCUL', 'DEPRECIATION', 'SORTIE', 'CONTRAT_CREATE', 'CONTRAT_UPDATE', 'CONTRAT_DELETE', 'CONTRAT_RENOUVELEMENT', 'CONTRAT_RESILIATION'),
       allowNull: false
     },
     table_name: {
@@ -29,15 +29,24 @@ module.exports = (sequelize) => {
       type: DataTypes.INET
     },
     action_date: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATE(6),  // ✅ Précision à la microseconde
       allowNull: false,
-      defaultValue: DataTypes.NOW
+      defaultValue: DataTypes.NOW,
+      // ✅ Getter pour retourner l'heure locale
+      get() {
+        const rawValue = this.getDataValue('action_date');
+        if (!rawValue) return null;
+        // Retourner la date brute sans modification
+        return rawValue;
+      }
     }
   }, {
     tableName: 'audit_logs',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: false,
+    // ✅ Définir le fuseau horaire pour ce modèle
+    timezone: '+01:00'  // Fuseau horaire de Kinshasa (UTC+1)
   });
 
   return AuditLog;

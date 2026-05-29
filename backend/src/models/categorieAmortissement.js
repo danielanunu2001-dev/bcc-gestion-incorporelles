@@ -1,3 +1,5 @@
+// backend/src/models/CategorieAmortissement.js
+
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -27,9 +29,13 @@ module.exports = (sequelize) => {
       allowNull: false,
       field: 'duree_vie_ans'
     },
+    // ✅ CORRECTION ICI : Remplacer ENUM par STRING
     mode_amortissement_defaut: {
-      type: DataTypes.ENUM('lineaire', 'degressif'),
+      type: DataTypes.STRING(20),  // ← Changement clé
       defaultValue: 'lineaire',
+      validate: {
+        isIn: [['lineaire', 'degressif']]
+      },
       field: 'mode_amortissement_defaut'
     },
     taux_amortissement: {

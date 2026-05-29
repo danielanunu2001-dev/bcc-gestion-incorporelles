@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import { RouterProvider } from 'react-router-dom';
 import { store } from './store';
 import { router } from './router';
+import { SessionProvider } from './hooks/useSession'; // ← AJOUTER CET IMPORT
 import './index.css';
 
 // Configuration globale
@@ -32,7 +33,9 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <Provider store={store}>
-      <RouterProvider router={router} />
+      <SessionProvider>           {/* ← AJOUTER CETTE LIGNE */}
+        <RouterProvider router={router} />
+      </SessionProvider>          {/* ← AJOUTER CETTE LIGNE */}
     </Provider>
   </React.StrictMode>
 );

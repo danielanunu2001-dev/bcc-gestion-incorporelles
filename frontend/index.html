@@ -102,18 +102,31 @@
     </style>
     
     <script>
-      // Récupérer le thème sauvegardé et l'appliquer AVANT le chargement
+      // CORRIGÉ : Vérifier que document.body existe avant d'y accéder
       (function() {
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
+        const isDark = savedTheme === 'dark';
+        
+        // Appliquer le thème à l'élément html
+        if (isDark) {
           document.documentElement.classList.add('dark-mode');
-          document.body.classList.add('dark-mode');
+        }
+        
+        // Attendre que le body soit chargé
+        if (document.body) {
+          if (isDark) document.body.classList.add('dark-mode');
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            if (isDark && document.body) document.body.classList.add('dark-mode');
+          });
         }
         
         // Détection automatique du thème système (optionnel)
         if (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
           document.documentElement.classList.add('dark-mode');
-          document.body.classList.add('dark-mode');
+          document.addEventListener('DOMContentLoaded', function() {
+            if (document.body) document.body.classList.add('dark-mode');
+          });
           localStorage.setItem('theme', 'dark');
         }
       })();

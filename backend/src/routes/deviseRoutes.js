@@ -32,6 +32,38 @@ router.get('/convertir', authorize('admin', 'comptable'), deviseController.conve
  */
 router.get('/convertir-en-cdf', authorize('admin', 'comptable'), deviseController.convertirEnCDF);
 
+// ==================== NOUVELLES ROUTES API TEMPS RÉEL ====================
+
+/**
+ * Récupérer les taux en temps réel depuis l'API Frankfurter
+ * GET /api/devises/taux-reels
+ */
+router.get('/taux-reels', authorize('admin', 'comptable', 'auditeur'), deviseController.getTauxTempsReel);
+
+/**
+ * Récupérer toutes les devises avec leurs taux (format pour affichage)
+ * GET /api/devises/affichage
+ */
+router.get('/affichage', authorize('admin', 'comptable', 'auditeur'), deviseController.getTauxPourAffichage);
+
+/**
+ * Récupérer la liste des providers Frankfurter
+ * GET /api/devises/providers
+ */
+router.get('/providers', authorize('admin', 'comptable', 'auditeur'), deviseController.getProviders);
+
+/**
+ * Forcer le rafraîchissement des taux depuis l'API Frankfurter
+ * POST /api/devises/rafraichir-taux
+ */
+router.post('/rafraichir-taux', authorize('admin'), deviseController.rafraichirTaux);
+
+/**
+ * Mettre à jour manuellement le taux USD (admin uniquement)
+ * PUT /api/devises/usd/taux
+ */
+router.put('/usd/taux', authorize('admin'), deviseController.updateUSDRate);
+
 // ==================== ROUTES AVEC PARAMÈTRES ====================
 
 /**

@@ -1,7 +1,7 @@
 // frontend/src/store/actifSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import actifService from '../services/actif';
+import actifService from '../services/actifService';
 import api from '../services/api';
 
 // ==================== ACTIONS ASYNCHRONES ====================

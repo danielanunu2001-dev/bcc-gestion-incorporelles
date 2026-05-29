@@ -13,19 +13,15 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     
-    // Logging conditionnel pour les requêtes lentes
-    logging: (msg, time) => {
-      // En développement, log seulement les requêtes lentes (> 100ms)
-      if (process.env.NODE_ENV === 'development' && time && time > 100) {
-        console.log(`⚠️ Requête lente (${time} ms): ${msg}`);
-      }
-      // En production, désactiver le logging
-      else if (process.env.NODE_ENV === 'production') {
-        // Ne rien loguer
-      }
-      // En développement, log simple si pas de time
-      else if (process.env.NODE_ENV === 'development' && !time) {
-        console.log(`📊 SQL: ${msg}`);
+    // 🔍 LOGGING COMPLET pour déboguer l'erreur UNIQUE
+    logging: (sql, time) => {
+      // Afficher TOUTES les requêtes SQL pour déboguer
+      console.log(`\n🔍 [SQL - ${time || 0}ms]:`);
+      console.log(sql);
+      
+      // Détecter les erreurs potentielles
+      if (sql.includes('UNIQUE') && sql.includes('users')) {
+        console.warn('⚠️ REQUÊTE UNIQUE DÉTECTÉE SUR USERS');
       }
     },
     
@@ -50,7 +46,16 @@ const sequelize = new Sequelize(
     },
     
     // Timezone (UTC+1 pour Kinshasa)
-    timezone: '+01:00'
+    timezone: '+01:00',
+    
+    // 🔧 Option pour éviter les erreurs de syntaxe
+    define: {
+      freezeTableName: true,  // Évite de renommer les tables au pluriel
+      underscored: true,      // Utilise snake_case pour les colonnes
+      timestamps: true,       // Ajoute created_at et updated_at
+      createdAt: 'created_at',
+      updatedAt: 'updated_at'
+    }
   }
 );
 

@@ -70,10 +70,22 @@ module.exports = (sequelize) => {
     updatedAt: 'updated_at'
   });
 
+  // ===== ASSOCIATIONS AVEC ALIAS UNIQUES =====
   Facture.associate = (models) => {
-    Facture.belongsTo(models.Actif, { as: 'actif', foreignKey: 'actif_id' });
-    Facture.belongsTo(models.Contrat, { as: 'contrat', foreignKey: 'contrat_id' });
-    Facture.belongsTo(models.User, { as: 'createur', foreignKey: 'created_by' });
+    Facture.belongsTo(models.Actif, { 
+      as: 'factureActif',  // ✅ Alias UNIQUE (au lieu de "actif")
+      foreignKey: 'actif_id' 
+    });
+    
+    Facture.belongsTo(models.Contrat, { 
+      as: 'factureContrat',  // ✅ Alias UNIQUE (au lieu de "contrat")
+      foreignKey: 'contrat_id' 
+    });
+    
+    Facture.belongsTo(models.User, { 
+      as: 'factureCreateur',  // ✅ Alias UNIQUE (au lieu de "createur")
+      foreignKey: 'created_by' 
+    });
   };
 
   return Facture;

@@ -1,24 +1,5 @@
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-
-const ThreeScene = lazy(() => import('./ThreeScene'));
-
-class Canvas3DBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error) {
-    console.warn('[FuturisticBackground] 3D scene failed, using CSS fallback:', error);
-  }
-  render() {
-    if (this.state.hasError) return null;
-    return this.props.children;
-  }
-}
 
 function CSSLayers() {
   const particles = useMemo(
@@ -160,12 +141,6 @@ function FuturisticBackground() {
       }}
     >
       <CSSLayers />
-
-      <Canvas3DBoundary>
-        <Suspense fallback={null}>
-          <ThreeScene />
-        </Suspense>
-      </Canvas3DBoundary>
     </div>
   );
 }

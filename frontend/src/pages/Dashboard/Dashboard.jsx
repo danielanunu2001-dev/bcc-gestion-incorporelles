@@ -81,7 +81,7 @@ const Typewriter = ({ words, loop = true, cursor = true, typeSpeed = 70, deleteS
 };
 
 // ==================== COMMAND PALETTE ====================
-const CommandPalette = ({ isOpen, onClose, navigate, darkMode }) => {
+const CommandPalette = ({ isOpen, onClose, navigate }) => {
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
 
@@ -118,20 +118,20 @@ const CommandPalette = ({ isOpen, onClose, navigate, darkMode }) => {
           initial={{ scale: 0.9, y: -20 }}
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.9, y: -20 }}
-          style={{...styles.commandPalette, backgroundColor: darkMode ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)'}}
+          style={{...styles.commandPalette, backgroundColor: 'rgba(15,23,42,0.95)'}}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={{...styles.commandSearch, borderBottomColor: darkMode ? 'rgba(0,255,247,0.15)' : '#e2e8f0'}}>
-            <FiSearch size={20} style={{ color: darkMode ? '#64748b' : '#94a3b8' }} />
+          <div style={{...styles.commandSearch, borderBottomColor: 'rgba(0,255,247,0.15)'}}>
+            <FiSearch size={20} style={{ color: '#64748b' }} />
             <input
               ref={inputRef}
               type="text"
               placeholder="Rechercher une action..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{...styles.commandInput, color: darkMode ? '#e2e8f0' : '#1e293b'}}
+              style={{...styles.commandInput, color: '#e2e8f0'}}
             />
-            <FiX size={20} onClick={onClose} style={{ cursor: 'pointer', color: darkMode ? '#64748b' : '#94a3b8' }} />
+            <FiX size={20} onClick={onClose} style={{ cursor: 'pointer', color: '#64748b' }} />
           </div>
           <div style={styles.commandList}>
             {filteredCommands.map((cmd, index) => (
@@ -140,13 +140,13 @@ const CommandPalette = ({ isOpen, onClose, navigate, darkMode }) => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                style={{...styles.commandItem, borderBottomColor: darkMode ? 'rgba(0,255,247,0.08)' : '#e2e8f0'}}
+                style={{...styles.commandItem, borderBottomColor: 'rgba(0,255,247,0.08)'}}
                 onClick={() => {
                   cmd.action();
                   onClose();
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: darkMode ? '#e2e8f0' : '#1e293b' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#e2e8f0' }}>
                   {cmd.icon}
                   {cmd.label}
                 </span>
@@ -156,7 +156,7 @@ const CommandPalette = ({ isOpen, onClose, navigate, darkMode }) => {
               <div style={styles.noResults}>Aucun résultat trouvé</div>
             )}
           </div>
-          <div style={{...styles.commandFooter, borderTopColor: darkMode ? 'rgba(0,255,247,0.15)' : '#e2e8f0', backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8f9fa'}}>
+          <div style={{...styles.commandFooter, borderTopColor: 'rgba(0,255,247,0.15)', backgroundColor: 'rgba(0,0,0,0.2)'}}>
             <span><FiCommand size={12} /> pour commander</span>
             <span><FiSearch size={12} /> pour rechercher</span>
             <span><FiX size={12} /> pour fermer</span>
@@ -207,7 +207,6 @@ const Dashboard = () => {
   const [timeOfDay, setTimeOfDay] = useState('');
   
   // Nouveaux états
-  const [darkMode, setDarkMode] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('6months');
 
@@ -429,12 +428,12 @@ const Dashboard = () => {
     return actifs?.reduce((sum, a) => sum + (parseFloat(a.valeur_nette) || parseFloat(a.cout_acquisition) || 0), 0) || 0;
   }, [actifs]);
 
-  // Styles dynamiques
-  const bgColor = darkMode ? '#0f172a' : '#f1f5f9';
-  const cardBg = darkMode ? 'rgba(15,23,42,0.75)' : 'rgba(255,255,255,0.9)';
-  const textColor = darkMode ? '#e2e8f0' : '#1e293b';
-  const textMuted = darkMode ? '#94a3b8' : '#64748b';
-  const borderColor = darkMode ? 'rgba(0,255,247,0.15)' : '#e2e8f0';
+  // Styles DARK MODE UNIQUEMENT
+  const bgColor = '#0f172a';
+  const cardBg = 'rgba(15,23,42,0.75)';
+  const textColor = '#e2e8f0';
+  const textMuted = '#94a3b8';
+  const borderColor = 'rgba(0,255,247,0.15)';
 
   if (actifsLoading) {
     return (
@@ -457,10 +456,9 @@ const Dashboard = () => {
         isOpen={commandPaletteOpen} 
         onClose={() => setCommandPaletteOpen(false)}
         navigate={navigate}
-        darkMode={darkMode}
       />
 
-      {/* Barre d'actions supérieure */}
+      {/* Barre d'actions supérieure - Suppression du bouton darkmode */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -483,7 +481,7 @@ const Dashboard = () => {
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              style={{...styles.timeSelect, backgroundColor: darkMode ? 'rgba(15,23,42,0.6)' : '#fff', color: textColor, borderColor: borderColor}}
+              style={{...styles.timeSelect, backgroundColor: 'rgba(15,23,42,0.6)', color: textColor, borderColor: borderColor}}
             >
               <option value="7days">7 derniers jours</option>
               <option value="30days">30 derniers jours</option>
@@ -501,9 +499,6 @@ const Dashboard = () => {
             toast.success('Données actualisées !');
           }} style={styles.iconButton}>
             <FiRefreshCw size={18} />
-          </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setDarkMode(!darkMode)} style={styles.iconButton}>
-            {darkMode ? <FiSun size={18} /> : <FiMoon size={18} />}
           </motion.button>
         </div>
       </motion.div>
@@ -526,7 +521,7 @@ const Dashboard = () => {
           />
         </h1>
         <p style={{...styles.subtitle, color: textMuted}}>
-          {timeOfDay}, <strong>{user?.full_name || 'Utilisateur'}</strong> {greeting}
+          {timeOfDay}, <strong style={{ color: '#00fff7' }}>{user?.full_name || 'Utilisateur'}</strong> {greeting}
         </p>
       </motion.div>
       
@@ -536,7 +531,7 @@ const Dashboard = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor, cursor: 'pointer'}}
           onClick={() => navigate('/actifs')}
         >
@@ -553,7 +548,7 @@ const Dashboard = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <div style={styles.statIconWrapper}>
@@ -569,7 +564,7 @@ const Dashboard = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.statCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <div style={styles.statIconWrapper}>
@@ -585,8 +580,8 @@ const Dashboard = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4 }}
-          whileHover={{ scale: 1.02 }}
-          style={{...styles.statCard, backgroundColor: totalAlertes > 0 ? (darkMode ? 'rgba(239,68,68,0.15)' : '#fef2f2') : cardBg, borderColor: borderColor, cursor: 'pointer'}}
+          whileHover={{ scale: 1.02, boxShadow: totalAlertes > 0 ? '0 8px 24px rgba(239,68,68,0.15)' : '0 8px 24px rgba(0,255,247,0.15)' }}
+          style={{...styles.statCard, backgroundColor: totalAlertes > 0 ? 'rgba(239,68,68,0.15)' : cardBg, borderColor: totalAlertes > 0 ? 'rgba(239,68,68,0.3)' : borderColor, cursor: 'pointer'}}
           onClick={() => navigate('/rapports/alertes')}
         >
           <div style={styles.statIconWrapper}>
@@ -605,7 +600,7 @@ const Dashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.natureCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <span style={styles.natureIcon}>🏭</span>
@@ -619,7 +614,7 @@ const Dashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.natureCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <span style={styles.natureIcon}>📄</span>
@@ -637,18 +632,18 @@ const Dashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
-          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          whileHover={{ boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <h5 style={{...styles.chartTitle, color: textColor}}>Évolution des actifs</h5>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={evolutionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#475569' : '#e2e8f0'} />
-              <XAxis dataKey="name" stroke={darkMode ? '#94a3b8' : '#666'} />
-              <YAxis yAxisId="left" stroke={darkMode ? '#94a3b8' : '#666'} />
-              <YAxis yAxisId="right" orientation="right" stroke={darkMode ? '#94a3b8' : '#666'} />
-              <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
-              <Legend wrapperStyle={{ color: textColor }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+              <XAxis dataKey="name" stroke="#94a3b8" />
+              <YAxis yAxisId="left" stroke="#94a3b8" />
+              <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#e2e8f0' }} />
+              <Legend wrapperStyle={{ color: '#e2e8f0' }} />
               <Bar yAxisId="left" dataKey="actifs" fill="#00fff7" name="Nombre d'actifs" radius={[4, 4, 0, 0]} />
               <Line yAxisId="right" type="monotone" dataKey="valeur" stroke="#10b981" name="Valeur (M FC)" strokeWidth={3} dot={{ r: 4 }} />
             </ComposedChart>
@@ -660,7 +655,7 @@ const Dashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          whileHover={{ boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <h5 style={{...styles.chartTitle, color: textColor}}>Répartition par type</h5>
@@ -679,11 +674,11 @@ const Dashboard = () => {
                 paddingAngle={2}
               >
                 {typeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke={darkMode ? '#1e293b' : '#fff'} strokeWidth={2} />
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#1e293b" strokeWidth={2} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
-              <Legend wrapperStyle={{ color: textColor }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#e2e8f0' }} />
+              <Legend wrapperStyle={{ color: '#e2e8f0' }} />
             </PieChart>
           </ResponsiveContainer>
         </motion.div>
@@ -696,16 +691,16 @@ const Dashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.9 }}
-          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          whileHover={{ boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <h5 style={{...styles.chartTitle, color: textColor}}>Top 5 actifs par valeur</h5>
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={topActifsParValeur} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#475569' : '#e2e8f0'} />
-              <XAxis type="number" tickFormatter={(v) => `${v}M`} stroke={darkMode ? '#94a3b8' : '#666'} />
-              <YAxis type="category" dataKey="name" width={120} stroke={darkMode ? '#94a3b8' : '#666'} />
-              <Tooltip formatter={(value) => `${value} millions FC`} contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+              <XAxis type="number" tickFormatter={(v) => `${v}M`} stroke="#94a3b8" />
+              <YAxis type="category" dataKey="name" width={120} stroke="#94a3b8" />
+              <Tooltip formatter={(value) => `${value} millions FC`} contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#e2e8f0' }} />
               <Bar dataKey="valeur" fill="#f59e0b" name="Valeur (millions FC)" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -716,7 +711,7 @@ const Dashboard = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.0 }}
-          whileHover={{ boxShadow: darkMode ? '0 8px 24px rgba(0,255,247,0.15)' : '0 8px 24px rgba(0,0,0,0.15)' }}
+          whileHover={{ boxShadow: '0 8px 24px rgba(0,255,247,0.15)' }}
           style={{...styles.chartCard, backgroundColor: cardBg, borderColor: borderColor}}
         >
           <h5 style={{...styles.chartTitle, color: textColor}}>Répartition Corporel / Incorporel</h5>
@@ -734,11 +729,11 @@ const Dashboard = () => {
                 dataKey="value"
                 paddingAngle={5}
               >
-                <Cell fill="#00fff7" stroke={darkMode ? '#1e293b' : '#fff'} strokeWidth={2} />
-                <Cell fill="#10b981" stroke={darkMode ? '#1e293b' : '#fff'} strokeWidth={2} />
+                <Cell fill="#00fff7" stroke="#1e293b" strokeWidth={2} />
+                <Cell fill="#10b981" stroke="#1e293b" strokeWidth={2} />
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
-              <Legend wrapperStyle={{ color: textColor }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#e2e8f0' }} />
+              <Legend wrapperStyle={{ color: '#e2e8f0' }} />
             </PieChart>
           </ResponsiveContainer>
         </motion.div>
@@ -769,7 +764,7 @@ const Dashboard = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 1.2 + index * 0.05 }}
-                style={{...styles.alertItem, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8fafc'}}
+                style={{...styles.alertItem, backgroundColor: 'rgba(0,0,0,0.2)'}}
               >
                 <alert.icon color={alert.color} size={18} />
                 <span style={{ color: textColor }}>
@@ -833,8 +828,8 @@ const Dashboard = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 1.4 + index * 0.03 }}
-                whileHover={{ scale: 1.02 }}
-                style={{...styles.recentCardItem, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8fafc', cursor: 'pointer'}}
+                whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,255,247,0.2)' }}
+                style={{...styles.recentCardItem, backgroundColor: 'rgba(0,0,0,0.2)', cursor: 'pointer'}}
                 onClick={() => navigate(`/actifs/${actif.id}`)}
               >
                 <div style={styles.recentCardCode}>{actif.code}</div>
@@ -854,7 +849,8 @@ const Dashboard = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 1.4 + index * 0.03 }}
-                style={{...styles.recentListItem, backgroundColor: darkMode ? 'rgba(0,0,0,0.2)' : '#f8fafc', cursor: 'pointer'}}
+                whileHover={{ x: 4, backgroundColor: 'rgba(0,255,247,0.1)' }}
+                style={{...styles.recentListItem, backgroundColor: 'rgba(0,0,0,0.2)', cursor: 'pointer'}}
                 onClick={() => navigate(`/actifs/${actif.id}`)}
               >
                 <code style={styles.recentListCode}>{actif.code}</code>
@@ -888,12 +884,11 @@ const Dashboard = () => {
   );
 };
 
-// ============ STYLES FUTURISTES ============
+// ============ STYLES DARK MODE UNIQUEMENT ============
 const styles = {
   container: {
     minHeight: '100vh',
-    padding: '1.5rem',
-    transition: 'background-color 0.3s ease'
+    padding: '1.5rem'
   },
   loadingContainer: {
     display: 'flex',
